@@ -31,6 +31,8 @@ help:
 	@echo ""
 
 init:
+	@echo ">> Creating virtual environment..."
+	$(PYTHON) -m venv .venv
 	@echo ">> Installing Python dependencies..."
 	$(PIP) install -e ".[dev]"
 	@echo ">> Setting up pre-commit hooks..."
