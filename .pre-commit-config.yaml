@@ -21,4 +21,8 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies: [pydantic, types-pyyaml]
-        files: ^(ingestion|pipeline)/
+        # Only check the importable library code in ingestion/src/.
+        # pipeline/ and ingestion/jobs/ are Databricks notebook files that rely
+        # on runtime-injected globals (spark, dbutils, dlt) which mypy cannot
+        # resolve statically — they are intentionally excluded.
+        files: ^ingestion/src/

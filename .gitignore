@@ -33,6 +33,7 @@ data/exports/
 .vscode/
 *.swp
 a/
+.claude/
 
 # OS
 .DS_Store

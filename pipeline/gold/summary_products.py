@@ -1,10 +1,10 @@
 # Databricks notebook source
-# Gold layer — business-ready data products consumed by the frontend
+# Gold layer — raid and boss data products consumed by the frontend
 #
-# TEMPLATE USAGE:
-#   - These are your "data products" — think of each table as an API endpoint
-#   - Optimise for read performance (ZORDER, partitioning)
-#   - Each gold table should map to a clear business question
+# gold_boss_progression     — kill/wipe counts per boss across all raids
+# gold_raid_summary         — one row per raid with aggregate stats
+# gold_progression_timeline — cumulative first-kills over time
+# gold_best_kills           — fastest kill per boss per difficulty
 
 import dlt
 from pyspark.sql import functions as F
@@ -109,3 +109,37 @@ def gold_progression_timeline():
     )
 
     return kills.withColumn("cumulative_kills", F.count("boss_name").over(window))
+
+
+# ── Best Kill Times ────────────────────────────────────────────────────────────
+# "What is our fastest recorded kill for each boss?"
+
+
+@dlt.table(
+    name="gold_best_kills",
+    comment="Fastest kill duration per boss per difficulty.",
+    table_properties={
+        "quality": "gold",
+        "pipelines.autoOptimize.zOrderCols": "boss_name",
+    },
+)
+def gold_best_kills():
+    fights = dlt.read("silver_fight_events")
+    reports = dlt.read("silver_guild_reports")
+
+    return (
+        fights.filter(F.col("is_kill"))
+        .join(reports, fights.report_code == reports.code, "left")
+        .groupBy("boss_name", "difficulty")
+        .agg(
+            F.min("duration_seconds").alias("best_kill_seconds"),
+            F.count("*").alias("total_kills"),
+            F.min("start_time_utc").alias("first_kill_date"),
+            F.max("start_time_utc").alias("latest_kill_date"),
+        )
+        .withColumn(
+            "best_kill_minutes",
+            F.round(F.col("best_kill_seconds") / 60, 2),
+        )
+        .orderBy("boss_name", "difficulty")
+    )
