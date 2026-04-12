@@ -57,7 +57,7 @@ resources:
         # Secrets are read via dbutils.secrets inside pipeline notebooks
         secret_scope: pipeline-secrets
 
-      development: ${bundle.target == 'development'}
+      development: true
 
       channel: CURRENT    # Use the current DLT runtime
 
