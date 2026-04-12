@@ -34,9 +34,9 @@ init:
 	@echo ">> Creating virtual environment..."
 	$(PYTHON) -m venv .venv
 	@echo ">> Installing Python dependencies..."
-	$(PIP) install -e ".[dev]"
+	.venv/bin/pip install -e ".[dev]"
 	@echo ">> Setting up pre-commit hooks..."
-	pre-commit install
+	.venv/bin/pre-commit install
 	@echo ">> Copying .env.example to .env (if not present)..."
 	@[ -f .env ] || cp .env.example .env && echo "   Created .env — please fill in your values." || echo "   .env already exists, skipping."
 	@echo ">> Verifying Databricks CLI..."
@@ -44,7 +44,8 @@ init:
 	@echo ">> Installing frontend dependencies..."
 	cd frontend && $(NPM) install
 	@echo ""
-	@echo "Setup complete. Next: edit .env, then run 'make deploy-pipeline'."
+	@echo "Setup complete. Activate your environment with: source .venv/bin/activate"
+	@echo "Then run: make deploy-pipeline"
 
 verify:
 	@echo ">> Running health checks..."
