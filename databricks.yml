@@ -22,8 +22,6 @@ targets:
   development:
     mode: development
     default: true
-    run_as:
-      user_name: ${var.developer_user}
     variables:
       schema: pipeline_dev
 
@@ -33,6 +31,8 @@ resources:
       name: ${var.pipeline_name}
       catalog: ${var.catalog}
       schema: ${var.schema}
+      run_as:
+        user_name: ${var.developer_user}
 
       libraries:
         - notebook:
