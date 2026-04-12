@@ -1,0 +1,36 @@
+name: Export Data
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  export:
+    name: Export gold tables to static JSON
+    runs-on: ubuntu-latest
+    if: github.repository != 'richmulvany/databricks-pipeline-template'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+      - name: Install dependencies
+        run: pip install -e "."
+      - name: Run export
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          DATABRICKS_CATALOG: ${{ vars.DATABRICKS_CATALOG }}
+          DATABRICKS_SCHEMA: ${{ vars.DATABRICKS_SCHEMA }}
+          EXPORT_OUTPUT_DIR: data/exports
+        run: python scripts/export_gold_tables.py
+      - name: Commit exported data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/exports/
+          git diff --staged --quiet || git commit -m "chore: nightly data export [skip ci]"
+          git push

@@ -1,0 +1,31 @@
+name: Deploy Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pipeline/**"
+      - "ingestion/**"
+      - "infra/**"
+      - "databricks.yml"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy DLT Pipeline
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.repository != 'richmulvany/databricks-pipeline-template'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Databricks CLI
+        run: pip install databricks-cli
+      - name: Deploy via Asset Bundles
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: databricks bundle deploy --target production

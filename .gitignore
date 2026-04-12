@@ -1,0 +1,39 @@
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg
+.venv/
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vercel/
+frontend/.netlify/
+
+# Databricks
+.databricks/
+bundle.lock
+
+# Exports (generated — not committed unless using GitHub Pages static export)
+data/exports/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+a/
+
+# OS
+.DS_Store
+Thumbs.db

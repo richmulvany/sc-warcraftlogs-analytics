@@ -1,0 +1,14 @@
+# Development cluster configuration
+# Used for interactive notebook work on Free Edition
+
+cluster_name: pipeline-dev
+spark_version: "14.3.x-scala2.12"
+node_type_id: Standard_DS3_v2
+num_workers: 0        # Single-node for Free Edition
+autotermination_minutes: 30
+
+spark_conf:
+  spark.databricks.delta.preview.enabled: "true"
+
+data_security_mode: SINGLE_USER
+runtime_engine: STANDARD

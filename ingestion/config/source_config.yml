@@ -1,0 +1,30 @@
+# Source API configuration
+# Secrets (api_key etc.) are loaded from Databricks Secret Scope at runtime.
+# Only non-sensitive configuration belongs here.
+
+source:
+  name: example
+  base_url: https://your-api.example.com
+  api_version: v1
+
+rate_limiting:
+  requests_per_minute: 60
+  requests_per_hour: 1000
+  retry_attempts: 3
+  retry_backoff_seconds: 2
+
+endpoints:
+  - name: entities
+    path: /entities
+    method: GET
+    pagination: true
+    page_size: 100
+  - name: events
+    path: /events
+    method: GET
+    pagination: true
+    page_size: 100
+  - name: metadata
+    path: /metadata
+    method: GET
+    pagination: false
