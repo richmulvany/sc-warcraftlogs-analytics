@@ -4,7 +4,6 @@
 bundle:
   name: medallion-pipeline
 
-# Variables — override per target
 variables:
   catalog:
     description: Unity Catalog name
@@ -15,23 +14,18 @@ variables:
   pipeline_name:
     description: DLT pipeline display name
     default: Medallion Pipeline
-  service_principal_name:
-    description: Service principal for production deployments
-    default: your-sp@your-org.example.com
+  developer_user:
+    description: Email of the developer deploying in development mode
+    default: ricard.mulvany@gmail.com
 
 targets:
   development:
     mode: development
     default: true
+    run_as:
+      user_name: ${var.developer_user}
     variables:
       schema: pipeline_dev
-
-  production:
-    mode: production
-    variables:
-      schema: pipeline_prod
-    run_as:
-      service_principal_name: ${var.service_principal_name}
 
 resources:
   pipelines:
@@ -40,7 +34,6 @@ resources:
       catalog: ${var.catalog}
       schema: ${var.schema}
 
-      # DLT notebook/file sources — list all pipeline files here
       libraries:
         - notebook:
             path: pipeline/bronze/raw_source.py
@@ -54,18 +47,16 @@ resources:
             path: pipeline/gold/summary_products.py
 
       configuration:
-        # Secrets are read via dbutils.secrets inside pipeline notebooks
         secret_scope: pipeline-secrets
 
       development: true
-
-      channel: CURRENT    # Use the current DLT runtime
+      channel: CURRENT
 
   jobs:
     nightly_ingestion:
       name: Nightly Ingestion
       schedule:
-        quartz_cron_expression: "0 0 1 * * ?"   # 01:00 UTC daily
+        quartz_cron_expression: "0 0 1 * * ?"
         timezone_id: UTC
       tasks:
         - task_key: ingest_primary
@@ -75,3 +66,8 @@ resources:
             spark_version: 14.3.x-scala2.12
             node_type_id: Standard_DS3_v2
             num_workers: 0
+            spark_conf:
+              spark.databricks.cluster.profile: singleNode
+              spark.master: local[*]
+            custom_tags:
+              ResourceClass: SingleNode
