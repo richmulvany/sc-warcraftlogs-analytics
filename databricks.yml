@@ -66,16 +66,37 @@ resources:
       serverless: true
 
       libraries:
+        # Bronze — Auto Loader ingestion from Volume landing zone
         - notebook:
             path: pipeline/bronze/raw_source.py
+        # Silver — cleaning, filtering, enrichment
         - notebook:
             path: pipeline/silver/clean_reports.py
         - notebook:
             path: pipeline/silver/clean_attendance.py
         - notebook:
+            path: pipeline/silver/clean_players.py
+        - notebook:
+            path: pipeline/silver/clean_zone_catalog.py
+        - notebook:
+            path: pipeline/silver/clean_guild_members.py
+        - notebook:
+            path: pipeline/silver/clean_rankings.py
+        - notebook:
+            path: pipeline/silver/clean_events.py
+        # Gold — business-ready data products
+        - notebook:
             path: pipeline/gold/summary_products.py
         - notebook:
             path: pipeline/gold/player_products.py
+        - notebook:
+            path: pipeline/gold/core_dimensions.py
+        - notebook:
+            path: pipeline/gold/core_facts.py
+        - notebook:
+            path: pipeline/gold/roster_products.py
+        - notebook:
+            path: pipeline/gold/survivability_products.py
 
       configuration:
         secret_scope: pipeline-secrets
@@ -89,20 +110,8 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 1 * * ?"
         timezone_id: UTC
-      # Serverless tasks require dependencies in an environment spec rather than
-      # a per-task libraries block.
-      environments:
-        - environment_key: default
-          spec:
-            client: "1"
-            dependencies:
-              - httpx>=0.27.0
-              - tenacity>=8.2.0
-              - structlog>=24.0.0
-              - pydantic>=2.5.0
       tasks:
         - task_key: ingest_primary
-          environment_key: default
           notebook_task:
             notebook_path: ingestion/jobs/ingest_primary.py
             base_parameters:

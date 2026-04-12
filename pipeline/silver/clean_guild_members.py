@@ -1,0 +1,82 @@
+# Databricks notebook source
+# Silver layer — cleaned guild member roster from Blizzard API
+#
+# silver_guild_members — deduplicated, enriched guild roster with rank labels
+#                        and raid-team flags.  Slowly-changing dimension: read
+#                        batch (dlt.read) so gold tables always see the latest
+#                        snapshot.
+
+import dlt
+from pyspark.sql import functions as F
+from pyspark.sql.window import Window
+
+
+# ── Cleaned Guild Members ──────────────────────────────────────────────────────
+# Deduplicates on player name keeping the most recent record (by _ingested_at).
+# Adds human-readable rank labels and raid-team classification.
+
+
+@dlt.table(
+    name="silver_guild_members",
+    comment=(
+        "Deduplicated guild roster from Blizzard API. "
+        "One row per character name with rank label and raid-team flag."
+    ),
+    table_properties={"quality": "silver"},
+)
+@dlt.expect_or_drop("valid_name", "name IS NOT NULL")
+@dlt.expect_or_drop("valid_rank", "rank IS NOT NULL")
+def silver_guild_members():
+    # Read as batch — this is a slowly-changing dimension; gold tables always
+    # want the latest full snapshot rather than appended history.
+    raw = dlt.read("bronze_guild_members")
+
+    # Keep the most recent record per character name when multiple ingestion
+    # runs are present in the bronze table.
+    w = Window.partitionBy("name").orderBy(F.col("_ingested_at").desc())
+    deduped = (
+        raw
+        .withColumn("_rn", F.row_number().over(w))
+        .filter(F.col("_rn") == 1)
+        .drop("_rn", "_file_path")
+    )
+
+    return (
+        deduped
+        .withColumn(
+            "rank_label",
+            F.when(F.col("rank") == 0, "Guild Master")
+             .when(F.col("rank") == 1, "Officer")
+             .when(F.col("rank") == 2, "Raider")
+             .when(F.col("rank") == 3, "Trial")
+             .when(F.col("rank") == 4, "Bestie")
+             .when(F.col("rank") == 5, "Raider Alt")
+             .when(F.col("rank") == 6, "Officer Alt")
+             .when(F.col("rank") == 7, "Social")
+             .otherwise(F.concat(F.lit("Rank "), F.col("rank").cast("string"))),
+        )
+        .withColumn(
+            "rank_category",
+            F.when(F.col("rank") == 0, "GM")
+             .when(F.col("rank") == 1, "Officer")
+             .when(F.col("rank") == 2, "Raider")
+             .when(F.col("rank") == 3, "Trial")
+             .otherwise("Social"),
+        )
+        .withColumn(
+            "is_raid_team",
+            F.col("rank").isin(0, 1, 2, 3),
+        )
+        .select(
+            "name",
+            "realm_slug",
+            "rank",
+            "rank_label",
+            "rank_category",
+            "is_raid_team",
+            "class_id",
+            "class_name",
+            "level",
+            "_ingested_at",
+        )
+    )

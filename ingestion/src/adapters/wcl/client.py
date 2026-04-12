@@ -1,5 +1,6 @@
 """WarcraftLogs v2 GraphQL API adapter."""
 
+import json
 from typing import Any
 
 import httpx
@@ -114,10 +115,7 @@ class WarcraftLogsAdapter(BaseAdapter):
         page: int = 1,
     ) -> FetchResult:
         """
-        Fetch one page of guild raid reports.
-
-        Uses reportData.reports with guild filter arguments — the Guild type
-        does not expose a reports field directly.
+        Fetch one page of guild raid reports via reportData.reports.
 
         Returns a FetchResult whose ``records`` is a list of report dicts, each
         containing ``code``, ``title``, ``startTime``, ``endTime``, and
@@ -176,7 +174,12 @@ class WarcraftLogsAdapter(BaseAdapter):
         Fetch boss fight breakdown for a specific report.
 
         Returns a FetchResult with a single record: the full report object
-        including a nested ``fights`` list (boss encounters only).
+        including ``zone``, ``masterData.actors`` (player roster for this
+        report), and a nested ``fights`` list (boss encounters only, filtered
+        server-side via killType: Encounters).
+
+        Fields added vs earlier version: ``encounterID``, ``size``,
+        ``friendlyPlayers`` (actor IDs), ``zone {id, name}`` at report level.
         """
         query = """
         query ReportFights($code: String!) {
@@ -186,9 +189,20 @@ class WarcraftLogsAdapter(BaseAdapter):
               title
               startTime
               endTime
+              zone { id name }
+              masterData {
+                actors(type: "Player") {
+                  id
+                  name
+                  type
+                  subType
+                  server
+                }
+              }
               fights(killType: Encounters) {
                 id
                 name
+                encounterID
                 kill
                 startTime
                 endTime
@@ -196,6 +210,8 @@ class WarcraftLogsAdapter(BaseAdapter):
                 fightPercentage
                 bossPercentage
                 lastPhase
+                size
+                friendlyPlayers
               }
             }
           }
@@ -216,6 +232,88 @@ class WarcraftLogsAdapter(BaseAdapter):
             has_more=False,
         )
 
+    def fetch_player_details(self, report_code: str, fight_id: int) -> FetchResult:
+        """
+        Fetch per-player performance breakdown for a single kill fight.
+
+        ``playerDetails`` is a JSON scalar in the WCL schema — the API returns
+        a nested blob rather than a typed GraphQL object.  We serialise it to a
+        string (``player_details_json``) for safe storage in the bronze JSONL
+        file; the silver layer parses it with an explicit schema.
+
+        Returns a FetchResult with a single record containing
+        ``report_code``, ``fight_id``, and ``player_details_json``.
+        """
+        query = """
+        query PlayerDetails($code: String!, $fightIDs: [Int]) {
+          reportData {
+            report(code: $code) {
+              playerDetails(fightIDs: $fightIDs, includeCombatantInfo: true)
+            }
+          }
+        }
+        """
+        data = self._graphql_query(query, {"code": report_code, "fightIDs": [fight_id]})
+        raw_pd = data["reportData"]["report"]["playerDetails"]
+
+        # Serialise to string — playerDetails is an opaque JSON scalar and its
+        # nested structure is complex enough that Auto Loader schema inference
+        # is unreliable.  Silver parses it with an explicit StructType.
+        pd_json_str = json.dumps(raw_pd) if not isinstance(raw_pd, str) else raw_pd
+
+        log.info("wcl.player_details", code=report_code, fight_id=fight_id)
+        return FetchResult(
+            source="wcl",
+            endpoint="player_details",
+            records=[
+                {
+                    "report_code": report_code,
+                    "fight_id": fight_id,
+                    "player_details_json": pd_json_str,
+                }
+            ],
+            total_records=1,
+            has_more=False,
+        )
+
+    def fetch_actor_roster(self, report_code: str) -> FetchResult:
+        """
+        Fetch the player actor roster for a report from masterData.
+
+        Actor IDs are report-scoped and match the ``friendlyPlayers`` lists
+        in fight objects.  ``subType`` on a Player actor is the WoW class name.
+
+        Returns a FetchResult with a single record containing
+        ``report_code`` and ``actors`` (list of actor dicts).
+        """
+        query = """
+        query ActorRoster($code: String!) {
+          reportData {
+            report(code: $code) {
+              masterData {
+                actors(type: "Player") {
+                  id
+                  name
+                  type
+                  subType
+                  server
+                }
+              }
+            }
+          }
+        }
+        """
+        data = self._graphql_query(query, {"code": report_code})
+        actors = data["reportData"]["report"]["masterData"]["actors"]
+        log.info("wcl.actor_roster", code=report_code, actors=len(actors or []))
+        return FetchResult(
+            source="wcl",
+            endpoint="actor_roster",
+            records=[{"report_code": report_code, "actors": actors or []}],
+            total_records=1,
+            has_more=False,
+        )
+
     def fetch_raid_attendance(
         self,
         guild_name: str,
@@ -226,10 +324,9 @@ class WarcraftLogsAdapter(BaseAdapter):
         """
         Fetch one page of raid attendance records.
 
-        Returns a FetchResult whose ``records`` is a list of dicts, each
-        containing ``code`` (report code) and a nested ``players`` list with
-        ``name``, ``presence`` (1=present, 2=benched, 3=absent), and ``type``
-        (class name).
+        Each record contains ``code`` (report code), ``startTime`` (ms epoch),
+        ``zone {id, name}``, and a nested ``players`` list with ``name``,
+        ``presence`` (1=present, 2=benched, 3=absent), and ``type`` (class).
         """
         query = """
         query GuildAttendance(
@@ -243,6 +340,8 @@ class WarcraftLogsAdapter(BaseAdapter):
               attendance(limit: 25, page: $page) {
                 data {
                   code
+                  startTime
+                  zone { id name }
                   players {
                     name
                     presence
@@ -274,4 +373,123 @@ class WarcraftLogsAdapter(BaseAdapter):
             total_records=len(records),
             page=page,
             has_more=att_page.get("has_more_pages", False),
+        )
+
+    def fetch_zone_catalog(self) -> FetchResult:
+        """
+        Fetch the full WCL zone catalog from worldData.
+
+        Returns all zones with their encounters and difficulty tiers.  Used to
+        build ``silver_zone_catalog`` (a stable reference table) and to
+        distinguish raid zones from M+ dungeon zones.
+
+        This is a small query (dozens of zones) — no pagination needed.
+        """
+        query = """
+        query ZoneCatalog {
+          worldData {
+            zones {
+              id
+              name
+              frozen
+              encounters { id name }
+              difficulties { id name sizes }
+            }
+          }
+        }
+        """
+        data = self._graphql_query(query)
+        zones = data["worldData"]["zones"]
+        log.info("wcl.zone_catalog", zones=len(zones or []))
+        return FetchResult(
+            source="wcl",
+            endpoint="zone_catalog",
+            records=zones or [],
+            total_records=len(zones or []),
+            has_more=False,
+        )
+
+    def fetch_report_rankings(self, report_code: str, fight_ids: list[int]) -> FetchResult:
+        """
+        Fetch WCL parse rankings for specific kill fights within a report.
+
+        The ``rankings`` field is an opaque JSON scalar in the WCL schema.  We
+        serialise it to a string (``rankings_json``) for safe storage in bronze;
+        the silver layer parses it with an explicit schema.
+
+        Args:
+            report_code: WCL report code (e.g. "aAbBcC1234")
+            fight_ids: List of fight IDs to include in the rankings query
+
+        Returns:
+            FetchResult with one record: {report_code, rankings_json}
+        """
+        query = """
+        query ReportRankings($code: String!, $fightIDs: [Int]) {
+          reportData {
+            report(code: $code) {
+              rankings(fightIDs: $fightIDs, compare: Parses, timeframe: Historical)
+            }
+          }
+        }
+        """
+        data = self._graphql_query(query, {"code": report_code, "fightIDs": fight_ids})
+        raw = data["reportData"]["report"]["rankings"]
+        rankings_json = json.dumps(raw) if not isinstance(raw, str) else raw
+
+        log.info("wcl.report_rankings", code=report_code, fight_count=len(fight_ids))
+        return FetchResult(
+            source="wcl",
+            endpoint="report_rankings",
+            records=[
+                {
+                    "report_code": report_code,
+                    "rankings_json": rankings_json,
+                }
+            ],
+            total_records=1,
+            has_more=False,
+        )
+
+    def fetch_fight_deaths(self, report_code: str, fight_ids: list[int]) -> FetchResult:
+        """
+        Fetch death events for boss fights within a report via the table API.
+
+        The ``table`` field is an opaque JSON scalar in the WCL schema.  We
+        serialise it to a string (``table_json``) for safe storage in bronze;
+        the silver layer parses it with an explicit schema.
+
+        Args:
+            report_code: WCL report code
+            fight_ids: List of boss fight IDs (kills + wipes) to aggregate deaths for
+
+        Returns:
+            FetchResult with one record: {report_code, fight_ids, table_json}
+        """
+        query = """
+        query FightDeaths($code: String!, $fightIDs: [Int]) {
+          reportData {
+            report(code: $code) {
+              table(dataType: Deaths, fightIDs: $fightIDs)
+            }
+          }
+        }
+        """
+        data = self._graphql_query(query, {"code": report_code, "fightIDs": fight_ids})
+        raw = data["reportData"]["report"]["table"]
+        table_json = json.dumps(raw) if not isinstance(raw, str) else raw
+
+        log.info("wcl.fight_deaths", code=report_code, fight_count=len(fight_ids))
+        return FetchResult(
+            source="wcl",
+            endpoint="fight_deaths",
+            records=[
+                {
+                    "report_code": report_code,
+                    "fight_ids": fight_ids,
+                    "table_json": table_json,
+                }
+            ],
+            total_records=1,
+            has_more=False,
         )
