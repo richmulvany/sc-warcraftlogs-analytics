@@ -4,10 +4,25 @@
 bundle:
   name: medallion-pipeline
 
+sync:
+  exclude:
+    - frontend/**
+    - .github/**
+    - node_modules/**
+    - "*.md"
+    - LICENSE
+    - .git/**
+    - .venv/**
+    - __pycache__/**
+    - "*.pyc"
+  paths:
+    - pipeline
+    - ingestion
+
 variables:
   catalog:
     description: Unity Catalog name
-    default: main
+    default: 03_gold
   schema:
     description: Schema (database) name
     default: pipeline_dev
@@ -24,15 +39,22 @@ targets:
     default: true
     variables:
       schema: pipeline_dev
+    permissions:
+    - user_name: ${var.developer_user}
+      level: CAN_MANAGE
 
 resources:
   pipelines:
     medallion_pipeline:
+      permissions:
+        - user_name: ${var.developer_user}
+          level: CAN_MANAGE
       name: ${var.pipeline_name}
       catalog: ${var.catalog}
       schema: ${var.schema}
       run_as:
         user_name: ${var.developer_user}
+      serverless: true
 
       libraries:
         - notebook:
@@ -62,12 +84,3 @@ resources:
         - task_key: ingest_primary
           notebook_task:
             notebook_path: ingestion/jobs/ingest_primary.py
-          new_cluster:
-            spark_version: 14.3.x-scala2.12
-            node_type_id: Standard_DS3_v2
-            num_workers: 0
-            spark_conf:
-              spark.databricks.cluster.profile: singleNode
-              spark.master: local[*]
-            custom_tags:
-              ResourceClass: SingleNode
