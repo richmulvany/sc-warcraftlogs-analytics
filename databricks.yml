@@ -89,8 +89,20 @@ resources:
       schedule:
         quartz_cron_expression: "0 0 1 * * ?"
         timezone_id: UTC
+      # Serverless tasks require dependencies in an environment spec rather than
+      # a per-task libraries block.
+      environments:
+        - environment_key: default
+          spec:
+            client: "1"
+            dependencies:
+              - httpx>=0.27.0
+              - tenacity>=8.2.0
+              - structlog>=24.0.0
+              - pydantic>=2.5.0
       tasks:
         - task_key: ingest_primary
+          environment_key: default
           notebook_task:
             notebook_path: ingestion/jobs/ingest_primary.py
             base_parameters:
@@ -99,12 +111,3 @@ resources:
               guild_name: ${var.guild_name}
               guild_server_slug: ${var.guild_server_slug}
               guild_server_region: ${var.guild_server_region}
-          libraries:
-            - pypi:
-                package: httpx>=0.27.0
-            - pypi:
-                package: tenacity>=8.2.0
-            - pypi:
-                package: structlog>=24.0.0
-            - pypi:
-                package: pydantic>=2.5.0
