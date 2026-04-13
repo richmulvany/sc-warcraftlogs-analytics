@@ -13,15 +13,15 @@ silver,silver_fight_events,10235,ok,"10,235 rows"
 silver,silver_raid_attendance,11280,ok,"11,280 rows"
 silver,silver_actor_roster,35922,ok,"35,922 rows"
 silver,silver_player_performance,35329,ok,"35,329 rows"
-silver,silver_player_rankings,0,ok,0 rows
-silver,silver_player_deaths,0,ok,0 rows
+silver,silver_player_rankings,35103,ok,"35,103 rows"
+silver,silver_player_deaths,32286,ok,"32,286 rows"
 silver,silver_zone_catalog,362,ok,362 rows
 silver,silver_guild_members,846,ok,846 rows
 gold,dim_encounter,23,ok,23 rows
 gold,dim_player,23409,ok,"23,409 rows"
 gold,dim_guild_member,846,ok,846 rows
 gold,fact_player_fight_performance,35329,ok,"35,329 rows"
-gold,fact_player_events,0,ok,0 rows
+gold,fact_player_events,32286,ok,"32,286 rows"
 gold,gold_guild_roster,846,ok,846 rows
 gold,gold_raid_team,84,ok,84 rows
 gold,gold_player_profile,23409,ok,"23,409 rows"
@@ -38,4 +38,4 @@ gold,gold_best_kills,287,ok,287 rows
 gold,gold_boss_wipe_analysis,224,ok,224 rows
 gold,gold_boss_mechanics,224,ok,224 rows
 gold,gold_encounter_catalog,23,ok,23 rows
-gold,gold_player_survivability,0,ok,0 rows
+gold,gold_player_survivability,545,ok,545 rows

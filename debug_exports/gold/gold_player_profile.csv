@@ -1,85 +1,85 @@
 player_name,player_class,realm,is_guild_member,rank,rank_label,rank_category,is_raid_team,primary_role,primary_spec,kills_tracked,avg_throughput_per_second,avg_rank_percent,avg_bracket_percent,best_rank_percent,avg_item_level,avg_active_time_pct,zones_raided,first_kill_date,latest_kill_date,total_raids_tracked,raids_present,attendance_rate_pct
-Momobami,Priest,TwistingNether,True,0,Guild Master,GM,True,healer,Holy,779,,,,,419.7,,"['Vault of the Incarnates' 'Manaforge Omega' 'Blackrock Depths'
+Momobami,Priest,TwistingNether,True,0,Guild Master,GM,True,healer,Holy,779,,67.3,60.7,99.0,419.7,,"['Vault of the Incarnates' 'Manaforge Omega' 'Blackrock Depths'
  'Castle Nathria' 'Sanctum of Domination' 'Liberation of Undermine'
  'Nerub-ar Palace' ""Amirdrassil, the Dream's Hope""
  'Aberrus, the Shadowed Crucible']",2021-02-14,2025-11-23,281,281,100.0
-Bamoo,Druid,TwistingNether,True,1,GM Alt,GM,True,dps,Balance,105,,,,,549.4,,"['Vault of the Incarnates' 'Liberation of Undermine' 'Nerub-ar Palace'
+Bamoo,Druid,TwistingNether,True,1,GM Alt,GM,True,dps,Balance,105,,38.5,54.4,92.0,549.4,,"['Vault of the Incarnates' 'Liberation of Undermine' 'Nerub-ar Palace'
  'Sanctum of Domination' 'Castle Nathria' 'Aberrus, the Shadowed Crucible']",2021-04-14,2025-03-19,19,19,100.0
-Hobbyalkis,Rogue,TwistingNether,True,2,Officer,Officer,True,dps,Assassination,993,,,,,441.3,,"['Vault of the Incarnates' 'Blackrock Depths'
+Hobbyalkis,Rogue,TwistingNether,True,2,Officer,Officer,True,dps,Assassination,993,,66.6,60.7,99.0,441.3,,"['Vault of the Incarnates' 'Blackrock Depths'
  'Aberrus, the Shadowed Crucible' ""Amirdrassil, the Dream's Hope""
  'Manaforge Omega' 'Liberation of Undermine' 'Nerub-ar Palace'
  'Sepulcher of the First Ones' 'Castle Nathria' 'VS / DR / MQD'
  'Sanctum of Domination']",2021-01-25,2026-04-08,359,359,100.0
-Jadsrune,DeathKnight,TwistingNether,True,2,Officer,Officer,True,tank,Blood,46,,,,,261.1,,['VS / DR / MQD' 'Manaforge Omega'],2026-02-02,2026-04-08,10,10,100.0
-Lenus,DemonHunter,TwistingNether,True,2,Officer,Officer,True,tank,Vengeance,813,,,,,528.4,,"['VS / DR / MQD' 'Blackrock Depths' 'Manaforge Omega' 'Nerub-ar Palace'
+Jadsrune,DeathKnight,TwistingNether,True,2,Officer,Officer,True,tank,Blood,46,,47.7,23.7,98.0,261.1,,['VS / DR / MQD' 'Manaforge Omega'],2026-02-02,2026-04-08,10,10,100.0
+Lenus,DemonHunter,TwistingNether,True,2,Officer,Officer,True,tank,Vengeance,813,,84.0,78.3,99.0,528.4,,"['VS / DR / MQD' 'Blackrock Depths' 'Manaforge Omega' 'Nerub-ar Palace'
  'Aberrus, the Shadowed Crucible' 'Liberation of Undermine'
  ""Amirdrassil, the Dream's Hope"" 'Vault of the Incarnates']",2022-12-18,2026-04-06,270,270,100.0
-Temitiri,Shaman,TwistingNether,True,2,Officer,Officer,True,dps,Elemental,374,,,,,570.8,,"['Liberation of Undermine' 'Vault of the Incarnates'
+Temitiri,Shaman,TwistingNether,True,2,Officer,Officer,True,dps,Elemental,374,,71.1,66.1,99.0,570.8,,"['Liberation of Undermine' 'Vault of the Incarnates'
  'Aberrus, the Shadowed Crucible' 'Manaforge Omega'
  ""Amirdrassil, the Dream's Hope"" 'Nerub-ar Palace']",2023-05-21,2026-01-20,125,125,100.0
-Yevie,Priest,TwistingNether,True,2,Officer,Officer,True,dps,Shadow,106,,,,,376.7,,['Castle Nathria' 'Liberation of Undermine' 'VS / DR / MQD'],2021-02-07,2026-04-08,26,26,100.0
-Bami,Mage,TwistingNether,True,3,Officer Alt,Officer,True,dps,Arcane,127,,,,,219.1,,['Castle Nathria'],2021-01-25,2021-04-07,40,40,100.0
-Bamie,Monk,TwistingNether,True,3,Officer Alt,Officer,True,healer,Mistweaver,134,,,,,264.1,,['Sanctum of Domination' 'Sepulcher of the First Ones'],2021-08-10,2022-09-12,32,32,100.0
-Bammies,Paladin,TwistingNether,True,3,Officer Alt,Officer,True,healer,Holy,36,,,,,368.7,,"['Castle Nathria' 'Sanctum of Domination' 'Aberrus, the Shadowed Crucible']",2021-04-18,2023-06-04,5,5,100.0
-Beanus,Mage,TwistingNether,True,3,Officer Alt,Officer,True,dps,Frost,26,,,,,220.3,,['Sanctum of Domination'],2021-08-29,2021-09-12,6,6,100.0
-Crustygems,Mage,TwistingNether,True,3,Officer Alt,Officer,True,dps,Fire,8,,,,,587.5,,['Blackrock Depths'],2024-10-23,2024-10-23,1,1,100.0
-Evestirwin,DemonHunter,TwistingNether,True,3,Officer Alt,Officer,True,tank,Vengeance,44,,,,,619.1,,['Liberation of Undermine' 'Vault of the Incarnates'],2024-06-05,2025-07-06,5,5,100.0
-Fauxcoated,Monk,TwistingNether,True,3,Officer Alt,Officer,True,healer,Mistweaver,32,,,,,549.0,,"['Vault of the Incarnates' 'Manaforge Omega'
+Yevie,Priest,TwistingNether,True,2,Officer,Officer,True,dps,Shadow,106,,60.7,63.0,94.0,376.7,,['Castle Nathria' 'Liberation of Undermine' 'VS / DR / MQD'],2021-02-07,2026-04-08,26,26,100.0
+Bami,Mage,TwistingNether,True,3,Officer Alt,Officer,True,dps,Arcane,127,,53.0,26.1,97.0,219.1,,['Castle Nathria'],2021-01-25,2021-04-07,40,40,100.0
+Bamie,Monk,TwistingNether,True,3,Officer Alt,Officer,True,healer,Mistweaver,134,,55.5,44.2,96.0,264.1,,['Sanctum of Domination' 'Sepulcher of the First Ones'],2021-08-10,2022-09-12,32,32,100.0
+Bammies,Paladin,TwistingNether,True,3,Officer Alt,Officer,True,healer,Holy,36,,53.3,79.3,88.0,368.7,,"['Castle Nathria' 'Sanctum of Domination' 'Aberrus, the Shadowed Crucible']",2021-04-18,2023-06-04,5,5,100.0
+Beanus,Mage,TwistingNether,True,3,Officer Alt,Officer,True,dps,Frost,26,,30.7,75.2,56.0,220.3,,['Sanctum of Domination'],2021-08-29,2021-09-12,6,6,100.0
+Crustygems,Mage,TwistingNether,True,3,Officer Alt,Officer,True,dps,Fire,8,,,0.0,,587.5,,['Blackrock Depths'],2024-10-23,2024-10-23,1,1,100.0
+Evestirwin,DemonHunter,TwistingNether,True,3,Officer Alt,Officer,True,tank,Vengeance,44,,36.4,44.4,63.0,619.1,,['Liberation of Undermine' 'Vault of the Incarnates'],2024-06-05,2025-07-06,5,5,100.0
+Fauxcoated,Monk,TwistingNether,True,3,Officer Alt,Officer,True,healer,Mistweaver,32,,37.8,53.1,60.0,549.0,,"['Vault of the Incarnates' 'Manaforge Omega'
  ""Amirdrassil, the Dream's Hope""]",2023-12-10,2025-09-14,4,4,100.0
-Leanbean,Unknown,TwistingNether,True,3,Officer Alt,Officer,True,dps,Augmentation,5,,,,,461.0,,"[""Amirdrassil, the Dream's Hope""]",2024-01-07,2024-01-07,1,1,100.0
-Leanus,Druid,TwistingNether,True,3,Officer Alt,Officer,True,tank,Guardian,554,,,,,323.0,,"[""Amirdrassil, the Dream's Hope"" 'Aberrus, the Shadowed Crucible'
+Leanbean,Unknown,TwistingNether,True,3,Officer Alt,Officer,True,dps,Augmentation,5,,30.4,68.8,40.0,461.0,,"[""Amirdrassil, the Dream's Hope""]",2024-01-07,2024-01-07,1,1,100.0
+Leanus,Druid,TwistingNether,True,3,Officer Alt,Officer,True,tank,Guardian,554,,75.4,70.9,99.0,323.0,,"[""Amirdrassil, the Dream's Hope"" 'Aberrus, the Shadowed Crucible'
  'Nerub-ar Palace' 'Vault of the Incarnates' 'Sanctum of Domination'
  'Castle Nathria' 'Liberation of Undermine' 'Manaforge Omega'
  'Sepulcher of the First Ones']",2021-01-25,2025-08-31,163,163,100.0
-Linirune,DeathKnight,TwistingNether,True,3,Officer Alt,Officer,True,dps,Frost,16,,,,,591.1,,['Nerub-ar Palace'],2024-09-29,2024-10-02,2,2,100.0
-Magicwingers,Evoker,TwistingNether,True,3,Officer Alt,Officer,True,healer,Preservation,722,,,,,568.3,,"['Vault of the Incarnates' 'Blackrock Depths' 'Liberation of Undermine'
+Linirune,DeathKnight,TwistingNether,True,3,Officer Alt,Officer,True,dps,Frost,16,,33.8,65.6,62.0,591.1,,['Nerub-ar Palace'],2024-09-29,2024-10-02,2,2,100.0
+Magicwingers,Evoker,TwistingNether,True,3,Officer Alt,Officer,True,healer,Preservation,722,,49.4,38.4,99.0,568.3,,"['Vault of the Incarnates' 'Blackrock Depths' 'Liberation of Undermine'
  ""Amirdrassil, the Dream's Hope"" 'Nerub-ar Palace' 'Manaforge Omega'
  'Aberrus, the Shadowed Crucible']",2023-01-22,2026-01-26,228,228,100.0
-Maxzor,Hunter,TwistingNether,True,3,Officer Alt,Officer,True,dps,Marksmanship,14,,,,,200.8,,['Castle Nathria'],2021-03-21,2021-04-04,5,5,100.0
-Momobamie,Hunter,TwistingNether,True,3,Officer Alt,Officer,True,dps,BeastMastery,31,,,,,244.0,,['Sepulcher of the First Ones' 'Sanctum of Domination' 'Castle Nathria'],2021-03-12,2022-09-14,6,6,100.0
-Momojadsie,Priest,TwistingNether,True,3,Officer Alt,Officer,True,healer,Holy,141,,,,,440.6,,"['Liberation of Undermine' 'Aberrus, the Shadowed Crucible'
+Maxzor,Hunter,TwistingNether,True,3,Officer Alt,Officer,True,dps,Marksmanship,14,,25.2,70.9,41.0,200.8,,['Castle Nathria'],2021-03-21,2021-04-04,5,5,100.0
+Momobamie,Hunter,TwistingNether,True,3,Officer Alt,Officer,True,dps,BeastMastery,31,,27.6,48.6,81.0,244.0,,['Sepulcher of the First Ones' 'Sanctum of Domination' 'Castle Nathria'],2021-03-12,2022-09-14,6,6,100.0
+Momojadsie,Priest,TwistingNether,True,3,Officer Alt,Officer,True,healer,Holy,141,,48.7,42.2,97.0,440.6,,"['Liberation of Undermine' 'Aberrus, the Shadowed Crucible'
  'Vault of the Incarnates']",2022-12-14,2025-06-18,45,45,100.0
 Momoos,Unknown,TwistingNether,True,3,Officer Alt,Officer,True,,,0,,,,,,,,,,0,0,0.0
-Oxhorde,Druid,TwistingNether,True,3,Officer Alt,Officer,True,healer,Restoration,161,,,,,281.2,,"['Sepulcher of the First Ones' 'Castle Nathria' 'Nerub-ar Palace'
+Oxhorde,Druid,TwistingNether,True,3,Officer Alt,Officer,True,healer,Restoration,161,,68.7,68.4,99.0,281.2,,"['Sepulcher of the First Ones' 'Castle Nathria' 'Nerub-ar Palace'
  'Sanctum of Domination']",2022-03-06,2024-09-29,33,33,100.0
-Temiti,Druid,TwistingNether,True,3,Officer Alt,Officer,True,healer,Restoration,12,,,,,240.5,,['VS / DR / MQD'],2026-03-18,2026-03-23,2,2,100.0
-Temra,Warlock,TwistingNether,True,3,Officer Alt,Officer,True,dps,Demonology,395,,,,,378.9,,"['Sanctum of Domination' 'Aberrus, the Shadowed Crucible'
+Temiti,Druid,TwistingNether,True,3,Officer Alt,Officer,True,healer,Restoration,12,,79.1,83.5,96.0,240.5,,['VS / DR / MQD'],2026-03-18,2026-03-23,2,2,100.0
+Temra,Warlock,TwistingNether,True,3,Officer Alt,Officer,True,dps,Demonology,395,,71.9,71.5,99.0,378.9,,"['Sanctum of Domination' 'Aberrus, the Shadowed Crucible'
  ""Amirdrassil, the Dream's Hope"" 'Sepulcher of the First Ones'
  'Vault of the Incarnates' 'Castle Nathria' 'Nerub-ar Palace']",2021-04-18,2024-10-06,121,121,100.0
-Waterfalls,Shaman,TwistingNether,True,3,Officer Alt,Officer,True,healer,Restoration,27,,,,,586.9,,['Nerub-ar Palace'],2024-09-15,2024-09-29,3,3,100.0
-Yeviel,Paladin,TwistingNether,True,3,Officer Alt,Officer,True,healer,Holy,309,,,,,344.4,,['Sanctum of Domination' 'Liberation of Undermine' 'Castle Nathria'],2021-01-25,2025-07-16,116,116,100.0
-Yevoo,Monk,TwistingNether,True,3,Officer Alt,Officer,True,healer,Mistweaver,26,,,,,539.7,,['Nerub-ar Palace' 'Vault of the Incarnates' 'Liberation of Undermine'],2023-02-26,2025-03-09,4,4,100.0
-Zerodrama,Warrior,TwistingNether,True,4,Officer Alt,Officer,True,dps,Fury,171,,,,,302.5,,"['Vault of the Incarnates' 'Sanctum of Domination'
+Waterfalls,Shaman,TwistingNether,True,3,Officer Alt,Officer,True,healer,Restoration,27,,50.6,56.6,74.0,586.9,,['Nerub-ar Palace'],2024-09-15,2024-09-29,3,3,100.0
+Yeviel,Paladin,TwistingNether,True,3,Officer Alt,Officer,True,healer,Holy,309,,55.8,49.8,96.0,344.4,,['Sanctum of Domination' 'Liberation of Undermine' 'Castle Nathria'],2021-01-25,2025-07-16,116,116,100.0
+Yevoo,Monk,TwistingNether,True,3,Officer Alt,Officer,True,healer,Mistweaver,26,,69.1,79.3,94.0,539.7,,['Nerub-ar Palace' 'Vault of the Incarnates' 'Liberation of Undermine'],2023-02-26,2025-03-09,4,4,100.0
+Zerodrama,Warrior,TwistingNether,True,4,Officer Alt,Officer,True,dps,Fury,171,,72.6,66.6,99.0,302.5,,"['Vault of the Incarnates' 'Sanctum of Domination'
  'Aberrus, the Shadowed Crucible' 'Sepulcher of the First Ones']",2021-08-08,2023-06-04,33,33,100.0
-Bigboiples,Druid,TwistingNether,True,5,Raider,Raider,True,healer,Restoration,796,,,,,513.0,,"['Blackrock Depths' 'Aberrus, the Shadowed Crucible' 'Nerub-ar Palace'
+Bigboiples,Druid,TwistingNether,True,5,Raider,Raider,True,healer,Restoration,796,,76.0,70.4,100.0,513.0,,"['Blackrock Depths' 'Aberrus, the Shadowed Crucible' 'Nerub-ar Palace'
  'Sepulcher of the First Ones' 'Liberation of Undermine'
  'Vault of the Incarnates' 'Castle Nathria'
  ""Amirdrassil, the Dream's Hope"" 'Manaforge Omega' 'VS / DR / MQD']",2022-09-12,2026-04-08,259,259,100.0
-Budgetgoku,Paladin,TwistingNether,True,5,Raider,Raider,True,tank,Protection,172,,,,,531.2,,"['Liberation of Undermine' 'VS / DR / MQD' ""Amirdrassil, the Dream's Hope""
+Budgetgoku,Paladin,TwistingNether,True,5,Raider,Raider,True,tank,Protection,172,,86.8,80.5,99.0,531.2,,"['Liberation of Undermine' 'VS / DR / MQD' ""Amirdrassil, the Dream's Hope""
  'Nerub-ar Palace' 'Manaforge Omega']",2023-12-10,2026-04-08,57,57,100.0
-Everrin,Evoker,TwistingNether,True,5,Raider,Raider,True,healer,Preservation,45,,,,,260.9,,['VS / DR / MQD'],2026-03-18,2026-04-08,9,9,100.0
-Garsias,Shaman,TarrenMill,True,5,Raider,Raider,True,healer,Restoration,141,,,,,520.1,,['VS / DR / MQD' 'Manaforge Omega'],2025-08-13,2026-04-08,54,54,100.0
-Jumzo,Paladin,Sylvanas,True,5,Raider,Raider,True,dps,Retribution,319,,,,,613.9,,"['Nerub-ar Palace' 'Liberation of Undermine' 'VS / DR / MQD'
+Everrin,Evoker,TwistingNether,True,5,Raider,Raider,True,healer,Preservation,45,,80.2,73.0,98.0,260.9,,['VS / DR / MQD'],2026-03-18,2026-04-08,9,9,100.0
+Garsias,Shaman,TarrenMill,True,5,Raider,Raider,True,healer,Restoration,141,,60.9,59.3,99.0,520.1,,['VS / DR / MQD' 'Manaforge Omega'],2025-08-13,2026-04-08,54,54,100.0
+Jumzo,Paladin,Sylvanas,True,5,Raider,Raider,True,dps,Retribution,319,,76.8,54.3,99.0,613.9,,"['Nerub-ar Palace' 'Liberation of Undermine' 'VS / DR / MQD'
  'Manaforge Omega' 'Blackrock Depths']",2024-09-15,2026-04-08,100,100,100.0
-Karllia,DemonHunter,ArgentDawn,True,5,Raider,Raider,True,dps,Devourer,60,,,,,348.4,,['Manaforge Omega' 'VS / DR / MQD'],2025-10-20,2026-04-08,36,36,100.0
-Midnight,Mage,Silvermoon,True,5,Raider,Raider,True,dps,Frost,55,,,,,242.0,,['Manaforge Omega' 'VS / DR / MQD'],2026-01-26,2026-04-08,10,10,100.0
-Sebaheoung,Warlock,TwistingNether,True,5,Raider,Raider,True,dps,Demonology,223,,,,,547.5,,"['Nerub-ar Palace' 'Liberation of Undermine' 'Vault of the Incarnates'
+Karllia,DemonHunter,ArgentDawn,True,5,Raider,Raider,True,dps,Devourer,60,,63.8,36.6,98.0,348.4,,['Manaforge Omega' 'VS / DR / MQD'],2025-10-20,2026-04-08,36,36,100.0
+Midnight,Mage,Silvermoon,True,5,Raider,Raider,True,dps,Frost,55,,69.5,37.0,98.0,242.0,,['Manaforge Omega' 'VS / DR / MQD'],2026-01-26,2026-04-08,10,10,100.0
+Sebaheoung,Warlock,TwistingNether,True,5,Raider,Raider,True,dps,Demonology,223,,65.4,44.3,99.0,547.5,,"['Nerub-ar Palace' 'Liberation of Undermine' 'Vault of the Incarnates'
  'VS / DR / MQD' 'Manaforge Omega']",2024-08-19,2026-04-08,56,56,100.0
-Turbohot,Hunter,TwistingNether,True,5,Raider,Raider,True,dps,Marksmanship,661,,,,,508.7,,"['Vault of the Incarnates' 'Sanctum of Domination'
+Turbohot,Hunter,TwistingNether,True,5,Raider,Raider,True,dps,Marksmanship,661,,56.5,42.6,98.0,508.7,,"['Vault of the Incarnates' 'Sanctum of Domination'
  'Aberrus, the Shadowed Crucible' 'Liberation of Undermine'
  'Nerub-ar Palace' 'Manaforge Omega' 'VS / DR / MQD'
  ""Amirdrassil, the Dream's Hope"" 'Sepulcher of the First Ones']",2022-03-02,2026-04-08,210,210,100.0
-Yearning,Monk,TwistingNether,True,5,Raider,Raider,True,dps,Windwalker,414,,,,,562.1,,"[""Amirdrassil, the Dream's Hope"" 'Manaforge Omega' 'VS / DR / MQD'
+Yearning,Monk,TwistingNether,True,5,Raider,Raider,True,dps,Windwalker,414,,62.1,46.3,99.0,562.1,,"[""Amirdrassil, the Dream's Hope"" 'Manaforge Omega' 'VS / DR / MQD'
  'Liberation of Undermine' 'Vault of the Incarnates' 'Nerub-ar Palace'
  'Aberrus, the Shadowed Crucible']",2024-01-10,2026-04-08,118,118,100.0
-Bpd,Warlock,TwistingNether,True,8,Trial,Trial,True,dps,Destruction,122,,,,,572.3,,['Liberation of Undermine' 'VS / DR / MQD'],2025-03-05,2026-03-30,26,26,100.0
-Estrogel,Evoker,TwistingNether,True,8,Trial,Trial,True,dps,Augmentation,19,,,,,269.0,,['VS / DR / MQD'],2026-04-01,2026-04-08,4,4,100.0
-Jointsuckerr,Shaman,TwistingNether,True,8,Trial,Trial,True,dps,Elemental,26,,,,,369.8,,['VS / DR / MQD' 'Nerub-ar Palace'],2024-09-15,2026-04-08,5,5,100.0
-Lunasnow,Mage,TwistingNether,True,8,Trial,Trial,True,dps,Frost,45,,,,,262.6,,['VS / DR / MQD'],2026-03-18,2026-04-08,8,8,100.0
-Megachomber,DeathKnight,Ravencrest,True,8,Trial,Trial,True,dps,Unholy,45,,,,,257.4,,['VS / DR / MQD'],2026-03-18,2026-04-08,9,9,100.0
-Pompqmoi,Mage,TwistingNether,True,8,Trial,Trial,True,dps,Frost,13,,,,,260.5,,['VS / DR / MQD'],2026-03-25,2026-03-25,2,2,100.0
-Rivey,Monk,DefiasBrotherhood,True,8,Trial,Trial,True,healer,Mistweaver,64,,,,,303.6,,['VS / DR / MQD' 'Manaforge Omega'],2025-11-23,2026-04-08,15,15,100.0
-Selthiel,Priest,Ravencrest,True,8,Trial,Trial,True,healer,Holy,34,,,,,255.1,,['VS / DR / MQD'],2026-03-18,2026-04-01,5,5,100.0
-Thype,Mage,Ravencrest,True,8,Trial,Trial,True,dps,Frost,7,,,,,236.0,,['VS / DR / MQD'],2026-03-18,2026-03-18,1,1,100.0
-Typ,Warrior,Ravencrest,True,8,Trial,Trial,True,dps,Fury,30,,,,,259.0,,['VS / DR / MQD'],2026-03-23,2026-04-06,7,7,100.0
-Zren,Hunter,Ravencrest,True,8,Trial,Trial,True,dps,Survival,45,,,,,262.9,,['VS / DR / MQD'],2026-03-18,2026-04-08,8,8,100.0
+Bpd,Warlock,TwistingNether,True,8,Trial,Trial,True,dps,Destruction,122,,65.8,51.1,97.0,572.3,,['Liberation of Undermine' 'VS / DR / MQD'],2025-03-05,2026-03-30,26,26,100.0
+Estrogel,Evoker,TwistingNether,True,8,Trial,Trial,True,dps,Augmentation,19,,68.6,62.4,93.0,269.0,,['VS / DR / MQD'],2026-04-01,2026-04-08,4,4,100.0
+Jointsuckerr,Shaman,TwistingNether,True,8,Trial,Trial,True,dps,Elemental,26,,68.4,46.2,92.0,369.8,,['VS / DR / MQD' 'Nerub-ar Palace'],2024-09-15,2026-04-08,5,5,100.0
+Lunasnow,Mage,TwistingNether,True,8,Trial,Trial,True,dps,Frost,45,,80.4,56.6,97.0,262.6,,['VS / DR / MQD'],2026-03-18,2026-04-08,8,8,100.0
+Megachomber,DeathKnight,Ravencrest,True,8,Trial,Trial,True,dps,Unholy,45,,55.8,49.1,97.0,257.4,,['VS / DR / MQD'],2026-03-18,2026-04-08,9,9,100.0
+Pompqmoi,Mage,TwistingNether,True,8,Trial,Trial,True,dps,Frost,13,,65.0,17.5,84.0,260.5,,['VS / DR / MQD'],2026-03-25,2026-03-25,2,2,100.0
+Rivey,Monk,DefiasBrotherhood,True,8,Trial,Trial,True,healer,Mistweaver,64,,54.6,37.5,98.0,303.6,,['VS / DR / MQD' 'Manaforge Omega'],2025-11-23,2026-04-08,15,15,100.0
+Selthiel,Priest,Ravencrest,True,8,Trial,Trial,True,healer,Holy,34,,65.7,57.9,94.0,255.1,,['VS / DR / MQD'],2026-03-18,2026-04-01,5,5,100.0
+Thype,Mage,Ravencrest,True,8,Trial,Trial,True,dps,Frost,7,,40.4,67.3,60.0,236.0,,['VS / DR / MQD'],2026-03-18,2026-03-18,1,1,100.0
+Typ,Warrior,Ravencrest,True,8,Trial,Trial,True,dps,Fury,30,,58.2,51.6,97.0,259.0,,['VS / DR / MQD'],2026-03-23,2026-04-06,7,7,100.0
+Zren,Hunter,Ravencrest,True,8,Trial,Trial,True,dps,Survival,45,,83.8,58.0,99.0,262.9,,['VS / DR / MQD'],2026-03-18,2026-04-08,8,8,100.0

@@ -1,1 +1,51 @@
-report_code,player_name,player_class,death_timestamp_ms,killing_blow_name,killing_blow_id
+report_code,fight_id,player_name,player_class,death_timestamp_ms,overkill,killing_blow_name,killing_blow_id
+HhpVC8qWDKvBXamA,10,Leanus,Druid,1413310,807553,Thunderdrum Salvo,474322.0
+HhpVC8qWDKvBXamA,10,Yearningsson,Monk,1477866,8811571,Blastburn Roarcannon,472242.0
+HhpVC8qWDKvBXamA,14,Yearningwar,Warrior,2081992,841135,Sonic Blast,464487.0
+HhpVC8qWDKvBXamA,24,Bufflesbian,Shaman,3304956,76154,Jumbo Void Beam,1216679.0
+HhpVC8qWDKvBXamA,33,Swana,Mage,4240993,155551,Voltaic Streak,473178.0
+HhpVC8qWDKvBXamA,37,Loknahar,Shaman,4723374,5334550,Molten Gold Knuckles,466519.0
+HhpVC8qWDKvBXamA,37,Bigboiples,Druid,4855864,54681,Goblin-guided Rocket,467381.0
+HhpVC8qWDKvBXamA,42,Alaski,Shaman,5035583,1233328,Gatling Cannon,471225.0
+HhpVC8qWDKvBXamA,42,Sprutpessen,Druid,5040317,0,,
+HhpVC8qWDKvBXamA,42,Tweet,Monk,5040459,68617,Scatterblast Canisters,1213156.0
+HhpVC8qWDKvBXamA,42,Bufflesbian,Shaman,5049145,177072,Venting Heat,466752.0
+HhpVC8qWDKvBXamA,42,Evestirwin,DemonHunter,5050389,0,Venting Heat,466752.0
+HhpVC8qWDKvBXamA,42,Leanus,Druid,5050724,0,Venting Heat,466752.0
+HhpVC8qWDKvBXamA,42,Sebaheoung,Warlock,5053419,0,,
+HhpVC8qWDKvBXamA,42,Smonkste,Monk,5054477,0,Venting Heat,466752.0
+HhpVC8qWDKvBXamA,42,Banitsa,DemonHunter,5055036,223414,Trick Shots,1226288.0
+HhpVC8qWDKvBXamA,42,Yearningwar,Warrior,5057860,0,Venting Heat,466752.0
+HhpVC8qWDKvBXamA,42,Blackóút,Shaman,5058214,674220,Gatling Cannon,471225.0
+HhpVC8qWDKvBXamA,42,Yearningsson,Monk,5058868,0,Canister Detonation,474447.0
+HhpVC8qWDKvBXamA,42,Swana,Mage,5060878,29937020,Scatterblast Canisters,466419.0
+HhpVC8qWDKvBXamA,42,Loknahar,Shaman,5060881,45083160,Scatterblast Canisters,466419.0
+HhpVC8qWDKvBXamA,42,Yeviel,Paladin,5060882,48895200,Scatterblast Canisters,466419.0
+HhpVC8qWDKvBXamA,42,Codders,Mage,5060882,36192560,Scatterblast Canisters,466419.0
+HhpVC8qWDKvBXamA,42,Caterm,Monk,5060882,40452556,Scatterblast Canisters,466419.0
+HhpVC8qWDKvBXamA,43,Blackóút,Shaman,5397344,138282,Zagging Zizzler,466338.0
+HhpVC8qWDKvBXamA,43,Yearningsson,Monk,5430164,185820,Gallybux Finale Blast,1219333.0
+HhpVC8qWDKvBXamA,43,Alaski,Shaman,5447543,0,Overloaded Rockets,1214755.0
+HhpVC8qWDKvBXamA,43,Yeviel,Paladin,5449698,856392,Overloaded Rockets,1214755.0
+HhpVC8qWDKvBXamA,43,Leanus,Druid,5450707,433895,Overloaded Rockets,1214755.0
+HhpVC8qWDKvBXamA,43,Blackóút,Shaman,5492530,115559,Gallybux Finale Blast,1219333.0
+HhpVC8qWDKvBXamA,48,Yeviel,Paladin,6732340,937906,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Hatewatching,Monk,6733080,1799303,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Swana,Mage,6733164,537041,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Bufflesbian,Shaman,6733258,869555,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Alaski,Shaman,6733945,162648,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Sebaheoung,Warlock,6734201,238214,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Yearningsson,Monk,6734419,1594020,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Caterm,Monk,6734754,210760,Blaze of Glory,460633.0
+HhpVC8qWDKvBXamA,48,Sprutpessen,Druid,6734872,661463,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Bigboiples,Druid,6735015,1329429,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Tweet,Monk,6735299,622317,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Loknahar,Shaman,6735812,532597,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Evestirwin,DemonHunter,6737918,928164,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Codders,Mage,6738472,2868287,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,48,Banitsa,DemonHunter,6739859,112316,Unrelenting CAR-nage,471508.0
+HhpVC8qWDKvBXamA,49,Lisicata,Druid,7138484,1658370,Hot Wheels,460021.0
+HhpVC8qWDKvBXamA,49,Yeviel,Paladin,7167262,175551,Exhaust Fumes,468147.0
+HhpVC8qWDKvBXamA,49,Evestirwin,DemonHunter,7331995,453231,Tank Buster,459627.0
+HhpVC8qWDKvBXamA,54,Yearningsson,Monk,7856684,681631,Thunderdrum Salvo,474322.0
+HhpVC8qWDKvBXamA,54,Alaski,Shaman,7875391,35359928,Blastburn Roarcannon,472242.0

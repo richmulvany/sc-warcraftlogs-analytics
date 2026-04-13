@@ -1,51 +1,51 @@
-report_code,fight_id,encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,is_kill,duration_seconds,player_name,player_class,role,spec,avg_item_level,total_amount,active_time_pct,throughput_per_second,rank_percent,bracket_percent,medal
-7Fxrt1PH8gnXVjRw,36,2607,Raszageth the Storm-Eater,Vault of the Incarnates,4,Heroic,2024-08-19,True,464,Gigacodders,DemonHunter,dps,Havoc,488.0,,,,,,
-8tYPZQ1394bBzw6H,4,2540,"Dausegne, the Fallen Oracle",Sepulcher of the First Ones,4,Heroic,2022-03-13,True,266,Elfeyes,Hunter,dps,Marksmanship,259.0,,,,,,
-GxYm9Td8tZLQHXpF,10,2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",4,Heroic,2024-05-29,True,159,Wingseb,Paladin,dps,Retribution,519.0,,,,,,
-GxYm9Td8tZLQHXpF,41,2677,Fyrakk the Blazing,"Amirdrassil, the Dream's Hope",4,Heroic,2024-05-29,True,388,Codders,Mage,dps,Fire,507.0,,,,,,
-B1pRfaPD2WLN3g4k,1,2423,The Tarragrue,Sanctum of Domination,4,Heroic,2021-07-21,True,291,Phazex,Rogue,dps,Assassination,232.0,,,,,,
-3QhvWxKCZ6RXTtrp,1,2423,The Tarragrue,Sanctum of Domination,5,Mythic,2022-02-25,True,196,Xariall,Druid,dps,Balance,254.0,,,,,,
-HhpVC8qWDKvBXamA,43,3016,Chrome King Gallywix,Liberation of Undermine,3,Normal,2025-03-16,True,345,Blackóút,Shaman,dps,Enhancement,639.0,,,,,,
-3jdNx68m2VJgzQaB,8,2423,The Tarragrue,Sanctum of Domination,5,Mythic,2021-09-15,True,256,Loafulevil,Warrior,dps,Arms,243.0,,,,,,
-KR7kQLAztqwrV2dZ,34,2430,Painsmith Raznal,Sanctum of Domination,4,Heroic,2021-07-28,True,356,Grets,Warlock,dps,Demonology,234.0,,,,,,
-6xP4Z9y3pVzBKbAw,24,2898,"Sikran, Captain of the Sureki",Nerub-ar Palace,5,Mythic,2024-11-06,True,260,Hobbyalkis,Rogue,dps,Assassination,625.0,,,,,,
-DFANHypwvLTzfWaQ,26,3013,Sprocketmonger Lockenstock,Liberation of Undermine,4,Heroic,2025-03-19,True,265,Enjiie,DemonHunter,dps,Havoc,654.0,,,,,,
-4bKvXBadLyxWMtYf,68,2731,"Larodar, Keeper of the Flame","Amirdrassil, the Dream's Hope",4,Heroic,2023-11-22,True,251,Portsmouth,Mage,dps,Frost,462.0,,,,,,
-Gk17VY4vnRtyhQcF,37,2683,Magmorax,"Aberrus, the Shadowed Crucible",4,Heroic,2023-05-17,True,221,Temra,Warlock,dps,Demonology,422.0,,,,,,
-Gk17VY4vnRtyhQcF,37,2683,Magmorax,"Aberrus, the Shadowed Crucible",4,Heroic,2023-05-17,True,221,Pangbruden,Hunter,dps,BeastMastery,414.0,,,,,,
-GBCwct9Q8XHMNfxn,42,3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic,2026-03-25,True,316,Bpd,Warlock,dps,Destruction,255.0,,,,,,
-jAzxMfZcKdrQT8Yy,27,2919,Broodtwister Ovi'nax,Nerub-ar Palace,4,Heroic,2025-01-13,True,303,Lazlow,Warlock,dps,Destruction,628.0,,,,,,
-pZ974Mvqz1tLw6jF,1,2423,The Tarragrue,Sanctum of Domination,3,Normal,2021-08-08,True,200,Zerodrama,Warrior,dps,Arms,241.0,,,,,,
-qCWyGR9YJbgjdA8B,1,3135,"Dimensius, the All-Devouring",Manaforge Omega,3,Normal,2025-12-01,True,470,Sixteen,Warrior,dps,Arms,720.0,,,,,,
-6zNmtTncWpZP4XR9,45,2902,Ulgrax the Devourer,Nerub-ar Palace,5,Mythic,2024-10-30,True,377,Larssonoker,Evoker,dps,Devastation,628.0,,,,,,
-JzakqH2vjWLm7PX8,29,2708,"Nymue, Weaver of the Cycle","Amirdrassil, the Dream's Hope",3,Normal,2023-12-10,True,158,Fibres,Mage,dps,Fire,448.0,,,,,,
-B1pRfaPD2WLN3g4k,7,2432,Remnant of Ner'zhul,Sanctum of Domination,4,Heroic,2021-07-21,True,275,Lickprick,Warrior,dps,Arms,226.0,,,,,,
-AmWFQD1kV7xLHBaT,51,2737,Volcoross,"Amirdrassil, the Dream's Hope",4,Heroic,2024-05-08,True,128,Unrecorded,Mage,dps,Fire,507.0,,,,,,
-AmWFQD1kV7xLHBaT,28,2708,"Nymue, Weaver of the Cycle","Amirdrassil, the Dream's Hope",3,Normal,2024-05-08,True,100,Clomp,Mage,dps,Frost,502.0,,,,,,
-F3LNgB27kpPG4xmz,7,3129,Plexus Sentinel,Manaforge Omega,5,Mythic,2025-09-24,True,314,Hobbyalkis,Rogue,dps,Assassination,714.0,,,,,,
-9WCTwGtmkvpLVJzx,32,3011,Rik Reverb,Liberation of Undermine,5,Mythic,2025-04-30,True,360,Ashyminge,Mage,dps,Fire,667.0,,,,,,
-6zNmtTncWpZP4XR9,26,2921,The Silken Court,Nerub-ar Palace,3,Normal,2024-10-30,True,293,Dzx,DeathKnight,dps,Frost,610.0,,,,,,
-GBCwct9Q8XHMNfxn,42,3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic,2026-03-25,True,316,Karllia,DemonHunter,dps,Devourer,262.0,,,,,,
-kRH7K3ajVbG24hCP,10,2529,Halondrus the Reclaimer,Sepulcher of the First Ones,3,Normal,2022-03-09,True,291,Zrenak,Shaman,dps,Enhancement,257.0,,,,,,
-jJR6C24cTLXDghrM,11,2693,The Forgotten Experiments,"Aberrus, the Shadowed Crucible",5,Mythic,2023-07-10,True,292,Demboypaigon,Warrior,dps,Arms,440.0,,,,,,
-kQLMYvbjgFhNfRXZ,12,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,2026-04-01,True,335,Megachomber,DeathKnight,dps,Unholy,269.0,,,,,,
-hQk721BYrVTKgMwc,51,3134,Nexus-King Salhadaar,Manaforge Omega,4,Heroic,2025-08-27,True,331,Cogsy,Hunter,dps,BeastMastery,707.0,,,,,,
-HvJ6KkBRd4qD3yPx,26,3133,Fractillus,Manaforge Omega,4,Heroic,2025-08-18,True,281,Yearnvoker,Evoker,dps,Devastation,700.0,,,,,,
-6NzHCPd9ZKDpgJ1t,20,2921,The Silken Court,Nerub-ar Palace,4,Heroic,2024-09-23,True,450,Televisions,Priest,dps,Shadow,612.0,,,,,,
-4ygtXrDWwhcTNPGp,9,2917,The Bloodbound Horror,Nerub-ar Palace,4,Heroic,2024-11-24,True,231,Roux,Rogue,dps,Assassination,604.0,,,,,,
-ngqd1JF4TtZmLMVv,17,2412,The Council of Blood,Castle Nathria,4,Heroic,2021-03-12,True,376,Dbway,Mage,dps,Fire,213.0,,,,,,
-k69nMBwcAtPd4fbV,35,2737,Volcoross,"Amirdrassil, the Dream's Hope",5,Mythic,2024-01-17,True,230,Ollieyay,DeathKnight,dps,Unholy,488.0,,,,,,
-hPLqFDxWZ3JmRBjT,16,2919,Broodtwister Ovi'nax,Nerub-ar Palace,5,Mythic,2024-11-25,True,474,Ashyminge,Mage,dps,Frost,631.0,,,,,,
-3YvCrVK1bgGBnHPZ,3,2433,The Eye of the Jailer,Sanctum of Domination,3,Normal,2021-08-15,True,215,Cryptod,DeathKnight,dps,Frost,228.0,,,,,,
-BNwd7DmQhGkxKpPc,7,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2026-04-06,True,420,Hobbyalkis,Rogue,dps,Subtlety,269.0,,,,,,
-DWyKfvYraCZR9mJg,12,2922,Queen Ansurek,Nerub-ar Palace,4,Heroic,2024-10-07,True,400,Hobbyalkis,Rogue,dps,Assassination,616.0,,,,,,
-3JZjK7xVzDLnPWTq,11,2607,Raszageth the Storm-Eater,Vault of the Incarnates,4,Heroic,2023-01-16,True,623,Larssonhter,Hunter,dps,Marksmanship,406.0,,,,,,
-1JR3rTW7HjM928dC,11,2684,Echo of Neltharion,"Aberrus, the Shadowed Crucible",4,Heroic,2023-07-12,True,240,Roadruid,Druid,dps,Balance,444.0,,,,,,
-24M6G9yKnQf8tRqN,32,2407,Sire Denathrius,Castle Nathria,4,Heroic,2021-01-25,True,478,Pangbruden,Hunter,dps,BeastMastery,214.0,,,,,,
-AmWFQD1kV7xLHBaT,41,2820,Gnarlroot,"Amirdrassil, the Dream's Hope",4,Heroic,2024-05-08,True,141,Sprutpesse,Priest,dps,Shadow,511.0,,,,,,
-FZRrB6M1HKmDn38g,22,2682,Assault of the Zaqali,"Aberrus, the Shadowed Crucible",3,Normal,2023-05-22,True,46,Swolorno,Hunter,dps,Marksmanship,435.0,,,,,,
-JNY1P9hgqwxLWby4,13,2635,"Dathea, Ascended",Vault of the Incarnates,3,Normal,2022-12-21,True,193,Smonkste,Monk,dps,Windwalker,386.0,,,,,,
-8WnpVdcDXqkmxLQ3,36,2921,The Silken Court,Nerub-ar Palace,4,Heroic,2024-10-09,True,359,Explorer,Paladin,dps,Retribution,622.0,,,,,,
-4xHQp8NCZ1FnrB3X,37,2921,The Silken Court,Nerub-ar Palace,4,Heroic,2024-09-25,True,433,Explorer,Paladin,dps,Retribution,613.0,,,,,,
-4ygtXrDWwhcTNPGp,32,2921,The Silken Court,Nerub-ar Palace,4,Heroic,2024-11-24,True,450,Ivaspear,Hunter,dps,Survival,630.0,,,,,,
-4ygtXrDWwhcTNPGp,25,2919,Broodtwister Ovi'nax,Nerub-ar Palace,4,Heroic,2024-11-24,True,310,Akitype,Druid,dps,Feral,597.0,,,,,,
+report_code,fight_id,encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,is_kill,duration_seconds,player_name,player_class,role,spec,avg_item_level,total_amount,active_time_pct,throughput_per_second,rank_percent,bracket_percent,rank_string
+pZ974Mvqz1tLw6jF,1,2423,The Tarragrue,Sanctum of Domination,3,Normal,2021-08-08,True,200,Zerodrama,Warrior,dps,Arms,241.0,,,,77.0,50.0,~3545
+z3G2QJvRjaF8NY46,33,2436,Guardian of the First Ones,Sanctum of Domination,4,Heroic,2022-08-31,True,299,Raslin,Shaman,dps,Elemental,281.0,,,,1.0,4.0,~1374
+c2xQq6r8CKzGt1VT,23,2605,Kurog Grimtotem,Vault of the Incarnates,4,Heroic,2023-01-22,True,436,Swol,Rogue,dps,Outlaw,382.0,,,,13.0,73.0,~23138
+axv9bYf1pCFqAnd2,22,2918,Rasha'nan,Nerub-ar Palace,3,Normal,2024-09-25,True,138,Televisions,Priest,dps,Shadow,613.0,,,,98.0,79.0,~646
+jAzxMfZcKdrQT8Yy,27,2919,Broodtwister Ovi'nax,Nerub-ar Palace,4,Heroic,2025-01-13,True,303,Lazlow,Warlock,dps,Destruction,628.0,,,,56.0,54.0,~6471
+aZTLBhrwRADNk3cJ,1,2423,The Tarragrue,Sanctum of Domination,3,Normal,2021-08-15,True,230,Zinnee,Warlock,dps,Demonology,238.0,,,,78.0,67.0,~1608
+TwA2vc9HYDabkLZj,73,3132,Forgeweaver Araz,Manaforge Omega,4,Heroic,2025-08-20,True,320,Yearnvoker,Evoker,dps,Devastation,703.0,,,,18.0,2.0,~6669
+twn3R47hpGjBDHya,5,2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",4,Heroic,2023-12-06,True,170,Ollieyay,DeathKnight,dps,Unholy,480.0,,,,84.0,14.0,~3235
+qCWyGR9YJbgjdA8B,1,3135,"Dimensius, the All-Devouring",Manaforge Omega,3,Normal,2025-12-01,True,470,Sixteen,Warrior,dps,Arms,720.0,,,,77.0,46.0,~82
+TP9b1Y8AhR7ptgw4,16,2898,"Sikran, Captain of the Sureki",Nerub-ar Palace,4,Heroic,2024-09-16,True,223,Wanchan,Mage,dps,Arcane,607.0,,,,91.0,73.0,~1678
+dJDYmB9VrwFQj6PZ,24,2680,"Rashok, the Elder","Aberrus, the Shadowed Crucible",4,Heroic,2024-06-12,True,161,Magicwingers,Evoker,dps,Augmentation,520.0,,,,79.0,68.0,~250
+axv9bYf1pCFqAnd2,5,2902,Ulgrax the Devourer,Nerub-ar Palace,3,Normal,2024-09-25,True,97,Bundabandit,Rogue,dps,Assassination,614.0,,,,99.0,77.0,~312
+kRH7K3ajVbG24hCP,10,2529,Halondrus the Reclaimer,Sepulcher of the First Ones,3,Normal,2022-03-09,True,291,Zrenak,Shaman,dps,Enhancement,257.0,,,,71.0,26.0,~2827
+jJR6C24cTLXDghrM,11,2693,The Forgotten Experiments,"Aberrus, the Shadowed Crucible",5,Mythic,2023-07-10,True,292,Demboypaigon,Warrior,dps,Arms,440.0,,,,63.0,89.0,~520
+zqkGmd2x3JFrMH6P,22,2605,Kurog Grimtotem,Vault of the Incarnates,5,Mythic,2023-02-15,True,514,Matlockbath,Monk,dps,Windwalker,415.0,,,,39.0,35.0,~1127
+Yp9ZN7tzQ4BraWJm,14,2423,The Tarragrue,Sanctum of Domination,5,Mythic,2021-08-30,True,317,Gigasaga,DemonHunter,dps,Havoc,245.0,,,,79.0,68.0,~3167
+wvzgJxmdyV1MXkaB,35,2512,Vigilant Guardian,Sepulcher of the First Ones,3,Normal,2022-03-16,True,366,Temra,Warlock,dps,Demonology,263.0,,,,77.0,29.0,~4637
+VP7dv3LMnRCwbHTq,3,2590,The Primal Council,Vault of the Incarnates,3,Normal,2023-01-01,True,158,Sandwiches,Hunter,dps,BeastMastery,391.0,,,,80.0,43.0,~6465
+bqRxAnLhJBVHfX1W,4,2512,Vigilant Guardian,Sepulcher of the First Ones,3,Normal,2022-03-06,True,403,Zerodrama,Warrior,dps,Arms,248.0,,,,89.0,94.0,~702
+twn3R47hpGjBDHya,18,2731,"Larodar, Keeper of the Flame","Amirdrassil, the Dream's Hope",4,Heroic,2023-12-06,True,222,Everzz,Shaman,dps,Enhancement,470.0,,,,68.0,78.0,~5900
+XPxY1LmTpQ8zJAMK,29,2434,Soulrender Dormazain,Sanctum of Domination,4,Heroic,2021-07-28,True,301,Lickprick,Warrior,dps,Arms,235.0,,,,62.0,65.0,~5088
+kQLMYvbjgFhNfRXZ,12,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,2026-04-01,True,335,Megachomber,DeathKnight,dps,Unholy,269.0,,,,51.0,9.0,~28120
+RgDAhLyJfbWG1KqC,2,3009,Vexie and the Geargrinders,Liberation of Undermine,4,Heroic,2025-04-16,True,153,Explorer,Paladin,dps,Retribution,669.0,,,,99.0,84.0,~655
+hQk721BYrVTKgMwc,51,3134,Nexus-King Salhadaar,Manaforge Omega,4,Heroic,2025-08-27,True,331,Cogsy,Hunter,dps,BeastMastery,707.0,,,,91.0,76.0,~1114
+V8XTDFM1h64wCRdf,75,2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",4,Heroic,2023-11-15,True,307,Zalris,Hunter,dps,BeastMastery,443.0,,,,52.0,92.0,~1980
+ngqd1JF4TtZmLMVv,17,2412,The Council of Blood,Castle Nathria,4,Heroic,2021-03-12,True,376,Dbway,Mage,dps,Fire,213.0,,,,17.0,18.0,~7596
+k69nMBwcAtPd4fbV,35,2737,Volcoross,"Amirdrassil, the Dream's Hope",5,Mythic,2024-01-17,True,230,Ollieyay,DeathKnight,dps,Unholy,488.0,,,,89.0,83.0,~73
+YbCwpaTym8PqL21B,23,2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",5,Mythic,2023-12-13,True,312,Temitiri,Shaman,dps,Elemental,481.0,,,,,0.0,-
+zqkGmd2x3JFrMH6P,8,2639,Terros,Vault of the Incarnates,5,Mythic,2023-02-15,True,336,Temra,Warlock,dps,Destruction,417.0,,,,94.0,93.0,~115
+hPLqFDxWZ3JmRBjT,16,2919,Broodtwister Ovi'nax,Nerub-ar Palace,5,Mythic,2024-11-25,True,474,Ashyminge,Mage,dps,Frost,631.0,,,,18.0,26.0,~3016
+VfWnarQLCpvDNbH1,27,2902,Ulgrax the Devourer,Nerub-ar Palace,5,Mythic,2024-10-16,True,429,Nobinminge,Warrior,dps,Fury,619.0,,,,25.0,37.0,~9853
+Q3pA2CygFaJ46VBh,35,2417,Stone Legion Generals,Castle Nathria,3,Normal,2021-01-31,True,328,Crypted,Priest,dps,Shadow,209.0,,,,95.0,95.0,~1076
+XN3BmRdHCfcVn4hZ,18,2435,Sylvanas Windrunner,Sanctum of Domination,4,Heroic,2021-08-25,True,694,Lickprick,Warrior,dps,Fury,246.0,,,,80.0,60.0,~613
+np7Hz8afhcDTv9gj,8,2423,The Tarragrue,Sanctum of Domination,4,Heroic,2021-09-06,True,147,Nüric,Hunter,dps,BeastMastery,235.0,,,,73.0,93.0,~11185
+jvLpYP89rzabFH3n,45,2682,Assault of the Zaqali,"Aberrus, the Shadowed Crucible",5,Mythic,2023-10-30,True,260,Mashin,Druid,dps,Feral,444.0,,,,18.0,10.0,~581
+zqkGmd2x3JFrMH6P,22,2605,Kurog Grimtotem,Vault of the Incarnates,5,Mythic,2023-02-15,True,514,Roadruid,Druid,dps,Balance,417.0,,,,81.0,83.0,~439
+W1JcVnmY3jNfXMT2,26,2605,Kurog Grimtotem,Vault of the Incarnates,4,Heroic,2022-12-28,True,307,Matlockbath,Monk,dps,Windwalker,397.0,,,,64.0,40.0,~2641
+W1JcVnmY3jNfXMT2,26,2605,Kurog Grimtotem,Vault of the Incarnates,4,Heroic,2022-12-28,True,307,Smonkste,Monk,dps,Windwalker,401.0,,,,74.0,37.0,~1907
+kQLMYvbjgFhNfRXZ,7,3183,Midnight Falls,VS / DR / MQD,3,Normal,2026-04-01,True,259,Bigboiples,Druid,dps,Balance,264.0,,,,72.0,82.0,~826
+vkwj8JrWhzntMbZL,63,3015,"Mug'Zee, Heads of Security",Liberation of Undermine,3,Normal,2025-03-05,True,282,Iustitiæ,Warrior,dps,Fury,637.0,,,,71.0,70.0,~1149
+TP9b1Y8AhR7ptgw4,16,2898,"Sikran, Captain of the Sureki",Nerub-ar Palace,4,Heroic,2024-09-16,True,223,Temitiri,Shaman,dps,Elemental,603.0,,,,88.0,79.0,~1035
+pMZYA9mPNJhX8vFy,29,3015,"Mug'Zee, Heads of Security",Liberation of Undermine,4,Heroic,2025-05-18,True,315,Mægisk,Rogue,dps,Outlaw,678.0,,,,82.0,41.0,~595
+V8XTDFM1h64wCRdf,48,2824,Smolderon,"Amirdrassil, the Dream's Hope",3,Normal,2023-11-15,True,193,Elydiel,Paladin,dps,Retribution,446.0,,,,29.0,27.0,~7064
+cb6aVy4NDKAnLr3J,34,3014,One-Armed Bandit,Liberation of Undermine,4,Heroic,2025-03-26,True,261,Ollieyay,DeathKnight,dps,Unholy,660.0,,,,58.0,27.0,~7415
+RQFbjT34GyYVZBHA,14,2418,Huntsman Altimor,Castle Nathria,4,Heroic,2021-04-04,True,235,Weakauras,Warlock,dps,Affliction,211.0,,,,61.0,90.0,~6905
+kyJpCYrFA4Gbv17j,32,2405,Artificer Xy'mox,Castle Nathria,4,Heroic,2021-03-14,True,276,Hetman,Paladin,dps,Retribution,221.0,,,,60.0,21.0,~3284
+ZhDnarQvfFMYpkmq,6,2917,The Bloodbound Horror,Nerub-ar Palace,3,Normal,2024-09-15,True,164,Jointsuckerr,Shaman,dps,Elemental,599.0,,,,65.0,28.0,~6617
+RLNMcmjFQHXyw6hJ,7,2430,Painsmith Raznal,Sanctum of Domination,4,Heroic,2021-08-18,True,345,Bexx,Druid,dps,Balance,241.0,,,,79.0,78.0,~6155
+VCaPR3FZ6L4wM9p7,2,2398,Shriekwing,Castle Nathria,4,Heroic,2021-02-24,True,196,Deadstripper,DeathKnight,dps,Unholy,213.0,,,,60.0,68.0,~17432
+tN7FgQD2aYhrCwM3,25,2590,The Primal Council,Vault of the Incarnates,5,Mythic,2023-02-01,True,205,Swolorno,Hunter,dps,Marksmanship,414.0,,,,99.0,99.0,~140

@@ -1,30 +1,30 @@
 player_name,player_class,role,primary_spec,encounter_id,boss_name,zone_name,difficulty,difficulty_label,kills_on_boss,avg_throughput_per_second,best_throughput_per_second,latest_throughput_per_second,throughput_trend,avg_item_level,avg_active_time_pct,first_kill_date,latest_kill_date
-Bpd,Warlock,dps,Destruction,3014,One-Armed Bandit,Liberation of Undermine,4,Heroic,9,,,,,664.9,,2025-03-17,2025-04-30
 Televisions,Priest,dps,Shadow,2434,Soulrender Dormazain,Sanctum of Domination,4,Heroic,7,,,,,237.6,,2021-07-14,2021-08-25
 Olliejay,Paladin,dps,Retribution,2693,The Forgotten Experiments,"Aberrus, the Shadowed Crucible",5,Mythic,6,,,,,441.5,,2023-06-12,2023-07-17
+Bpd,Warlock,dps,Destruction,3014,One-Armed Bandit,Liberation of Undermine,4,Heroic,9,,,,,664.9,,2025-03-17,2025-04-30
 Roadruid,Druid,dps,Balance,2685,Scalecommander Sarkareth,"Aberrus, the Shadowed Crucible",3,Normal,2,,,,,425.0,,2023-05-15,2023-05-22
 Momojadsie,Priest,healer,Discipline,2693,The Forgotten Experiments,"Aberrus, the Shadowed Crucible",3,Normal,1,,,,,419.0,,2023-05-21,2023-05-21
 Freshrune,DeathKnight,tank,Blood,2543,Lords of Dread,Sepulcher of the First Ones,4,Heroic,4,,,,,273.3,,2022-04-04,2022-08-17
+Gigasaga,DemonHunter,dps,Havoc,2543,Lords of Dread,Sepulcher of the First Ones,3,Normal,2,,,,,259.0,,2022-03-23,2022-03-30
 Larssonadin,Paladin,dps,Retribution,2682,Assault of the Zaqali,Vault of the Incarnates,4,Heroic,1,,,,,522.0,,2024-08-19,2024-08-19
 Bigboiples,Druid,dps,Balance,3013,Sprocketmonger Lockenstock,Liberation of Undermine,3,Normal,1,,,,,638.0,,2025-03-16,2025-03-16
-Gigasaga,DemonHunter,dps,Havoc,2543,Lords of Dread,Sepulcher of the First Ones,3,Normal,2,,,,,259.0,,2022-03-23,2022-03-30
 Zapados,Shaman,healer,Restoration,2590,The Primal Council,Vault of the Incarnates,3,Normal,1,,,,,474.0,,2024-04-29,2024-04-29
+Serthorn,Warrior,dps,Arms,2920,Nexus-Princess Ky'veza,Nerub-ar Palace,4,Heroic,2,,,,,607.0,,2024-09-29,2024-10-13
 Rheziexo,Priest,dps,Shadow,2423,The Tarragrue,Sanctum of Domination,5,Mythic,2,,,,,232.5,,2021-08-23,2021-08-30
 Temitiri,Shaman,dps,Elemental,2728,Council of Dreams,"Amirdrassil, the Dream's Hope",3,Normal,2,,,,,455.5,,2023-11-15,2023-11-22
-Serthorn,Warrior,dps,Arms,2920,Nexus-Princess Ky'veza,Nerub-ar Palace,4,Heroic,2,,,,,607.0,,2024-09-29,2024-10-13
 Leanus,Druid,tank,Guardian,2434,Soulrender Dormazain,Sanctum of Domination,4,Heroic,8,,,,,245.3,,2021-07-14,2022-08-31
 Trixiqt,Rogue,dps,Assassination,2407,Sire Denathrius,Castle Nathria,3,Normal,1,,,,,211.0,,2021-03-25,2021-03-25
 Warmanfred,Warrior,dps,Fury,3122,The Soul Hunters,Manaforge Omega,4,Heroic,1,,,,,708.0,,2025-12-01,2025-12-01
-Mhjir,Rogue,dps,Subtlety,2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",4,Heroic,1,,,,,440.0,,2024-01-24,2024-01-24
 Bigboiples,Druid,dps,Balance,3011,Rik Reverb,Liberation of Undermine,4,Heroic,1,,,,,675.0,,2025-05-18,2025-05-18
-Bubblesan,Paladin,dps,Retribution,2737,Volcoross,"Amirdrassil, the Dream's Hope",4,Heroic,1,,,,,479.0,,2024-01-24,2024-01-24
-Gigacodders,DemonHunter,dps,Havoc,2592,"Sennarth, The Cold Breath",Vault of the Incarnates,3,Normal,2,,,,,392.5,,2022-12-18,2022-12-21
-Jonyboy,Warrior,dps,Fury,2902,Ulgrax the Devourer,Manaforge Omega,5,Mythic,1,,,,,168.0,,2026-01-26,2026-01-26
-Bananjägare,DemonHunter,dps,Havoc,2689,"The Vigilant Steward, Zskarn","Aberrus, the Shadowed Crucible",3,Normal,2,,,,,411.0,,2023-05-21,2023-05-28
 Sonotori,Mage,dps,Frost,2430,Painsmith Raznal,Sanctum of Domination,5,Mythic,1,,,,,249.0,,2021-11-01,2021-11-01
 Keeksa,DemonHunter,dps,Havoc,2902,Ulgrax the Devourer,Nerub-ar Palace,3,Normal,1,,,,,611.0,,2024-09-29,2024-09-29
-Alexmae,Priest,healer,Discipline,3011,Rik Reverb,Liberation of Undermine,4,Heroic,1,,,,,635.0,,2025-03-23,2025-03-23
+Bananjägare,DemonHunter,dps,Havoc,2689,"The Vigilant Steward, Zskarn","Aberrus, the Shadowed Crucible",3,Normal,2,,,,,411.0,,2023-05-21,2023-05-28
+Jonyboy,Warrior,dps,Fury,2902,Ulgrax the Devourer,Manaforge Omega,5,Mythic,1,,,,,168.0,,2026-01-26,2026-01-26
+Mhjir,Rogue,dps,Subtlety,2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",4,Heroic,1,,,,,440.0,,2024-01-24,2024-01-24
+Bubblesan,Paladin,dps,Retribution,2737,Volcoross,"Amirdrassil, the Dream's Hope",4,Heroic,1,,,,,479.0,,2024-01-24,2024-01-24
+Gigacodders,DemonHunter,dps,Havoc,2592,"Sennarth, The Cold Breath",Vault of the Incarnates,3,Normal,2,,,,,392.5,,2022-12-18,2022-12-21
 Bigboiples,Druid,healer,Restoration,3016,Chrome King Gallywix,Liberation of Undermine,5,Mythic,1,,,,,680.0,,2025-07-16,2025-07-16
+Alexmae,Priest,healer,Discipline,3011,Rik Reverb,Liberation of Undermine,4,Heroic,1,,,,,635.0,,2025-03-23,2025-03-23
 Gigasaga,DemonHunter,dps,Havoc,2422,Kel'Thuzad,Sanctum of Domination,4,Heroic,6,,,,,241.7,,2021-08-02,2021-09-13
 Hides,Rogue,dps,Subtlety,3016,Chrome King Gallywix,Liberation of Undermine,3,Normal,1,,,,,618.0,,2025-03-09,2025-03-09
 Smonkste,Monk,dps,Windwalker,2614,Broodkeeper Diurna,Vault of the Incarnates,5,Mythic,1,,,,,418.0,,2023-04-19,2023-04-19
@@ -34,18 +34,18 @@ Olixbear,Druid,tank,Guardian,2430,Painsmith Raznal,Sanctum of Domination,4,Heroi
 Nohunter,Hunter,dps,Marksmanship,2539,"Lihuvim, Principal Architect",Sepulcher of the First Ones,4,Heroic,2,,,,,296.0,,2022-08-17,2022-09-12
 Lyrla,Priest,dps,Shadow,3016,Chrome King Gallywix,Liberation of Undermine,4,Heroic,1,,,,,652.0,,2025-06-18,2025-06-18
 Leanus,Druid,tank,Guardian,2423,The Tarragrue,Sanctum of Domination,3,Normal,2,,,,,234.0,,2021-07-07,2021-08-08
-Mmdcarrykon,Hunter,dps,BeastMastery,2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",4,Heroic,1,,,,,485.0,,2024-01-24,2024-01-24
 Malee,DemonHunter,dps,Havoc,2542,"Skolex, the Insatiable Ravener",Sepulcher of the First Ones,4,Heroic,1,,,,,293.0,,2022-08-17,2022-08-17
-Mashin,Druid,dps,Feral,2685,Scalecommander Sarkareth,"Aberrus, the Shadowed Crucible",3,Normal,3,,,,,443.7,,2023-05-15,2024-05-01
-Aznack,Warrior,dps,Fury,2728,Council of Dreams,"Amirdrassil, the Dream's Hope",4,Heroic,1,,,,,482.0,,2024-01-24,2024-01-24
 Larssonhman,Shaman,dps,Enhancement,2922,Queen Ansurek,Nerub-ar Palace,3,Normal,2,,,,,602.5,,2024-09-22,2024-10-02
 Nohunter,Hunter,dps,BeastMastery,2434,Soulrender Dormazain,Sanctum of Domination,4,Heroic,1,,,,,297.0,,2022-08-31,2022-08-31
 Eppatdh,DemonHunter,dps,Havoc,2687,The Amalgamation Chamber,"Aberrus, the Shadowed Crucible",5,Mythic,1,,,,,505.0,,2024-05-06,2024-05-06
+Mashin,Druid,dps,Feral,2685,Scalecommander Sarkareth,"Aberrus, the Shadowed Crucible",3,Normal,3,,,,,443.7,,2023-05-15,2024-05-01
+Mmdcarrykon,Hunter,dps,BeastMastery,2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",4,Heroic,1,,,,,485.0,,2024-01-24,2024-01-24
+Aznack,Warrior,dps,Fury,2728,Council of Dreams,"Amirdrassil, the Dream's Hope",4,Heroic,1,,,,,482.0,,2024-01-24,2024-01-24
 Wrucebillis,Shaman,healer,Restoration,2407,Sire Denathrius,Castle Nathria,3,Normal,1,,,,,225.0,,2021-03-25,2021-03-25
 Scapter,Priest,healer,Holy,2402,Sun King's Salvation,Castle Nathria,4,Heroic,1,,,,,219.0,,2021-04-04,2021-04-04
-Raslin,Shaman,dps,Elemental,2543,Lords of Dread,Sepulcher of the First Ones,4,Heroic,1,,,,,285.0,,2022-09-12,2022-09-12
 Dion,Hunter,dps,Marksmanship,2412,The Council of Blood,Castle Nathria,4,Heroic,1,,,,,205.0,,2021-02-28,2021-02-28
-Егуртвштанах,Monk,healer,Mistweaver,2399,Sludgefist,Castle Nathria,3,Normal,1,,,,,197.0,,2021-02-07,2021-02-07
-Alexmae,Priest,healer,Holy,3014,One-Armed Bandit,Liberation of Undermine,4,Heroic,1,,,,,659.0,,2025-05-07,2025-05-07
+Raslin,Shaman,dps,Elemental,2543,Lords of Dread,Sepulcher of the First Ones,4,Heroic,1,,,,,285.0,,2022-09-12,2022-09-12
 Peesham,Shaman,healer,Restoration,2920,Nexus-Princess Ky'veza,Nerub-ar Palace,4,Heroic,1,,,,,590.0,,2024-10-06,2024-10-06
-Zixty,DemonHunter,dps,Havoc,2539,"Lihuvim, Principal Architect",Sepulcher of the First Ones,4,Heroic,1,,,,,295.0,,2022-08-17,2022-08-17
+Alexmae,Priest,healer,Holy,3014,One-Armed Bandit,Liberation of Undermine,4,Heroic,1,,,,,659.0,,2025-05-07,2025-05-07
+Егуртвштанах,Monk,healer,Mistweaver,2399,Sludgefist,Castle Nathria,3,Normal,1,,,,,197.0,,2021-02-07,2021-02-07
+Jumzo,Paladin,dps,Retribution,2898,"Sikran, Captain of the Sureki",Nerub-ar Palace,3,Normal,4,,,,,614.5,,2024-09-15,2024-11-03

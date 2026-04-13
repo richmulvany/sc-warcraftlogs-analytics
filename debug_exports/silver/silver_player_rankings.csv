@@ -1,1 +1,51 @@
-report_code,fight_id,encounter_id,difficulty,player_name,player_class,spec,amount,rank_percent,bracket_percent,medal,fight_duration_ms
+report_code,fight_id,encounter_id,encounter_name,difficulty,fight_size,role,player_name,player_class,spec,amount,rank_percent,bracket_percent,rank_string,total_parses
+m9cJdtFn4DpwGZYC,85,2685,Scalecommander Sarkareth,4,21,tank,Lenus,DemonHunter,Vengeance,145133.3681674,81.0,96.0,~478,2521
+krWfYxvJPmMq8GR6,5,2529,Halondrus the Reclaimer,3,21,tank,Freshrune,DeathKnight,Blood,3807.3007307369,77.0,43.0,~2524,10975
+kRH7K3ajVbG24hCP,19,2544,Prototype Pantheon,3,22,tank,Freshrune,DeathKnight,Blood,4298.5428709545,55.0,23.0,~2446,5437
+NzfPQx7vqTkLmtFM,19,3016,Chrome King Gallywix,4,22,tank,Cherven,DeathKnight,Blood,1385979.2263593,83.0,79.0,~2021,11890
+jDyK1NBMdbZmnrfH,6,2429,The Nine,3,14,tank,Peeporagin,Warrior,Protection,1993.1638087351,6.0,73.0,~2706,2879
+z3G2QJvRjaF8NY46,18,2434,Soulrender Dormazain,4,12,tank,Mechanose,DeathKnight,Blood,3975.4510277841,3.0,4.0,~2556,2636
+NBZdmPaTkAWxyMnr,11,2398,Shriekwing,5,20,tank,Bashin,Warrior,Protection,1018.3651210918,1.0,19.0,~2091,2113
+4ygtXrDWwhcTNPGp,30,2920,Nexus-Princess Ky'veza,4,24,tank,Deredeemer,Paladin,Protection,248479.74228374,18.0,35.0,~17119,20878
+YZgXMmtv4GLQyNTd,36,3132,Forgeweaver Araz,3,22,tank,Lenus,DemonHunter,Vengeance,1815528.2859192,85.0,83.0,~517,3447
+cWw94yCA2QKXx1nR,29,2433,The Eye of the Jailer,3,10,tank,Leanus,Druid,Guardian,1758.7936301944,70.0,48.0,~885,2950
+xAtmGz1jHrBpNKn7,15,2383,Hungering Destroyer,4,14,tank,Wackya,Warrior,Protection,1442.3602137907,10.0,17.0,~5670,6301
+TwA2vc9HYDabkLZj,83,3133,Fractillus,4,21,tank,Brickyd,Warrior,Protection,2358119.3190016,87.0,73.0,~513,3953
+yHBRMf9q1tNhAdJY,6,2820,Gnarlroot,4,28,tank,Lenus,DemonHunter,Vengeance,158492.14157254,97.0,87.0,~431,14394
+pMZYA9mPNJhX8vFy,7,3010,Cauldron of Carnage,4,23,tank,Cherven,DeathKnight,Blood,1445888.9850682,88.0,37.0,~1223,10196
+XPxY1LmTpQ8zJAMK,23,2432,Remnant of Ner'zhul,4,26,tank,Leanus,Druid,Guardian,4122.0522690851,92.0,83.0,~598,7487
+q4ZwLAfXd2FhVxkW,7,2820,Gnarlroot,4,23,tank,Leanus,Druid,Guardian,124607.25130063,80.0,91.0,~1570,7854
+jhCYADc9HJKqf3mN,38,2399,Sludgefist,4,16,tank,Eloodh,DemonHunter,Vengeance,1913.4091651361,17.0,49.0,~15694,18909
+mbd4LZGNHwVzX6Ta,7,2399,Sludgefist,3,26,tank,Злопамятство,DemonHunter,Vengeance,900.52430023366,0.0,4.0,~5245,5245
+VJKqP6j2zY9QhpH8,45,3015,"Mug’Zee, Heads of Security",4,27,tank,Lenus,DemonHunter,Vengeance,988561.98447056,77.0,79.0,~460,2004
+m9cJdtFn4DpwGZYC,43,2685,Scalecommander Sarkareth,3,22,tank,Lucyinder,Monk,Brewmaster,87664.000192564,62.0,75.0,~372,980
+VCaPR3FZ6L4wM9p7,6,2407,Sire Denathrius,4,24,tank,Bashin,Warrior,Protection,2027.7934475526,74.0,83.0,~927,3569
+9qcVWXmRNvMkFYrL,33,2921,The Silken Court,4,14,tank,Leanus,Druid,Guardian,656905.8246275,68.0,92.0,~1370,4282
+VK9GXNjRMx1LmqAD,14,2693,The Forgotten Experiments,4,20,tank,Freshrune,DeathKnight,Blood,54889.429251503,97.0,87.0,~362,12094
+Kwf3ctyFRvG9ZVnD,21,2680,"Rashok, the Elder",3,25,tank,Lúcífér,DeathKnight,Blood,31697.942566516,59.0,39.0,~5716,13942
+1A82mCFP4MJwfKaG,28,2920,Nexus-Princess Ky'veza,3,24,tank,Lúcífér,DeathKnight,Blood,301869.13577288,75.0,63.0,~3400,13601
+MjLA6DqRmKQvcGNp,15,3179,Fallen-King Salhadaar,4,21,tank,Jadsrune,DeathKnight,Blood,37240.932686725,80.0,23.0,~2709,13548
+m9cJdtFn4DpwGZYC,65,2680,"Rashok, the Elder",4,21,tank,Lucyinder,Monk,Brewmaster,92653.147525228,42.0,54.0,~619,1068
+yQPzhDNWjZnpYTkH,39,2549,Rygelon,4,20,tank,Freshrune,DeathKnight,Blood,5648.373199092,61.0,46.0,~1581,4054
+QKydWTLA3BX2tx67,8,3133,Fractillus,4,23,tank,Piyan,Monk,Brewmaster,2767665.5304734,91.0,85.0,~1188,13201
+9qcVWXmRNvMkFYrL,4,2902,Ulgrax the Devourer,4,14,tank,Lenus,DemonHunter,Vengeance,859483.94585431,93.0,62.0,~305,4366
+B73Nv9kfjJnahy1F,7,2590,The Primal Council,3,15,tank,Deredeemer,Paladin,Protection,29717.181209526,22.0,34.0,~3386,4342
+BR9Avqcbx2D7kTtN,13,2635,"Dathea, Ascended",4,14,tank,Evestirwin,DemonHunter,Vengeance,112685.10978289,48.0,78.0,~687,1323
+6189vtG3pHAwzgQT,1,2407,Sire Denathrius,4,20,tank,Mashin,Druid,Guardian,2453.3682443853,77.0,92.0,~1455,6329
+jmpyLVFaKX8qvZD7,4,3009,Vexie and the Geargrinders,4,20,tank,Budgetgoku,Paladin,Protection,2524223.620198,98.0,91.0,~174,8733
+8WnpVdcDXqkmxLQ3,26,2919,Broodtwister Ovi'nax,4,27,tank,Lenus,DemonHunter,Vengeance,718524.65116279,91.0,71.0,~1143,12705
+yAkGZ84XCjHdJP6f,1,2587,Eranog,4,21,tank,Freshrune,DeathKnight,Blood,30619.915860471,86.0,62.0,~2328,16634
+jNqfxDa9XdFMLH26,13,3134,Nexus-King Salhadaar,5,20,tank,Cherven,DeathKnight,Blood,17661.962709392,58.0,58.0,~398,949
+AHd6qkagt8KLr3mF,17,2731,"Larodar, Keeper of the Flame",4,16,tank,Lucyinder,Monk,Brewmaster,166381.9645198,81.0,87.0,~60,317
+4zwRfFcBKAaZ86Yp,1,2423,The Tarragrue,5,20,tank,Olixbear,Druid,Guardian,3517.8314724744,28.0,28.0,~3224,4478
+fKrXkYcht4HxWVRw,45,2917,The Bloodbound Horror,4,26,tank,Getfresh,Warrior,Protection,420696.97669318,77.0,61.0,~1555,6765
+vBpkPDKZtW9z32Nf,12,2434,Soulrender Dormazain,4,13,tank,Loafulevil,Warrior,Protection,4415.7965220735,64.0,68.0,~1933,5372
+R2xDrFc7MvtpbjVa,33,2919,Broodtwister Ovi'nax,4,26,tank,Lenus,DemonHunter,Vengeance,696174.88523073,91.0,73.0,~923,10261
+fp4jrD76NZBzdnP1,9,3131,Loom'ithar,3,15,tank,Lenus,DemonHunter,Vengeance,3121467.4337654,89.0,49.0,~119,1088
+vKMyHdVJA1nRqpNh,3,2399,Sludgefist,4,23,tank,Bashin,Warrior,Protection,1623.4061388761,11.0,40.0,~5083,5712
+DPdVCNpzbH4Xk3Mf,37,2677,Fyrakk the Blazing,4,30,tank,Socktardruid,Druid,Guardian,32.398634760079,1.0,22.0,~3036,3067
+C61kw8BLbVGAvJWq,3,2398,Shriekwing,4,14,tank,Rainasu,DemonHunter,Vengeance,1568.4288781563,42.0,72.0,~8933,15403
+gdDvANnk314prZM7,24,2432,Remnant of Ner'zhul,4,21,tank,Leanus,Druid,Guardian,4820.0694625985,95.0,89.0,~443,8874
+NzfPQx7vqTkLmtFM,17,3015,"Mug’Zee, Heads of Security",4,22,tank,Lenus,DemonHunter,Vengeance,1165456.7416775,88.0,83.0,~1541,12846
+ZhDnarQvfFMYpkmq,21,2920,Nexus-Princess Ky'veza,3,17,tank,Leanus,Druid,Guardian,367189.49872557,89.0,83.0,~974,8859
+JRP4ZVadWbx9f2ck,39,2422,Kel'Thuzad,3,25,tank,Misakî,Paladin,Protection,2107.1350226641,6.0,17.0,~7884,8388
