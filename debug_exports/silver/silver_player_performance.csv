@@ -1,0 +1,51 @@
+report_code,fight_id,boss_name,encounter_id,difficulty,difficulty_label,zone_id,zone_name,duration_ms,role,actor_id,player_name,player_class,spec,min_item_level,max_item_level,avg_item_level,total_amount,active_time_pct,_ingested_at
+7Fxrt1PH8gnXVjRw,36,Raszageth the Storm-Eater,2607,4,Heroic,31,Vault of the Incarnates,464172,dps,15,Gigacodders,DemonHunter,Havoc,488.0,488.0,488.0,,,2026-04-13T00:10:22.936577+00:00
+8tYPZQ1394bBzw6H,4,"Dausegne, the Fallen Oracle",2540,4,Heroic,29,Sepulcher of the First Ones,266540,dps,1,Elfeyes,Hunter,Marksmanship,259.0,259.0,259.0,,,2026-04-13T00:10:22.936577+00:00
+GxYm9Td8tZLQHXpF,10,Igira the Cruel,2709,4,Heroic,35,"Amirdrassil, the Dream's Hope",159736,dps,5,Wingseb,Paladin,Retribution,519.0,519.0,519.0,,,2026-04-13T00:10:22.936577+00:00
+GxYm9Td8tZLQHXpF,41,Fyrakk the Blazing,2677,4,Heroic,35,"Amirdrassil, the Dream's Hope",388999,dps,6,Codders,Mage,Fire,507.0,507.0,507.0,,,2026-04-13T00:10:22.936577+00:00
+B1pRfaPD2WLN3g4k,1,The Tarragrue,2423,4,Heroic,28,Sanctum of Domination,291294,dps,14,Phazex,Rogue,Assassination,232.0,232.0,232.0,,,2026-04-13T00:10:22.936577+00:00
+3QhvWxKCZ6RXTtrp,1,The Tarragrue,2423,5,Mythic,28,Sanctum of Domination,196395,dps,13,Xariall,Druid,Balance,254.0,254.0,254.0,,,2026-04-13T00:10:22.936577+00:00
+HhpVC8qWDKvBXamA,43,Chrome King Gallywix,3016,3,Normal,42,Liberation of Undermine,345389,dps,18,Blackóút,Shaman,Enhancement,639.0,639.0,639.0,,,2026-04-13T00:10:22.936577+00:00
+3jdNx68m2VJgzQaB,8,The Tarragrue,2423,5,Mythic,28,Sanctum of Domination,256110,dps,7,Loafulevil,Warrior,Arms,243.0,243.0,243.0,,,2026-04-13T00:10:22.936577+00:00
+KR7kQLAztqwrV2dZ,34,Painsmith Raznal,2430,4,Heroic,28,Sanctum of Domination,356143,dps,23,Grets,Warlock,Demonology,234.0,234.0,234.0,,,2026-04-13T00:10:22.936577+00:00
+6xP4Z9y3pVzBKbAw,24,"Sikran, Captain of the Sureki",2898,5,Mythic,38,Nerub-ar Palace,260983,dps,20,Hobbyalkis,Rogue,Assassination,625.0,625.0,625.0,,,2026-04-13T00:10:22.936577+00:00
+DFANHypwvLTzfWaQ,26,Sprocketmonger Lockenstock,3013,4,Heroic,42,Liberation of Undermine,265710,dps,25,Enjiie,DemonHunter,Havoc,654.0,654.0,654.0,,,2026-04-13T00:10:22.936577+00:00
+4bKvXBadLyxWMtYf,68,"Larodar, Keeper of the Flame",2731,4,Heroic,35,"Amirdrassil, the Dream's Hope",251809,dps,13,Portsmouth,Mage,Frost,462.0,462.0,462.0,,,2026-04-13T00:10:22.936577+00:00
+Gk17VY4vnRtyhQcF,37,Magmorax,2683,4,Heroic,33,"Aberrus, the Shadowed Crucible",221411,dps,55,Temra,Warlock,Demonology,422.0,422.0,422.0,,,2026-04-13T00:10:22.936577+00:00
+Gk17VY4vnRtyhQcF,37,Magmorax,2683,4,Heroic,33,"Aberrus, the Shadowed Crucible",221411,dps,57,Pangbruden,Hunter,BeastMastery,414.0,414.0,414.0,,,2026-04-13T00:10:22.936577+00:00
+GBCwct9Q8XHMNfxn,42,Fallen-King Salhadaar,3179,4,Heroic,46,VS / DR / MQD,316227,dps,19,Bpd,Warlock,Destruction,255.0,255.0,255.0,,,2026-04-13T00:10:22.936577+00:00
+jAzxMfZcKdrQT8Yy,27,Broodtwister Ovi'nax,2919,4,Heroic,38,Nerub-ar Palace,303245,dps,206,Lazlow,Warlock,Destruction,628.0,628.0,628.0,,,2026-04-13T00:10:22.936577+00:00
+pZ974Mvqz1tLw6jF,1,The Tarragrue,2423,3,Normal,28,Sanctum of Domination,200743,dps,2,Zerodrama,Warrior,Arms,241.0,241.0,241.0,,,2026-04-13T00:10:22.936577+00:00
+qCWyGR9YJbgjdA8B,1,"Dimensius, the All-Devouring",3135,3,Normal,44,Manaforge Omega,470390,dps,16,Sixteen,Warrior,Arms,720.0,720.0,720.0,,,2026-04-13T00:10:22.936577+00:00
+6zNmtTncWpZP4XR9,45,Ulgrax the Devourer,2902,5,Mythic,38,Nerub-ar Palace,377115,dps,683,Larssonoker,Evoker,Devastation,628.0,628.0,628.0,,,2026-04-13T00:10:22.936577+00:00
+JzakqH2vjWLm7PX8,29,"Nymue, Weaver of the Cycle",2708,3,Normal,35,"Amirdrassil, the Dream's Hope",158062,dps,14,Fibres,Mage,Fire,448.0,448.0,448.0,,,2026-04-13T00:10:22.936577+00:00
+B1pRfaPD2WLN3g4k,7,Remnant of Ner'zhul,2432,4,Heroic,28,Sanctum of Domination,275661,dps,4,Lickprick,Warrior,Arms,226.0,226.0,226.0,,,2026-04-13T00:10:22.936577+00:00
+AmWFQD1kV7xLHBaT,51,Volcoross,2737,4,Heroic,35,"Amirdrassil, the Dream's Hope",128730,dps,23,Unrecorded,Mage,Fire,507.0,507.0,507.0,,,2026-04-13T00:10:22.936577+00:00
+AmWFQD1kV7xLHBaT,28,"Nymue, Weaver of the Cycle",2708,3,Normal,35,"Amirdrassil, the Dream's Hope",100642,dps,16,Clomp,Mage,Frost,502.0,502.0,502.0,,,2026-04-13T00:10:22.936577+00:00
+F3LNgB27kpPG4xmz,7,Plexus Sentinel,3129,5,Mythic,44,Manaforge Omega,314785,dps,51,Hobbyalkis,Rogue,Assassination,714.0,714.0,714.0,,,2026-04-13T00:10:22.936577+00:00
+9WCTwGtmkvpLVJzx,32,Rik Reverb,3011,5,Mythic,42,Liberation of Undermine,360257,dps,31,Ashyminge,Mage,Fire,667.0,667.0,667.0,,,2026-04-13T00:10:22.936577+00:00
+6zNmtTncWpZP4XR9,26,The Silken Court,2921,3,Normal,38,Nerub-ar Palace,293638,dps,71,Dzx,DeathKnight,Frost,610.0,610.0,610.0,,,2026-04-13T00:10:22.936577+00:00
+GBCwct9Q8XHMNfxn,42,Fallen-King Salhadaar,3179,4,Heroic,46,VS / DR / MQD,316227,dps,3,Karllia,DemonHunter,Devourer,262.0,262.0,262.0,,,2026-04-13T00:10:22.936577+00:00
+kRH7K3ajVbG24hCP,10,Halondrus the Reclaimer,2529,3,Normal,29,Sepulcher of the First Ones,291053,dps,19,Zrenak,Shaman,Enhancement,257.0,257.0,257.0,,,2026-04-13T00:10:22.936577+00:00
+jJR6C24cTLXDghrM,11,The Forgotten Experiments,2693,5,Mythic,33,"Aberrus, the Shadowed Crucible",292253,dps,7,Demboypaigon,Warrior,Arms,440.0,440.0,440.0,,,2026-04-13T00:10:22.936577+00:00
+kQLMYvbjgFhNfRXZ,12,"Chimaerus, the Undreamt God",3306,4,Heroic,46,VS / DR / MQD,335227,dps,6,Megachomber,DeathKnight,Unholy,269.0,269.0,269.0,,,2026-04-13T00:10:22.936577+00:00
+hQk721BYrVTKgMwc,51,Nexus-King Salhadaar,3134,4,Heroic,44,Manaforge Omega,331864,dps,11,Cogsy,Hunter,BeastMastery,707.0,707.0,707.0,,,2026-04-13T00:10:22.936577+00:00
+HvJ6KkBRd4qD3yPx,26,Fractillus,3133,4,Heroic,44,Manaforge Omega,281798,dps,18,Yearnvoker,Evoker,Devastation,700.0,700.0,700.0,,,2026-04-13T00:10:22.936577+00:00
+6NzHCPd9ZKDpgJ1t,20,The Silken Court,2921,4,Heroic,38,Nerub-ar Palace,450495,dps,26,Televisions,Priest,Shadow,612.0,612.0,612.0,,,2026-04-13T00:10:22.936577+00:00
+4ygtXrDWwhcTNPGp,9,The Bloodbound Horror,2917,4,Heroic,38,Nerub-ar Palace,231464,dps,72,Roux,Rogue,Assassination,604.0,604.0,604.0,,,2026-04-13T00:10:22.936577+00:00
+ngqd1JF4TtZmLMVv,17,The Council of Blood,2412,4,Heroic,26,Castle Nathria,376493,dps,143,Dbway,Mage,Fire,213.0,213.0,213.0,,,2026-04-13T00:10:22.936577+00:00
+k69nMBwcAtPd4fbV,35,Volcoross,2737,5,Mythic,35,"Amirdrassil, the Dream's Hope",230914,dps,15,Ollieyay,DeathKnight,Unholy,488.0,488.0,488.0,,,2026-04-13T00:10:22.936577+00:00
+hPLqFDxWZ3JmRBjT,16,Broodtwister Ovi'nax,2919,5,Mythic,38,Nerub-ar Palace,474817,dps,16,Ashyminge,Mage,Frost,631.0,631.0,631.0,,,2026-04-13T00:10:22.936577+00:00
+3YvCrVK1bgGBnHPZ,3,The Eye of the Jailer,2433,3,Normal,28,Sanctum of Domination,215001,dps,19,Cryptod,DeathKnight,Frost,228.0,228.0,228.0,,,2026-04-13T00:10:22.936577+00:00
+BNwd7DmQhGkxKpPc,7,Imperator Averzian,3176,5,Mythic,46,VS / DR / MQD,420424,dps,3,Hobbyalkis,Rogue,Subtlety,269.0,269.0,269.0,,,2026-04-13T00:10:22.936577+00:00
+DWyKfvYraCZR9mJg,12,Queen Ansurek,2922,4,Heroic,38,Nerub-ar Palace,400099,dps,27,Hobbyalkis,Rogue,Assassination,616.0,616.0,616.0,,,2026-04-13T00:10:22.936577+00:00
+3JZjK7xVzDLnPWTq,11,Raszageth the Storm-Eater,2607,4,Heroic,31,Vault of the Incarnates,623210,dps,2,Larssonhter,Hunter,Marksmanship,406.0,406.0,406.0,,,2026-04-13T00:10:22.936577+00:00
+1JR3rTW7HjM928dC,11,Echo of Neltharion,2684,4,Heroic,33,"Aberrus, the Shadowed Crucible",240729,dps,111,Roadruid,Druid,Balance,444.0,444.0,444.0,,,2026-04-13T00:10:22.936577+00:00
+24M6G9yKnQf8tRqN,32,Sire Denathrius,2407,4,Heroic,26,Castle Nathria,478536,dps,3,Pangbruden,Hunter,BeastMastery,214.0,214.0,214.0,,,2026-04-13T00:10:22.936577+00:00
+AmWFQD1kV7xLHBaT,41,Gnarlroot,2820,4,Heroic,35,"Amirdrassil, the Dream's Hope",141854,dps,12,Sprutpesse,Priest,Shadow,511.0,511.0,511.0,,,2026-04-13T00:10:22.936577+00:00
+FZRrB6M1HKmDn38g,22,Assault of the Zaqali,2682,3,Normal,33,"Aberrus, the Shadowed Crucible",46832,dps,19,Swolorno,Hunter,Marksmanship,435.0,435.0,435.0,,,2026-04-13T00:10:22.936577+00:00
+JNY1P9hgqwxLWby4,13,"Dathea, Ascended",2635,3,Normal,31,Vault of the Incarnates,193102,dps,8,Smonkste,Monk,Windwalker,386.0,386.0,386.0,,,2026-04-13T00:10:22.936577+00:00
+8WnpVdcDXqkmxLQ3,36,The Silken Court,2921,4,Heroic,38,Nerub-ar Palace,359292,dps,23,Explorer,Paladin,Retribution,622.0,622.0,622.0,,,2026-04-13T00:10:22.936577+00:00
+4xHQp8NCZ1FnrB3X,37,The Silken Court,2921,4,Heroic,38,Nerub-ar Palace,433752,dps,44,Explorer,Paladin,Retribution,613.0,613.0,613.0,,,2026-04-13T00:10:22.936577+00:00
+4ygtXrDWwhcTNPGp,32,The Silken Court,2921,4,Heroic,38,Nerub-ar Palace,450473,dps,66,Ivaspear,Hunter,Survival,630.0,630.0,630.0,,,2026-04-13T00:10:22.936577+00:00
+4ygtXrDWwhcTNPGp,25,Broodtwister Ovi'nax,2919,4,Heroic,38,Nerub-ar Palace,310123,dps,13,Akitype,Druid,Feral,597.0,597.0,597.0,,,2026-04-13T00:10:22.936577+00:00
