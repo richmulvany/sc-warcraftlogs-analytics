@@ -6,6 +6,11 @@
 # fact_player_events            — one row per death event per player per report
 #
 # These are the backbone tables that downstream gold aggregation tables build on.
+#
+# NOTE on throughput:
+#   throughput_per_second comes from silver_player_rankings.amount which is the
+#   DPS/HPS value WCL uses for ranking — already normalised per fight second.
+#   silver_player_performance (playerDetails endpoint) does NOT carry damage totals.
 
 import dlt
 from pyspark.sql import functions as F
@@ -14,20 +19,18 @@ from pyspark.sql import functions as F
 # ── Player Fight Performance Fact ──────────────────────────────────────────────
 # Joins silver_player_performance (from player_details) to silver_fight_events
 # (fight context: date, zone, boss, outcome) and silver_player_rankings (WCL
-# parse percentiles).
+# parse percentiles and throughput amount).
 #
 # Only kill fights are included (is_kill = true) — this table is intended for
 # performance assessment rather than wipe analysis (use silver_fight_events for
 # the latter).
-#
-# throughput_per_second = total_amount / duration_seconds avoids re-aggregating
-# the raw total_amount which varies with fight length.
 
 @dlt.table(
     name="fact_player_fight_performance",
     comment=(
         "Per-player performance on every boss kill. "
-        "Joins fight context, player stats, and WCL parse rankings. "
+        "Joins fight context, player stats (gear, consumables, combat stats), "
+        "and WCL parse rankings (throughput, percentile). "
         "One row per player per kill fight."
     ),
     table_properties={
@@ -58,7 +61,8 @@ def fact_player_fight_performance():
         )
     )
 
-    # Rankings keyed on (report_code, fight_id, player_name) — one row per player per fight
+    # Rankings keyed on (report_code, fight_id, player_name).
+    # amount = WCL DPS/HPS metric (per-second throughput, already fight-normalised).
     rankings_slim = (
         rankings
         .select(
@@ -67,12 +71,13 @@ def fact_player_fight_performance():
             F.col("player_name").alias("_r_player_name"),
             "rank_percent",
             "bracket_percent",
-            "rank_string",   # "~1265" approximate rank position; no medal field in WCL API
+            "rank_string",   # "~1265" approximate rank position
+            F.col("amount").cast("long").alias("throughput_per_second"),
         )
     )
 
-    # Slim perf to player-specific columns only — fight-context cols (encounter_id,
-    # boss_name, zone_name, difficulty, difficulty_label) come from kill_context.
+    # Slim perf to player-specific columns only — fight-context cols come from kill_context.
+    # Includes combatant stats and consumable usage from playerDetails endpoint.
     perf_slim = perf.select(
         "report_code",
         "fight_id",
@@ -81,8 +86,12 @@ def fact_player_fight_performance():
         "player_class",
         "spec",
         "avg_item_level",
-        "total_amount",
-        "active_time_pct",
+        "potion_use",
+        "healthstone_use",
+        "crit_rating",
+        "haste_rating",
+        "mastery_rating",
+        "versatility_rating",
     )
 
     return (
@@ -98,14 +107,6 @@ def fact_player_fight_performance():
             "left",
         )
         .drop("_r_report_code", "_r_fight_id", "_r_player_name")
-        .withColumn(
-            "throughput_per_second",
-            F.round(
-                F.col("total_amount")
-                / F.greatest(F.col("duration_seconds").cast("double"), F.lit(1)),
-                0,
-            ).cast("long"),
-        )
         .select(
             "report_code",
             "fight_id",
@@ -122,14 +123,18 @@ def fact_player_fight_performance():
             "role",
             "spec",
             "avg_item_level",
-            "total_amount",
-            "active_time_pct",
-            "throughput_per_second",
+            "potion_use",
+            "healthstone_use",
+            "crit_rating",
+            "haste_rating",
+            "mastery_rating",
+            "versatility_rating",
+            "throughput_per_second",   # from rankings.amount (DPS/HPS, nullable)
             "rank_percent",
             "bracket_percent",
             "rank_string",
         )
-        .orderBy("raid_night_date", "encounter_id", "role", F.col("throughput_per_second").desc())
+        .orderBy("raid_night_date", "encounter_id", "role", F.col("throughput_per_second").desc_nulls_last())
     )
 
 

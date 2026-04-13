@@ -97,6 +97,8 @@ resources:
             path: pipeline/gold/roster_products.py
         - notebook:
             path: pipeline/gold/survivability_products.py
+        - notebook:
+            path: pipeline/gold/preparation_products.py
 
       configuration:
         secret_scope: pipeline-secrets

@@ -71,6 +71,25 @@ def silver_guild_members():
             "is_raid_team",
             F.col("rank").isin(0, 1, 2, 3, 4, 5, 8),
         )
+        # Derive class name from Blizzard class_id — the Profile API does not
+        # return a human-readable class name string, only the numeric class_id.
+        .withColumn(
+            "class_name",
+            F.when(F.col("class_id") == 1,  "Warrior")
+             .when(F.col("class_id") == 2,  "Paladin")
+             .when(F.col("class_id") == 3,  "Hunter")
+             .when(F.col("class_id") == 4,  "Rogue")
+             .when(F.col("class_id") == 5,  "Priest")
+             .when(F.col("class_id") == 6,  "Death Knight")
+             .when(F.col("class_id") == 7,  "Shaman")
+             .when(F.col("class_id") == 8,  "Mage")
+             .when(F.col("class_id") == 9,  "Warlock")
+             .when(F.col("class_id") == 10, "Monk")
+             .when(F.col("class_id") == 11, "Druid")
+             .when(F.col("class_id") == 12, "Demon Hunter")
+             .when(F.col("class_id") == 13, "Evoker")
+             .otherwise(F.lit(None)),
+        )
         .select(
             "name",
             "realm_slug",

@@ -63,19 +63,37 @@ def dim_player():
     actors = dlt.read("silver_actor_roster")
     attendance = dlt.read("silver_raid_attendance")
     guild_members = dlt.read("silver_guild_members")
+    perf = dlt.read("silver_player_performance")
 
     # Most recent class + realm snapshot per player from actor logs
     w_actor = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
     latest_actor = (
         actors
+        .filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
         .withColumn("_rn", F.row_number().over(w_actor))
         .filter(F.col("_rn") == 1)
         .select("player_name", "player_class", "realm")
     )
 
+    # Fallback class source: silver_player_performance reliably has player.type (WoW class).
+    # Use this to fill in player_class when actor roster has null/blank class.
+    w_perf = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
+    perf_class = (
+        perf
+        .filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
+        .filter(F.col("player_class").isNotNull() & (F.col("player_class") != ""))
+        .withColumn("_rn", F.row_number().over(w_perf))
+        .filter(F.col("_rn") == 1)
+        .select(
+            F.col("player_name").alias("_pc_player_name"),
+            F.col("player_class").alias("_pc_player_class"),
+        )
+    )
+
     # All distinct player names from attendance (catches players not in actor roster)
     att_players = (
         attendance
+        .filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
         .select("player_name")
         .distinct()
     )
@@ -96,12 +114,21 @@ def dim_player():
         .select("player_name")
         .union(att_players)
         .distinct()
+        # Exclude blank names that can slip in through attendance data
+        .filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
     )
 
     # Bring in actor class/realm for all players (null for attendance-only)
     players_with_actor = (
         all_players
         .join(latest_actor, "player_name", "left")
+        # Fill missing player_class from performance data (more consistently populated)
+        .join(perf_class, F.col("player_name") == perf_class._pc_player_name, "left")
+        .withColumn(
+            "player_class",
+            F.coalesce(F.col("player_class"), F.col("_pc_player_class")),
+        )
+        .drop("_pc_player_name", "_pc_player_class")
     )
 
     # Join attendance date range
