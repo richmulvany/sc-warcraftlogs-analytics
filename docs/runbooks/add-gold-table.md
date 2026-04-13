@@ -2,65 +2,77 @@
 
 ## Steps
 
-### 1. Define the Gold table
+### 1. Decide which source file to add it to
 
-Create `pipeline/gold/your_table_name.py`:
+- **Player performance** (throughput, parse %, spec) → `pipeline/gold/player_products.py`
+- **Progression/wipe analysis** → `pipeline/gold/summary_products.py`
+- **Death/survivability** → `pipeline/gold/survivability_products.py`
+- **Roster/profile** → `pipeline/gold/roster_products.py`
+- **Preparation** (consumables, stats) → `pipeline/gold/preparation_products.py`
+- **New category** → create a new file `pipeline/gold/your_category_products.py`
+
+### 2. Write the table function
 
 ```python
-import dlt
-from pyspark.sql import functions as F
-
 @dlt.table(
     name="gold_your_table_name",
-    comment="Description of what this table contains and who uses it.",
-    table_properties={"quality": "gold"},
+    comment="What this table contains and what question it answers.",
+    table_properties={
+        "quality": "gold",
+        "pipelines.autoOptimize.zOrderCols": "player_name",  # most common join column
+    },
 )
 def gold_your_table_name():
+    # Read from fact tables or dimensions — never from silver directly
+    perf = dlt.read("fact_player_fight_performance")
     return (
-        dlt.read("silver_entities")
-        # Your aggregation/transformation logic here
-        .groupBy("category")
-        .agg(F.count("id").alias("count"))
+        perf
+        .groupBy("player_name", "player_class")
+        .agg(F.count("*").alias("kills_tracked"))
+        .orderBy("player_name")
     )
 ```
 
-### 2. Register it in the pipeline
+**Important patterns**:
+- Always read from `fact_player_fight_performance` for performance data (not `silver_player_performance` — it lacks fight context and throughput)
+- Use `dlt.read()` (batch), not `dlt.read_stream()`
+- Avoid joining two DataFrames that share a non-key column name — alias or drop before joining
+- Use `desc_nulls_last()` when ordering by nullable columns like `throughput_per_second`
 
-Add the new notebook path to `databricks.yml` under `resources.pipelines.medallion_pipeline.libraries`.
+### 3. Register in the pipeline
 
-### 3. Add data quality expectations
+If it's in an existing file already registered in `databricks.yml`, no action needed.
 
-Add any relevant expectations directly on the `@dlt.table` decorator using `@dlt.expect_or_fail`.
+If you created a new file, add it to `databricks.yml`:
 
-### 4. Add to the export script
-
-In `scripts/export_gold_tables.py`, add an entry to `GOLD_TABLE_EXPORTS`:
-
-```python
-GOLD_TABLE_EXPORTS = {
-    "entity_summary": ...,
-    "your_table_name": f"SELECT * FROM {CATALOG}.{SCHEMA}.gold_your_table_name",
-}
+```yaml
+libraries:
+  # ... existing entries ...
+  - notebook:
+      path: pipeline/gold/your_category_products.py
 ```
+
+### 4. Deploy
+
+```bash
+databricks bundle deploy
+```
+
+The table will be created on the next pipeline run. For immediate creation:
+- UI: Pipeline → Start (incremental, not full refresh)
 
 ### 5. Update the data dictionary
 
-Add an entry to `docs/data_dictionary/README.md`.
+Add an entry to `docs/data_dictionary/README.md` with all column names, types, and descriptions.
 
-### 6. Create a data contract
+### 6. Verify
 
-Add a contract at `docs/data_contracts/gold_your_table_name.md` and register it
-in `docs/data_contracts/README.md`. Copy `gold_entity_summary.md` as a template.
-
-The contract should define the schema guarantee, freshness SLA, and what counts
-as a breaking change — before the frontend starts consuming the table.
-
-### 7. Add a frontend API function
-
-Add a fetch function in `frontend/src/api/` and a corresponding hook in `frontend/src/hooks/`.
-
-### 8. Deploy
-
-```bash
-make deploy-pipeline
+```sql
+-- In Databricks SQL or a notebook
+SELECT COUNT(*) FROM 04_sdp.warcraftlogs.gold_your_table_name;
+SELECT * FROM 04_sdp.warcraftlogs.gold_your_table_name LIMIT 10;
 ```
+
+### 7. Export to frontend (when ready)
+
+The static JSON export job is not yet implemented. When it is, add your table to the export list in `scripts/export_gold_tables.py`.

@@ -39,6 +39,7 @@ debug_exports/**/*.delta
 *.swp
 a/
 .claude/
+CLAUDE.md
 
 # OS
 .DS_Store
