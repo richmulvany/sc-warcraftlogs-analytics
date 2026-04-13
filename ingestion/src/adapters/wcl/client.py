@@ -1,11 +1,11 @@
 """WarcraftLogs v2 GraphQL API adapter."""
 
 import json
+import time
 from typing import Any
 
 import httpx
 import structlog
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from ingestion.src.adapters.base import AdapterConfig, BaseAdapter, FetchResult
 
@@ -13,6 +13,17 @@ log = structlog.get_logger(__name__)
 
 TOKEN_URL = "https://www.warcraftlogs.com/oauth/token"
 API_URL = "https://www.warcraftlogs.com/api/v2/client"
+
+# How many seconds before token expiry we proactively re-authenticate.
+_TOKEN_REFRESH_BUFFER_SECS = 300  # 5 minutes
+
+
+class ArchivedReportError(Exception):
+    """Raised when WCL rejects a query because the report has been archived.
+
+    WCL archives older reports for non-subscribing users.  These reports cannot
+    be fetched and should be skipped permanently rather than retried.
+    """
 
 
 class WarcraftLogsConfig(AdapterConfig):
@@ -31,14 +42,34 @@ class WarcraftLogsAdapter(BaseAdapter):
     passed in via WarcraftLogsConfig (typically loaded from a Databricks
     Secret Scope in the ingestion job).
 
-    Rate limits: WCL uses a point budget that resets hourly.  The retry
-    decorator on _graphql_query handles transient 429/5xx errors.
+    Retry behaviour
+    ---------------
+    * **429 Too Many Requests** — waits for the ``Retry-After`` header value
+      (default 60 s) and retries up to ``_MAX_429_ATTEMPTS`` times.  The WCL
+      point budget resets on an hourly window so a single long sleep is usually
+      enough.
+    * **5xx Server Errors** — exponential back-off starting at 4 s, up to
+      ``_MAX_5XX_ATTEMPTS`` times.
+    * **Archived report GraphQL error** — raises ``ArchivedReportError``
+      immediately (no retry); the caller should write a skip marker and move on.
+    * **Other GraphQL errors** — raises ``ValueError`` immediately.
+
+    Token refresh
+    -------------
+    ``authenticate()`` records the token expiry time.  ``_graphql_query``
+    calls ``_maybe_refresh_token()`` before every request so long-running
+    ingestion jobs never hit a stale token mid-run.
     """
+
+    _MAX_429_ATTEMPTS = 5
+    _MAX_5XX_ATTEMPTS = 3
+    _DEFAULT_429_WAIT = 60  # seconds, used when Retry-After header is absent
 
     def __init__(self, config: WarcraftLogsConfig) -> None:
         super().__init__(config)
         self.config: WarcraftLogsConfig = config
         self._http: httpx.Client | None = None
+        self._token_expiry: float = 0.0
 
     def authenticate(self) -> None:
         """Obtain an OAuth2 bearer token via client credentials flow."""
@@ -51,12 +82,25 @@ class WarcraftLogsAdapter(BaseAdapter):
             },
         )
         response.raise_for_status()
-        token = response.json()["access_token"]
+        token_data = response.json()
+        token = token_data["access_token"]
+        expires_in = int(token_data.get("expires_in", 3600))
+        self._token_expiry = time.time() + expires_in - _TOKEN_REFRESH_BUFFER_SECS
+
+        # Close any existing session before creating a new one.
+        if self._http:
+            self._http.close()
         self._http = httpx.Client(
             headers={"Authorization": f"Bearer {token}"},
             timeout=30.0,
         )
-        log.info("wcl.authenticated")
+        log.info("wcl.authenticated", expires_in=expires_in, refresh_at=self._token_expiry)
+
+    def _maybe_refresh_token(self) -> None:
+        """Re-authenticate if the token is within the refresh buffer window."""
+        if self._token_expiry and time.time() >= self._token_expiry:
+            log.info("wcl.token_refresh_triggered")
+            self.authenticate()
 
     def close(self) -> None:
         if self._http:
@@ -85,25 +129,102 @@ class WarcraftLogsAdapter(BaseAdapter):
 
     # ── Internal GraphQL execution ────────────────────────────────────────────
 
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=30))  # type: ignore[misc]
     def _graphql_query(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Execute a GraphQL query and return the ``data`` payload."""
+        """Execute a GraphQL query and return the ``data`` payload.
+
+        Handles 429s, 5xx errors, token refresh, and archived-report GraphQL
+        errors without leaking retries to the caller.
+
+        Raises
+        ------
+        ArchivedReportError
+            When WCL signals that the report has been archived.
+        ValueError
+            On any other GraphQL-level error.
+        httpx.HTTPStatusError
+            On unrecoverable HTTP errors (4xx other than 429, or 5xx after
+            all retry attempts are exhausted).
+        RuntimeError
+            If called before ``authenticate()``.
+        """
         if self._http is None:
             raise RuntimeError("Call authenticate() before making API requests.")
 
-        response = self._http.post(
-            API_URL,
-            json={"query": query, "variables": variables or {}},
-        )
-        response.raise_for_status()
+        self._maybe_refresh_token()
 
-        payload: dict[str, Any] = response.json()
-        if "errors" in payload:
-            log.error("wcl.graphql_errors", errors=payload["errors"])
-            raise ValueError(f"GraphQL errors: {payload['errors']}")
+        attempt_429 = 0
+        attempt_5xx = 0
 
-        data: dict[str, Any] = payload.get("data", {})
-        return data
+        while True:
+            try:
+                response = self._http.post(
+                    API_URL,
+                    json={"query": query, "variables": variables or {}},
+                )
+            except httpx.RequestError as exc:
+                # Network-level error (timeout, connection reset, etc.)
+                attempt_5xx += 1
+                if attempt_5xx >= self._MAX_5XX_ATTEMPTS:
+                    log.error("wcl.request_error_exhausted", error=str(exc))
+                    raise
+                wait = min(4 * (2 ** (attempt_5xx - 1)), 30)
+                log.warning(
+                    "wcl.request_error_retrying", attempt=attempt_5xx, wait=wait, error=str(exc)
+                )
+                time.sleep(wait)
+                continue
+
+            # ── 429 Too Many Requests ─────────────────────────────────────
+            if response.status_code == 429:
+                attempt_429 += 1
+                retry_after = int(response.headers.get("Retry-After", self._DEFAULT_429_WAIT))
+                log.warning(
+                    "wcl.rate_limited",
+                    attempt=attempt_429,
+                    max_attempts=self._MAX_429_ATTEMPTS,
+                    wait_seconds=retry_after,
+                )
+                if attempt_429 >= self._MAX_429_ATTEMPTS:
+                    log.error("wcl.rate_limit_exhausted")
+                    response.raise_for_status()
+                time.sleep(retry_after)
+                # Re-check token after a long sleep
+                self._maybe_refresh_token()
+                continue
+
+            # ── 5xx Server Error ──────────────────────────────────────────
+            if response.status_code >= 500:
+                attempt_5xx += 1
+                wait = min(4 * (2 ** (attempt_5xx - 1)), 30)
+                log.warning(
+                    "wcl.server_error",
+                    status=response.status_code,
+                    attempt=attempt_5xx,
+                    wait=wait,
+                )
+                if attempt_5xx >= self._MAX_5XX_ATTEMPTS:
+                    log.error("wcl.server_error_exhausted", status=response.status_code)
+                    response.raise_for_status()
+                time.sleep(wait)
+                continue
+
+            # ── All other HTTP errors (4xx except 429) ────────────────────
+            response.raise_for_status()
+
+            # ── GraphQL-level errors (HTTP 200 but errors in payload) ─────
+            payload: dict[str, Any] = response.json()
+            errors = payload.get("errors", [])
+            if errors:
+                messages = [e.get("message", "") for e in errors]
+                if any("archived" in m.lower() for m in messages):
+                    raise ArchivedReportError(
+                        f"Report is archived and cannot be fetched: {messages[0]}"
+                    )
+                log.error("wcl.graphql_errors", errors=errors)
+                raise ValueError(f"GraphQL errors: {errors}")
+
+            data: dict[str, Any] = payload.get("data", {})
+            return data
 
     # ── Public query methods ──────────────────────────────────────────────────
 
@@ -243,6 +364,8 @@ class WarcraftLogsAdapter(BaseAdapter):
 
         Returns a FetchResult with a single record containing
         ``report_code``, ``fight_id``, and ``player_details_json``.
+
+        Raises ArchivedReportError if the report has been archived.
         """
         query = """
         query PlayerDetails($code: String!, $fightIDs: [Int]) {
@@ -285,6 +408,8 @@ class WarcraftLogsAdapter(BaseAdapter):
 
         Returns a FetchResult with a single record containing
         ``report_code`` and ``actors`` (list of actor dicts).
+
+        Raises ArchivedReportError if the report has been archived.
         """
         query = """
         query ActorRoster($code: String!) {
@@ -417,12 +542,7 @@ class WarcraftLogsAdapter(BaseAdapter):
         serialise it to a string (``rankings_json``) for safe storage in bronze;
         the silver layer parses it with an explicit schema.
 
-        Args:
-            report_code: WCL report code (e.g. "aAbBcC1234")
-            fight_ids: List of fight IDs to include in the rankings query
-
-        Returns:
-            FetchResult with one record: {report_code, rankings_json}
+        Raises ArchivedReportError if the report has been archived.
         """
         query = """
         query ReportRankings($code: String!, $fightIDs: [Int]) {
@@ -459,12 +579,7 @@ class WarcraftLogsAdapter(BaseAdapter):
         serialise it to a string (``table_json``) for safe storage in bronze;
         the silver layer parses it with an explicit schema.
 
-        Args:
-            report_code: WCL report code
-            fight_ids: List of boss fight IDs (kills + wipes) to aggregate deaths for
-
-        Returns:
-            FetchResult with one record: {report_code, fight_ids, table_json}
+        Raises ArchivedReportError if the report has been archived.
         """
         query = """
         query FightDeaths($code: String!, $fightIDs: [Int]) {

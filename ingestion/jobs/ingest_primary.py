@@ -29,7 +29,7 @@ _bundle_root = "/Workspace" + "/".join(_nb_path.split("/")[:-3])
 if _bundle_root not in sys.path:
     sys.path.insert(0, _bundle_root)
 
-from ingestion.src.adapters.wcl.client import WarcraftLogsAdapter, WarcraftLogsConfig
+from ingestion.src.adapters.wcl.client import ArchivedReportError, WarcraftLogsAdapter, WarcraftLogsConfig
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -80,8 +80,20 @@ for subdir in (
     "guild_members",
     "fight_rankings",
     "fight_deaths",
+    "archived",       # skip-marker directory — one empty file per archived report code
 ):
     os.makedirs(f"{landing}/{subdir}", exist_ok=True)
+
+
+def _is_archived(report_code: str) -> bool:
+    """Return True if this report has a permanent archived skip marker."""
+    return os.path.exists(f"{landing}/archived/{report_code}")
+
+
+def _mark_archived(report_code: str) -> None:
+    """Write an empty skip marker so future runs bypass this report immediately."""
+    open(f"{landing}/archived/{report_code}", "w").close()
+    logger.warning("report_archived_marked: %s — will skip permanently", report_code)
 
 run_ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 ingested_at = datetime.now(UTC).isoformat()
@@ -146,10 +158,19 @@ RAID_DIFFICULTIES = {3, 4, 5}  # Normal, Heroic, Mythic
 
 for report_code in all_report_codes:
 
+    # Skip any report already known to be archived from a previous run.
+    if _is_archived(report_code):
+        logger.info("report_fights: %s is archived — skipping", report_code)
+        continue
+
     # ── 3a: Fight details ──────────────────────────────────────────────────
     fight_file = f"{landing}/report_fights/{report_code}.jsonl"
     if not os.path.exists(fight_file):
-        fight_result = adapter.fetch_report_fights(report_code)
+        try:
+            fight_result = adapter.fetch_report_fights(report_code)
+        except ArchivedReportError:
+            _mark_archived(report_code)
+            continue
         if fight_result.records:
             report_data = fight_result.records[0]
             with open(fight_file, "w") as fh:
@@ -173,7 +194,11 @@ for report_code in all_report_codes:
     # ── 3b: Actor roster ──────────────────────────────────────────────────
     roster_file = f"{landing}/actor_roster/{report_code}.jsonl"
     if not os.path.exists(roster_file):
-        roster_result = adapter.fetch_actor_roster(report_code)
+        try:
+            roster_result = adapter.fetch_actor_roster(report_code)
+        except ArchivedReportError:
+            _mark_archived(report_code)
+            continue
         if roster_result.records:
             with open(roster_file, "w") as fh:
                 fh.write(
@@ -207,7 +232,11 @@ for report_code in all_report_codes:
             logger.info("player_details: %s fight %d already fetched — skipping", report_code, fight_id)
             continue
 
-        pd_result = adapter.fetch_player_details(report_code, fight_id)
+        try:
+            pd_result = adapter.fetch_player_details(report_code, fight_id)
+        except ArchivedReportError:
+            _mark_archived(report_code)
+            break  # all fights in this report are archived; move to next report
         if pd_result.records:
             record = {
                 **pd_result.records[0],
@@ -307,6 +336,10 @@ except Exception as e:
 logger.info("Fetching fight rankings …")
 
 for report_code in all_report_codes:
+    if _is_archived(report_code):
+        logger.info("fight_rankings: %s is archived — skipping", report_code)
+        continue
+
     rankings_file = f"{landing}/fight_rankings/{report_code}.jsonl"
     if os.path.exists(rankings_file):
         logger.info("fight_rankings: %s already fetched — skipping", report_code)
@@ -333,7 +366,11 @@ for report_code in all_report_codes:
         logger.info("fight_rankings: %s has no qualifying kill fights — skipping", report_code)
         continue
 
-    rankings_result = adapter.fetch_report_rankings(report_code, kill_fight_ids)
+    try:
+        rankings_result = adapter.fetch_report_rankings(report_code, kill_fight_ids)
+    except ArchivedReportError:
+        _mark_archived(report_code)
+        continue
     if rankings_result.records:
         record = {
             **rankings_result.records[0],
@@ -354,6 +391,10 @@ for report_code in all_report_codes:
 logger.info("Fetching fight deaths …")
 
 for report_code in all_report_codes:
+    if _is_archived(report_code):
+        logger.info("fight_deaths: %s is archived — skipping", report_code)
+        continue
+
     deaths_file = f"{landing}/fight_deaths/{report_code}.jsonl"
     if os.path.exists(deaths_file):
         logger.info("fight_deaths: %s already fetched — skipping", report_code)
@@ -379,7 +420,11 @@ for report_code in all_report_codes:
         logger.info("fight_deaths: %s has no qualifying boss fights — skipping", report_code)
         continue
 
-    deaths_result = adapter.fetch_fight_deaths(report_code, all_boss_fight_ids)
+    try:
+        deaths_result = adapter.fetch_fight_deaths(report_code, all_boss_fight_ids)
+    except ArchivedReportError:
+        _mark_archived(report_code)
+        continue
     if deaths_result.records:
         record = {
             **deaths_result.records[0],
