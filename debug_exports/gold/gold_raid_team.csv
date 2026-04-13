@@ -1,0 +1,51 @@
+name,player_class,realm,rank,rank_label,rank_category,is_active,total_raids_tracked,raids_present,attendance_rate_pct,last_raid_date,first_raid_date,possible_main,has_possible_alt_in_logs
+Momobunni,Shaman,twisting-nether,4,Officer Alt,Officer,False,0,0,0.0,,,Momobunni,True
+Momobamie,Hunter,twisting-nether,3,Officer Alt,Officer,True,6,6,100.0,2022-09-14,2021-03-12,Momobamie,True
+Momobami,Priest,twisting-nether,0,Guild Master,GM,True,281,281,100.0,2025-11-23,2021-02-14,Momobami,True
+Bammies,Paladin,twisting-nether,3,Officer Alt,Officer,True,5,5,100.0,2023-06-04,2021-04-18,Bammies,False
+Leanpean,Monk,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Leanpean,False
+Lenus,Demon Hunter,twisting-nether,2,Officer,Officer,True,270,270,100.0,2026-04-13,2022-12-18,Lenus,False
+Leanmon,Shaman,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Leanmon,False
+Bigboiples,Druid,twisting-nether,5,Raider,Raider,True,259,259,100.0,2026-04-13,2022-09-12,Bigboiples,True
+Jadsbrew,Monk,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Jadsbrew,False
+Pledis,Death Knight,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Pledis,False
+Yevels,Druid,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Yevels,False
+Gigamomo,Demon Hunter,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Gigamomo,False
+Burlyboy,Druid,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Burlyboy,False
+Bameesi,Evoker,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Bameesi,False
+Bamee,Death Knight,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Bamee,False
+Yevios,Hunter,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Yevios,False
+Megachomber,Death Knight,ravencrest,8,Trial,Trial,True,9,9,100.0,2026-04-13,2026-03-18,Megachomber,True
+Girlboss,Rogue,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Girlboss,False
+Budgetgoku,Paladin,twisting-nether,5,Raider,Raider,True,57,57,100.0,2026-04-08,2023-12-10,Budgetgoku,False
+Hydraxa,Mage,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Hydraxa,True
+Waterfalls,Shaman,twisting-nether,3,Officer Alt,Officer,True,3,3,100.0,2024-09-29,2024-09-15,Waterfalls,True
+Beanus,Mage,twisting-nether,3,Officer Alt,Officer,True,6,6,100.0,2021-09-12,2021-08-29,Beanus,False
+Leanus,Druid,twisting-nether,3,Officer Alt,Officer,True,163,163,100.0,2025-08-31,2021-01-25,Leanus,False
+Maxzor,Hunter,twisting-nether,3,Officer Alt,Officer,True,5,5,100.0,2021-04-04,2021-03-21,Maxzor,False
+Gigalin,Rogue,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Gigalin,False
+Zerodrama,Warrior,twisting-nether,4,Officer Alt,Officer,True,33,33,100.0,2023-06-04,2021-08-08,Zerodrama,False
+Oxhorde,Druid,twisting-nether,3,Officer Alt,Officer,True,33,33,100.0,2024-09-29,2022-03-06,Oxhorde,False
+Thype,Mage,ravencrest,8,Trial,Trial,True,1,1,100.0,2026-03-18,2026-03-18,Thype,False
+Wunderwicz,Death Knight,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Wunderwicz,True
+Punglean,Priest,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Punglean,False
+Pompqmoi,Mage,twisting-nether,8,Trial,Trial,True,2,2,100.0,2026-03-25,2026-03-25,Pompqmoi,False
+Yevie,Priest,twisting-nether,2,Officer,Officer,True,26,26,100.0,2026-04-13,2021-02-07,Yevie,False
+Yeviel,Paladin,twisting-nether,3,Officer Alt,Officer,True,116,116,100.0,2025-07-16,2021-01-25,Yeviel,False
+Yevies,Rogue,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Yevies,False
+Rivey,Monk,defias-brotherhood,8,Trial,Trial,True,15,15,100.0,2026-04-13,2025-11-23,Rivey,False
+Keenus,Warrior,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Keenus,False
+Selthiel,Priest,ravencrest,8,Trial,Trial,True,5,5,100.0,2026-04-01,2026-03-18,Selthiel,False
+Lunasnow,Mage,twisting-nether,8,Trial,Trial,True,8,8,100.0,2026-04-08,2026-03-18,Lunasnow,True
+Jumzo,Paladin,sylvanas,5,Raider,Raider,True,100,100,100.0,2026-04-13,2024-09-15,Jumzo,False
+Zren,Hunter,ravencrest,8,Trial,Trial,True,8,8,100.0,2026-04-08,2026-03-18,Zren,False
+Magicwingers,Evoker,twisting-nether,3,Officer Alt,Officer,True,228,228,100.0,2026-01-26,2023-01-22,Magicwingers,True
+Hobbyalkis,Rogue,twisting-nether,2,Officer,Officer,True,359,359,100.0,2026-04-13,2021-01-25,Hobbyalkis,False
+Hobby,Rogue,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Hobby,False
+Leanbean,Evoker,twisting-nether,3,Officer Alt,Officer,True,1,1,100.0,2024-01-07,2024-01-07,Leanbean,False
+Toxicox,Death Knight,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Toxicox,True
+Sebaheoung,Warlock,twisting-nether,5,Raider,Raider,True,56,56,100.0,2026-04-13,2024-08-19,Sebaheoung,False
+Yeve,Warrior,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Yeve,False
+Felwingers,Warlock,twisting-nether,3,Officer Alt,Officer,False,0,0,0.0,,,Felwingers,True
+Linirune,Death Knight,twisting-nether,3,Officer Alt,Officer,True,2,2,100.0,2024-10-02,2024-09-29,Linirune,True
+Typ,Warrior,ravencrest,8,Trial,Trial,True,7,7,100.0,2026-04-13,2026-03-23,Typ,False
