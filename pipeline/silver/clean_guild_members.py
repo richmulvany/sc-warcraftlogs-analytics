@@ -46,26 +46,30 @@ def silver_guild_members():
         .withColumn(
             "rank_label",
             F.when(F.col("rank") == 0, "Guild Master")
-             .when(F.col("rank") == 1, "Officer")
-             .when(F.col("rank") == 2, "Raider")
-             .when(F.col("rank") == 3, "Trial")
-             .when(F.col("rank") == 4, "Bestie")
-             .when(F.col("rank") == 5, "Raider Alt")
-             .when(F.col("rank") == 6, "Officer Alt")
-             .when(F.col("rank") == 7, "Social")
+             .when(F.col("rank") == 1, "GM Alt")
+             .when(F.col("rank") == 2, "Officer")
+             .when(F.col("rank") == 3, "Officer Alt")
+             .when(F.col("rank") == 4, "Officer Alt")
+             .when(F.col("rank") == 5, "Raider")
+             .when(F.col("rank") == 6, "Raider Alt")
+             .when(F.col("rank") == 7, "Bestie")
+             .when(F.col("rank") == 8, "Trial")
+             .when(F.col("rank") == 9, "Social")
              .otherwise(F.concat(F.lit("Rank "), F.col("rank").cast("string"))),
         )
         .withColumn(
             "rank_category",
-            F.when(F.col("rank") == 0, "GM")
-             .when(F.col("rank") == 1, "Officer")
-             .when(F.col("rank") == 2, "Raider")
-             .when(F.col("rank") == 3, "Trial")
+            F.when(F.col("rank").isin(0, 1), "GM")
+             .when(F.col("rank").isin(2, 3, 4), "Officer")
+             .when(F.col("rank") == 5, "Raider")
+             .when(F.col("rank") == 6, "Raider Alt")
+             .when(F.col("rank") == 7, "Bestie")
+             .when(F.col("rank") == 8, "Trial")
              .otherwise("Social"),
         )
         .withColumn(
             "is_raid_team",
-            F.col("rank").isin(0, 1, 2, 3),
+            F.col("rank").isin(0, 1, 2, 3, 4, 5, 8),
         )
         .select(
             "name",

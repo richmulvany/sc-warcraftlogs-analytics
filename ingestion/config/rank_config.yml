@@ -2,17 +2,19 @@
 # Rank 0 is always Guild Master. Ranks 1-9 are guild-defined.
 # Set raid_team_ranks to the numeric ranks that constitute your main raid team.
 
-raid_team_ranks: [0, 1, 2, 3]
+raid_team_ranks: [0, 1, 2, 3, 4, 5, 8]
 
 rank_labels:
   0: "Guild Master"
-  1: "Officer"
-  2: "Raider"
-  3: "Trial"
-  4: "Bestie"
-  5: "Raider Alt"
-  6: "Officer Alt"
-  7: "Social"
+  1: "GM Alt"
+  2: "Officer"
+  3: "Officer Alt"
+  4: "Officer Alt"
+  5: "Raider"
+  6: "Raider Alt"
+  7: "Bestie"
+  8: "Trial"
+  9: "Social"
 
 # Minimum recent attendance (as fraction 0-1) to be considered "active"
 # Applied over the last 8 raid nights

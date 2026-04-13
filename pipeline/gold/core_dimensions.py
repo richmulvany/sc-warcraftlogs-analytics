@@ -131,7 +131,7 @@ def dim_player():
             "left",
         )
         .withColumn("is_guild_member", F.col("_member_name").isNotNull())
-        .withColumn("is_raid_team", F.coalesce(F.col("is_raid_team"), F.lit(False)))
+        .withColumn("is_raid_team", F.coalesce(F.col("is_raid_team"), F.lit(False)))  # ranks 0-5,8
         .drop("_member_lower", "_member_name")
         .select(
             "player_name",
@@ -208,7 +208,7 @@ def dim_guild_member():
         )
         .withColumn(
             "is_active",
-            (F.col("attendance_rate_pct") >= 25.0) | F.col("rank").isin(0, 1),
+            (F.col("attendance_rate_pct") >= 25.0) | F.col("rank").isin(0, 1, 2),
         )
         # possible_main is the character's own name; alt resolution is done in gold_raid_team
         .withColumn("possible_main", F.col("name"))
