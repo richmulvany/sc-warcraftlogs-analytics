@@ -23,8 +23,13 @@ _repo_root = "/Workspace" + "/".join(_nb_path.split("/")[:-3])
 EXPORT_DIR = f"{_repo_root}/debug_exports"
 SAMPLE_ROWS = 50
 
-catalog = spark.conf.get("pipelines.catalog", "04_sdp")   # noqa: F821
-schema  = spark.conf.get("pipelines.schema",  "warcraftlogs")  # noqa: F821
+# pipelines.catalog / pipelines.schema are only available inside a DLT pipeline
+# execution context.  Use widgets with defaults so this notebook can be run
+# standalone.  Override the widget values in the Databricks UI if needed.
+dbutils.widgets.text("catalog", "04_sdp")       # noqa: F821
+dbutils.widgets.text("schema",  "warcraftlogs") # noqa: F821
+catalog = dbutils.widgets.get("catalog")         # noqa: F821
+schema  = dbutils.widgets.get("schema")          # noqa: F821
 
 print(f"Repo root  : {_repo_root}")
 print(f"Export dir : {EXPORT_DIR}")
