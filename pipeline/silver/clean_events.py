@@ -3,16 +3,44 @@
 #
 # silver_player_deaths — one row per death event per player per report.
 #
-# Note: The WCL table(dataType: Deaths) endpoint aggregates deaths across ALL
-# requested fights in a single call.  There is no per-fight attribution
-# available from this endpoint — fight_id is not present in the death entries.
-# The fight_ids column on the bronze record records which fights were covered,
-# but individual deaths cannot be assigned to specific fight IDs.
+# Actual WCL table(dataType: Deaths) response structure:
+# {
+#   "data": {
+#     "entries": [
+#       {
+#         "name": "PlayerName",
+#         "id": 7,
+#         "type": "DeathKnight",     <- WoW class
+#         "icon": "DeathKnight-Blood",
+#         "timestamp": 1073684,      <- death timestamp (ms from report start)
+#         "fight": 4,                <- fight ID (available per death!)
+#         "overkill": 0,
+#         "events": [                <- damage window leading to death, newest first
+#           {
+#             "timestamp": 1073346,
+#             "type": "damage",
+#             "sourceIsFriendly": false,
+#             "ability": {"name": "Caustic Phlegm", "guid": 1246653},
+#             ...
+#           },
+#           ...
+#         ]
+#       }
+#     ]
+#   }
+# }
+#
+# Key findings vs original assumptions:
+#   - Each entry is ONE death event (not a player summary with a deathEvents array)
+#   - fight_id IS available on each entry via the "fight" field
+#   - events[] are sorted newest-first; events[0] from a non-friendly source = killing blow
+#   - No "killingBlow" top-level field — derived from events[0]
 
 import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
+    BooleanType,
     LongType,
     StringType,
     StructField,
@@ -20,42 +48,28 @@ from pyspark.sql.types import (
 )
 
 # ── Schema for the table(dataType: Deaths) JSON scalar ────────────────────────
-# WCL response structure:
-# {
-#   "data": {
-#     "entries": [
-#       {
-#         "id": 12,
-#         "name": "PlayerName",
-#         "type": "Warrior",
-#         "deaths": 2,
-#         "deathEvents": [
-#           {
-#             "timestamp": 123456,
-#             "killingBlow": {"name": "Ability Name", "id": 123}
-#           }
-#         ]
-#       }
-#     ]
-#   }
-# }
 
-_KILLING_BLOW_STRUCT = StructType([
+_ABILITY_STRUCT = StructType([
     StructField("name", StringType(), True),
-    StructField("id", LongType(), True),
+    StructField("guid", LongType(),   True),
 ])
 
-_DEATH_EVENT_STRUCT = StructType([
-    StructField("timestamp", LongType(), True),
-    StructField("killingBlow", _KILLING_BLOW_STRUCT, True),
+_EVENT_STRUCT = StructType([
+    StructField("timestamp",        LongType(),    True),
+    StructField("type",             StringType(),  True),  # "damage", "heal", etc.
+    StructField("sourceIsFriendly", BooleanType(), True),
+    StructField("ability",          _ABILITY_STRUCT, True),
 ])
 
 _ENTRY_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-    StructField("type", StringType(), True),
-    StructField("deaths", LongType(), True),
-    StructField("deathEvents", ArrayType(_DEATH_EVENT_STRUCT), True),
+    StructField("name",       StringType(),           True),  # player name
+    StructField("id",         LongType(),             True),  # actor ID
+    StructField("type",       StringType(),           True),  # WoW class
+    StructField("icon",       StringType(),           True),  # "ClassName-Spec"
+    StructField("timestamp",  LongType(),             True),  # ms from report start
+    StructField("fight",      LongType(),             True),  # fight ID
+    StructField("overkill",   LongType(),             True),
+    StructField("events",     ArrayType(_EVENT_STRUCT), True),
 ])
 
 _TABLE_DATA_STRUCT = StructType([
@@ -69,46 +83,42 @@ _TABLE_SCHEMA = StructType([
 
 # ── Parsed Player Death Events ─────────────────────────────────────────────────
 
-
 @dlt.table(
     name="silver_player_deaths",
     comment=(
         "WCL death events per player per report. "
-        "One row per death event with killing blow details. "
-        "Note: fight_id is NOT available — deaths are aggregated across all boss "
-        "fights in the report by the WCL table API."
+        "One row per death event with fight_id and killing blow. "
+        "fight_id is available — each entry in the Deaths table corresponds "
+        "to a single death in a specific fight."
     ),
     table_properties={"quality": "silver"},
 )
 def silver_player_deaths():
-    # Read as batch — death records are per-report and stable once ingested.
-    raw = dlt.read("bronze_fight_deaths")
-
-    parsed = (
-        raw
-        .withColumn("parsed", F.from_json(F.col("table_json"), _TABLE_SCHEMA))
-        # Drop rows where JSON parsing failed (malformed or unexpected structure)
-        .filter(F.col("parsed").isNotNull())
-        # Explode entries: one row per player
-        .withColumn("entry", F.explode("parsed.data.entries"))
-        # deathEvents may be null or empty — coerce to empty array before explode
-        .withColumn(
-            "death_events_safe",
-            F.coalesce(F.col("entry.deathEvents"), F.array()),
-        )
-        # Explode death events: one row per death
-        .withColumn("death_event", F.explode("death_events_safe"))
-    )
+    raw = dlt.read("bronze_fight_deaths")  # batch — stable once ingested
 
     return (
-        parsed
+        raw
+        .withColumn("parsed", F.from_json(F.col("table_json"), _TABLE_SCHEMA))
+        # Drop rows where JSON parsing failed
+        .filter(F.col("parsed").isNotNull())
+        # Explode entries: one row per death event
+        .withColumn("entry", F.explode("parsed.data.entries"))
         .select(
             F.col("report_code"),
+            F.col("entry.fight").alias("fight_id"),
             F.col("entry.name").alias("player_name"),
             F.col("entry.type").alias("player_class"),
-            F.col("death_event.timestamp").alias("death_timestamp_ms"),
-            F.col("death_event.killingBlow.name").alias("killing_blow_name"),
-            F.col("death_event.killingBlow.id").alias("killing_blow_id"),
+            F.col("entry.timestamp").alias("death_timestamp_ms"),
+            F.col("entry.overkill").alias("overkill"),
+            # Killing blow: filter events to non-friendly damage sources (newest first),
+            # take element [0] — the hit closest to the death timestamp.
+            # FILTER() is a Spark SQL higher-order function available in Spark 3.x+.
+            F.expr(
+                "FILTER(entry.events, e -> e.type = 'damage' AND e.sourceIsFriendly = false)[0]"
+            ).alias("kb_event"),
         )
+        .withColumn("killing_blow_name", F.col("kb_event.ability.name"))
+        .withColumn("killing_blow_id",   F.col("kb_event.ability.guid"))
+        .drop("kb_event")
         .filter(F.col("player_name").isNotNull())
     )

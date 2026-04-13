@@ -67,7 +67,7 @@ def fact_player_fight_performance():
             F.col("player_name").alias("_r_player_name"),
             "rank_percent",
             "bracket_percent",
-            "medal",
+            "rank_string",   # "~1265" approximate rank position; no medal field in WCL API
         )
     )
 
@@ -127,7 +127,7 @@ def fact_player_fight_performance():
             "throughput_per_second",
             "rank_percent",
             "bracket_percent",
-            "medal",
+            "rank_string",
         )
         .orderBy("raid_night_date", "encounter_id", "role", F.col("throughput_per_second").desc())
     )
@@ -135,19 +135,15 @@ def fact_player_fight_performance():
 
 # ── Player Events Fact (Deaths) ────────────────────────────────────────────────
 # Event-level table — one row per death event.
-# Zone context is joined from silver_guild_reports via report_code.
-#
-# NOTE: fight_id is NOT available in the deaths data.  The WCL table(dataType:
-# Deaths) API aggregates all deaths across the requested fight IDs into a single
-# response without per-fight attribution.  Use silver_fight_events for
-# fight-level analysis; use this table for player survivability patterns.
+# fight_id is available directly from silver_player_deaths (each WCL death entry
+# carries the fight it occurred in).  Zone context is joined from
+# silver_guild_reports via report_code.
 
 @dlt.table(
     name="fact_player_events",
     comment=(
         "Per-player death events across all raid reports. "
-        "One row per death event with zone context from guild reports. "
-        "NOTE: fight_id is not available — deaths are aggregated per report by the WCL table API."
+        "One row per death event with fight_id, killing blow, and zone context."
     ),
     table_properties={
         "quality": "gold",
@@ -165,6 +161,7 @@ def fact_player_events():
             F.col("code").alias("_r_code"),
             F.col("zone_name"),
             F.col("zone_id"),
+            F.to_date("start_time_utc").alias("raid_night_date"),
         )
     )
 
@@ -178,13 +175,16 @@ def fact_player_events():
         .drop("_r_code")
         .select(
             "report_code",
+            "fight_id",
             "player_name",
             "player_class",
             "death_timestamp_ms",
+            "overkill",
             "killing_blow_name",
             "killing_blow_id",
             "zone_name",
             "zone_id",
+            "raid_night_date",
         )
-        .orderBy("report_code", "player_name", "death_timestamp_ms")
+        .orderBy("report_code", "fight_id", "death_timestamp_ms")
     )
