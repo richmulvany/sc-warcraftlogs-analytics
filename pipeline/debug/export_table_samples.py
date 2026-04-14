@@ -36,7 +36,8 @@ print(f"Export dir : {EXPORT_DIR}")
 print(f"Catalog    : {catalog}.{schema}")
 
 # COMMAND ----------
-# Table inventory — (layer, table_name) pairs in dependency order.
+
+# DBTITLE 1,Table inventory
 # Add or remove tables here as the pipeline evolves.
 
 TABLES = [
@@ -87,7 +88,8 @@ TABLES = [
 ]
 
 # COMMAND ----------
-# Create output directories
+
+# DBTITLE 1,Create output directories
 for layer in ("bronze", "silver", "gold"):
     os.makedirs(f"{EXPORT_DIR}/{layer}", exist_ok=True)
 
@@ -131,7 +133,8 @@ for layer, table in TABLES:
     print(f"  [{status:5s}] {table:<45s} {note}")
 
 # COMMAND ----------
-# Print a tidy summary table and write it as a top-level CSV.
+
+# DBTITLE 1,Print summary table
 import pandas as pd  # noqa: E402
 
 summary_df = pd.DataFrame(summary_rows)

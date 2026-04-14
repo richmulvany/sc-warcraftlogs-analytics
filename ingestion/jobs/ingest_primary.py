@@ -35,7 +35,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # COMMAND ----------
-# ── Configuration ─────────────────────────────────────────────────────────────
+
+# DBTITLE 1,Configuration
 catalog = dbutils.widgets.get("catalog") if dbutils.widgets.get("catalog") else "04_sdp"  # noqa: F821
 schema = dbutils.widgets.get("schema") if dbutils.widgets.get("schema") else "warcraftlogs"  # noqa: F821
 guild_name = (
@@ -58,7 +59,8 @@ logger.info(
 )
 
 # COMMAND ----------
-# ── Authentication ────────────────────────────────────────────────────────────
+
+# DBTITLE 1,Authentication
 client_id = dbutils.secrets.get(scope="warcraftlogs", key="client_id")  # noqa: F821
 client_secret = dbutils.secrets.get(scope="warcraftlogs", key="client_secret")  # noqa: F821
 
@@ -66,7 +68,8 @@ adapter = WarcraftLogsAdapter(WarcraftLogsConfig(client_id=client_id, client_sec
 adapter.authenticate()
 
 # COMMAND ----------
-# ── Volume setup ──────────────────────────────────────────────────────────────
+
+# DBTITLE 1,Volume setup
 spark.sql(f"CREATE VOLUME IF NOT EXISTS `{catalog}`.`{schema}`.landing")  # noqa: F821
 
 landing = f"/Volumes/{catalog}/{schema}/landing"
@@ -103,7 +106,8 @@ def _sleep() -> None:
     time.sleep(2)
 
 # COMMAND ----------
-# ── 1. Zone Catalog ───────────────────────────────────────────────────────────
+
+# DBTITLE 1,Zone Catalog
 # Fetch once per run — zones rarely change but always refresh so new raid tiers
 # appear automatically.
 logger.info("Fetching zone catalog …")
@@ -115,7 +119,8 @@ logger.info("zone_catalog → %d zones", zone_result.total_records)
 _sleep()
 
 # COMMAND ----------
-# ── 2. Guild Reports ──────────────────────────────────────────────────────────
+
+# DBTITLE 1,Guild Reports
 # Fetch all pages and write each as a JSONL file keyed by run timestamp + page.
 # The silver layer deduplicates on report code, so re-runs are safe.
 logger.info("Fetching guild reports …")
@@ -144,7 +149,8 @@ while has_more:
 logger.info("Total report codes collected: %d", len(all_report_codes))
 
 # COMMAND ----------
-# ── 3. Report Fights + Actor Roster + Player Details ─────────────────────────
+
+# DBTITLE 1,Report Fights + Actor Roster + Player Details
 # For each report:
 #   a) Fetch fight details (boss encounters, zone, masterData actors)
 #   b) Fetch the actor roster separately (cached per report code)
@@ -256,7 +262,8 @@ for report_code in all_report_codes:
         _sleep()
 
 # COMMAND ----------
-# ── 4. Raid Attendance ────────────────────────────────────────────────────────
+
+# DBTITLE 1,Raid Attendance
 # Fetch paginated attendance (players present/benched/absent per report).
 # The attendance API returns zone {id, name} directly on each record.
 logger.info("Fetching raid attendance …")
@@ -282,7 +289,8 @@ while has_more:
 logger.info("WCL ingestion complete.")
 
 # COMMAND ----------
-# ── 5. Guild Members (Blizzard API) ───────────────────────────────────────────
+
+# DBTITLE 1,Guild Members (Blizzard API)
 # Fetches the live guild roster from the Blizzard Profile API.
 # Only runs when Blizzard credentials are configured in the secret scope.
 # The roster changes frequently (member joins/leaves/rank changes), so we always
@@ -328,7 +336,8 @@ except Exception as e:
     )
 
 # COMMAND ----------
-# ── 6. Fight Rankings ─────────────────────────────────────────────────────────
+
+# DBTITLE 1,Fight Rankings
 # Fetches WCL parse rankings for kill fights in each report.
 # Rankings are stable once a report is cleared — skip if already fetched.
 # Only kill fights on raid difficulties (3/4/5) with a valid encounterID are
@@ -383,7 +392,8 @@ for report_code in all_report_codes:
     _sleep()
 
 # COMMAND ----------
-# ── 7. Fight Deaths ───────────────────────────────────────────────────────────
+
+# DBTITLE 1,Fight Deaths
 # Fetches death events for ALL boss fights (kills + wipes) per report via the
 # WCL table API.  Deaths are aggregated across all requested fights — per-fight
 # attribution is not available from this endpoint (limitation of the table API).
