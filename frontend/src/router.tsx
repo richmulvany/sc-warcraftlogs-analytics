@@ -1,9 +1,8 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { Navigate, createBrowserRouter } from 'react-router-dom'
 import { Overview }      from './pages/Overview'
 import { Players }       from './pages/Players'
 import { PlayerDetail }  from './pages/PlayerDetail'
 import { Bosses }        from './pages/Bosses'
-import { BossWipes }     from './pages/BossWipes'
 import { WipeAnalysis }  from './pages/WipeAnalysis'
 import { Raids }         from './pages/Raids'
 import { RaidDetail }    from './pages/RaidDetail'
@@ -17,7 +16,7 @@ export const router = createBrowserRouter([
   { path: '/players',                element: <Players />      },
   { path: '/players/:playerName',    element: <PlayerDetail /> },
   { path: '/bosses',                 element: <Bosses />       },
-  { path: '/boss-wipes',             element: <BossWipes />    },
+  { path: '/boss-wipes',             element: <Navigate to="/wipe-analysis" replace /> },
   { path: '/wipe-analysis',          element: <WipeAnalysis /> },
   { path: '/raids',                  element: <Raids />        },
   { path: '/raids/:reportCode',      element: <RaidDetail />   },

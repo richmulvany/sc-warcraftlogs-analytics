@@ -20,6 +20,7 @@ import {
 import { formatThroughput, getClassColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { formatDate, formatPct } from '../utils/format'
+import type { PlayerBossPerformance } from '../types'
 
 export function PlayerDetail() {
   const { getParseColor, wipeColor, getDeathRateColor, getAttendanceColor } = useColourBlind()
@@ -70,6 +71,66 @@ export function PlayerDetail() {
     () => bossPf.data.filter(b => b.player_name === name),
     [bossPf.data, name]
   )
+
+  const fallbackBossPerformance = useMemo((): PlayerBossPerformance[] => {
+    const rows = roster.data.filter(r => r.player_name === name)
+    const grouped = new Map<string, PlayerBossPerformance>()
+
+    for (const row of rows) {
+      const key = `${row.encounter_id}-${row.difficulty}`
+      const existing = grouped.get(key)
+      if (!existing) {
+        grouped.set(key, {
+          player_name: row.player_name,
+          player_class: row.player_class,
+          role: row.role,
+          primary_spec: row.spec,
+          encounter_id: row.encounter_id,
+          boss_name: row.boss_name,
+          zone_name: row.zone_name,
+          difficulty: row.difficulty,
+          difficulty_label: row.difficulty_label,
+          kills_on_boss: 1,
+          avg_throughput_per_second: Number(row.throughput_per_second) || 0,
+          best_throughput_per_second: Number(row.throughput_per_second) || 0,
+          latest_throughput_per_second: Number(row.throughput_per_second) || 0,
+          throughput_trend: 0,
+          avg_rank_percent: Number(row.rank_percent) || 0,
+          best_rank_percent: Number(row.rank_percent) || 0,
+          avg_item_level: Number(row.avg_item_level) || 0,
+          first_kill_date: row.raid_night_date,
+          latest_kill_date: row.raid_night_date,
+        })
+        continue
+      }
+
+      const nextKills = existing.kills_on_boss + 1
+      const throughput = Number(row.throughput_per_second) || 0
+      const rank = Number(row.rank_percent) || 0
+      existing.kills_on_boss = nextKills
+      existing.avg_throughput_per_second = ((existing.avg_throughput_per_second * (nextKills - 1)) + throughput) / nextKills
+      existing.best_throughput_per_second = Math.max(existing.best_throughput_per_second, throughput)
+      existing.latest_throughput_per_second = throughput
+      existing.avg_rank_percent = ((existing.avg_rank_percent * (nextKills - 1)) + rank) / nextKills
+      existing.best_rank_percent = Math.max(existing.best_rank_percent, rank)
+      existing.avg_item_level = ((existing.avg_item_level * (nextKills - 1)) + (Number(row.avg_item_level) || 0)) / nextKills
+      existing.latest_kill_date = row.raid_night_date
+    }
+
+    return [...grouped.values()]
+  }, [roster.data, name])
+
+  const heatmapData = bossPerformance.length > 0 ? bossPerformance : fallbackBossPerformance
+
+  const dataCoverage = useMemo(() => {
+    if (!summary) return []
+    const gaps: string[] = []
+    if (!attRow) gaps.push('attendance')
+    if (!survRow) gaps.push('survivability')
+    if (dpsOverTime.length === 0) gaps.push('fight timeline')
+    if (heatmapData.length === 0) gaps.push('boss breakdown')
+    return gaps
+  }, [summary, attRow, survRow, dpsOverTime.length, heatmapData.length])
 
   const loading = perf.loading || surv.loading || att.loading || roster.loading || bossPf.loading
   const error   = perf.error || surv.error
@@ -211,6 +272,17 @@ export function PlayerDetail() {
         )}
       </div>
 
+      {dataCoverage.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Data Coverage</CardTitle>
+            <p className="text-xs text-ctp-overlay1 mt-0.5">
+              Some profile modules are missing backing rows in the current static export: {dataCoverage.join(', ')}.
+            </p>
+          </CardHeader>
+        </Card>
+      )}
+
       {/* DPS over time */}
       <Card>
         <CardHeader>
@@ -222,12 +294,16 @@ export function PlayerDetail() {
               : ''}
           </p>
         </CardHeader>
-        <CardBody>
-          {roster.loading ? (
-            <LoadingState rows={5} />
-          ) : (
-            <DpsOverTimeChart
-              data={dpsOverTime}
+          <CardBody>
+            {roster.loading ? (
+              <LoadingState rows={5} />
+            ) : dpsOverTime.length === 0 && heatmapData.length > 0 ? (
+              <div className="h-48 flex items-center justify-center text-center text-ctp-overlay0 text-sm font-mono px-6">
+                Fight-by-fight timeline data is unavailable for this player in the current export. Boss-level aggregates are shown below instead.
+              </div>
+            ) : (
+              <DpsOverTimeChart
+                data={dpsOverTime}
               playerClass={summary?.player_class ?? 'Unknown'}
               avgThroughput={summary?.avg_throughput_per_second}
             />
@@ -337,7 +413,7 @@ export function PlayerDetail() {
           ) : error ? (
             <ErrorState message={error} />
           ) : (
-            <PerformanceHeatmap data={bossPerformance} />
+            <PerformanceHeatmap data={heatmapData} />
           )}
         </CardBody>
       </Card>

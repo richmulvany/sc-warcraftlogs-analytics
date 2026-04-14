@@ -10,7 +10,7 @@ import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot } from '../components/ui/ClassLabel'
-import { useBossMechanics, usePlayerSurvivability, useBossWipeAnalysis } from '../hooks/useGoldData'
+import { useBossMechanics, usePlayerSurvivability, useBossWipeAnalysis, useBossKillRoster } from '../hooks/useGoldData'
 import { formatDate, formatNumber, formatPct } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -42,6 +42,7 @@ export function WipeAnalysis() {
   const mechs = useBossMechanics()
   const survival = usePlayerSurvivability()
   const wipes = useBossWipeAnalysis()
+  const roster = useBossKillRoster()
 
   const [diff, setDiff] = useState('All')
   const [zone, setZone] = useState('All')
@@ -78,6 +79,17 @@ export function WipeAnalysis() {
     [mechs.data, diff, zone, search]
   )
 
+  const scopedPlayerNames = useMemo(() => {
+    const encounterKeys = new Set(filteredWipes.map(row => `${row.encounter_id}-${row.difficulty}`))
+    return new Set(
+      roster.data
+        .filter(row => encounterKeys.has(`${row.encounter_id}-${row.difficulty}`))
+        .filter(row => zone === 'All' || row.zone_name === zone)
+        .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))
+        .map(row => row.player_name)
+    )
+  }, [filteredWipes, roster.data, zone, search])
+
   const filteredSurvival = useMemo(() =>
     survival.data
       .filter(row => Number(row.total_deaths) > 0)
@@ -85,14 +97,19 @@ export function WipeAnalysis() {
     [survival.data, zone]
   )
 
+  const scopedSurvival = useMemo(() => {
+    if (scopedPlayerNames.size === 0) return []
+    return filteredSurvival.filter(row => scopedPlayerNames.has(row.player_name))
+  }, [filteredSurvival, scopedPlayerNames])
+
   const playersWithTrackedKills = useMemo(() =>
-    filteredSurvival.filter(row => Number(row.kills_tracked) > 0),
-    [filteredSurvival]
+    scopedSurvival.filter(row => Number(row.kills_tracked) > 0),
+    [scopedSurvival]
   )
 
   const stats = useMemo(() => {
     const totalWipes = filteredWipes.reduce((sum, row) => sum + Number(row.total_wipes), 0)
-    const totalDeaths = filteredSurvival.reduce((sum, row) => sum + Number(row.total_deaths), 0)
+    const totalDeaths = scopedSurvival.reduce((sum, row) => sum + Number(row.total_deaths), 0)
     const earlyWipes = filteredMechanics.reduce((sum, row) => sum + Number(row.wipes_lt_1min), 0)
     const closestPull = [...filteredWipes]
       .filter(row => Number(row.best_wipe_pct) > 0)
@@ -112,7 +129,7 @@ export function WipeAnalysis() {
       closestPull,
       topBlocker,
     }
-  }, [filteredWipes, filteredMechanics, filteredSurvival, playersWithTrackedKills])
+  }, [filteredWipes, filteredMechanics, scopedSurvival, playersWithTrackedKills])
 
   const durationBuckets = useMemo(() => {
     const totals = { lt1: 0, one3: 0, three5: 0, gt5: 0 }
@@ -161,7 +178,7 @@ export function WipeAnalysis() {
 
   const killingBlows = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const row of filteredSurvival) {
+    for (const row of scopedSurvival) {
       if (!row.most_common_killing_blow) continue
       const count = Number(row.most_common_killing_blow_count) || 0
       counts.set(row.most_common_killing_blow, (counts.get(row.most_common_killing_blow) ?? 0) + count)
@@ -175,17 +192,17 @@ export function WipeAnalysis() {
         fullName: name,
         count,
       }))
-  }, [filteredSurvival])
+  }, [scopedSurvival])
 
   const playerRows = useMemo(() =>
-    [...filteredSurvival]
+    [...scopedSurvival]
       .sort((a, b) => Number(b.total_deaths) - Number(a.total_deaths))
       .slice(0, 15),
-    [filteredSurvival]
+    [scopedSurvival]
   )
 
-  const loading = mechs.loading || survival.loading || wipes.loading
-  const error = mechs.error || survival.error || wipes.error
+  const loading = mechs.loading || survival.loading || wipes.loading || roster.loading
+  const error = mechs.error || survival.error || wipes.error || roster.error
   const hasBossData = filteredWipes.length > 0
 
   return (
@@ -234,7 +251,7 @@ export function WipeAnalysis() {
         <CardHeader>
           <CardTitle>Analysis Scope</CardTitle>
           <p className="text-xs text-ctp-overlay1 mt-0.5">
-            Boss panels below respect the current difficulty, zone, and boss filters. Survivability is guild-wide player data and can only be narrowed by zone.
+            Boss panels below respect the current difficulty, zone, and boss filters. Player survivability is restricted to raiders found in the matching boss scope, but the death totals remain aggregate per player.
           </p>
         </CardHeader>
         <CardBody className="flex flex-wrap items-center gap-3">
@@ -269,7 +286,7 @@ export function WipeAnalysis() {
             className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-48"
           />
           <span className="ml-auto text-xs font-mono text-ctp-overlay0">
-            {stats.bossesInScope} bosses · {formatNumber(stats.totalWipes)} wipes · {formatNumber(filteredSurvival.length)} players with deaths
+            {stats.bossesInScope} bosses · {formatNumber(stats.totalWipes)} wipes · {formatNumber(scopedSurvival.length)} scoped players with deaths
           </span>
         </CardBody>
       </Card>
@@ -492,7 +509,7 @@ export function WipeAnalysis() {
               <CardHeader>
                 <CardTitle>Most Common Killing Blows</CardTitle>
                 <p className="text-xs text-ctp-overlay1 mt-0.5">
-                  Guild-wide survivability data{zone !== 'All' ? ` filtered to players who died in ${zone}` : ''}. This is not boss-specific.
+                  Player-level survivability for raiders present in the current boss scope{zone !== 'All' ? ` within ${zone}` : ''}. Values are still aggregate by player, not per encounter.
                 </p>
               </CardHeader>
               <CardBody>
@@ -518,7 +535,7 @@ export function WipeAnalysis() {
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No survivability rows match the current zone scope</p>
+                  <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No survivability rows match the current analysis scope</p>
                 )}
               </CardBody>
             </Card>
