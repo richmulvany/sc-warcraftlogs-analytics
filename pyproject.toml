@@ -36,10 +36,16 @@ include = ["ingestion*", "pipeline*", "scripts*"]
 [tool.ruff]
 target-version = "py311"
 line-length = 100
+# dbutils, spark, display are injected globals in every Databricks notebook/job
+builtins = ["dbutils", "spark", "display"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]
 ignore = ["E501", "N812"]
+
+[tool.ruff.lint.per-file-ignores]
+# Notebook job files: sys.path manipulation must precede third-party imports
+"ingestion/jobs/*.py" = ["E402"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -49,6 +55,11 @@ indent-style = "space"
 python_version = "3.11"
 strict = true
 ignore_missing_imports = true
+explicit_package_bases = true
+# Databricks notebook files (pipeline/ and ingestion/jobs/) use runtime-injected
+# globals (spark, dbutils, dlt) that mypy cannot resolve statically.
+# Only ingestion/src/ — the actual importable library code — is checked.
+exclude = ["^pipeline/", "^ingestion/jobs/"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

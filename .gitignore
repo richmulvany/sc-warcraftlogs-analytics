@@ -28,11 +28,18 @@ bundle.lock
 # Exports (generated — not committed unless using GitHub Pages static export)
 data/exports/
 
+# Debug table exports — CSV samples ARE committed (for diagnosis); ignore nothing here
+# Large parquet/delta scratch files from ad-hoc analysis:
+debug_exports/**/*.parquet
+debug_exports/**/*.delta
+
 # IDE
 .idea/
 .vscode/
 *.swp
 a/
+.claude/
+CLAUDE.md
 
 # OS
 .DS_Store

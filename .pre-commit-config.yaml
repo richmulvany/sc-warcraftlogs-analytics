@@ -14,11 +14,19 @@ repos:
     hooks:
       - id: ruff
         args: [--fix]
+        # ingestion/jobs/ and pipeline/ are Databricks notebook files that use
+        # IPython magic syntax (%pip, %run) which ruff cannot parse as Python.
+        exclude: ^(ingestion/jobs/|pipeline/)
       - id: ruff-format
+        exclude: ^(ingestion/jobs/|pipeline/)
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.10.0
     hooks:
       - id: mypy
         additional_dependencies: [pydantic, types-pyyaml]
-        files: ^(ingestion|pipeline)/
+        # Only check the importable library code in ingestion/src/.
+        # pipeline/ and ingestion/jobs/ are Databricks notebook files that rely
+        # on runtime-injected globals (spark, dbutils, dlt) which mypy cannot
+        # resolve statically — they are intentionally excluded.
+        files: ^ingestion/src/

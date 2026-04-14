@@ -1,0 +1,9 @@
+# Manual alt-to-main character mappings.
+# Key: alt character name (exact, case-sensitive)
+# Value: main character name
+#
+# Example:
+# AltName: MainName
+# Rahmieldk: Rahmiel
+
+alt_mappings: {}

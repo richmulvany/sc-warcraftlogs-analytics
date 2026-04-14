@@ -1,30 +1,26 @@
-# Source API configuration
-# Secrets (api_key etc.) are loaded from Databricks Secret Scope at runtime.
-# Only non-sensitive configuration belongs here.
+# WarcraftLogs API configuration
+# Secrets (wcl-client-id, wcl-client-secret) are loaded from Databricks Secret
+# Scope "pipeline-secrets" at runtime.  Only non-sensitive config belongs here.
 
 source:
-  name: example
-  base_url: https://your-api.example.com
-  api_version: v1
+  name: warcraftlogs
+  api_url: https://www.warcraftlogs.com/api/v2/client
+  token_url: https://www.warcraftlogs.com/oauth/token
+
+guild:
+  # Override these via job widgets or environment variables at runtime.
+  name: Singularity
+  server_slug: silvermoon
+  server_region: EU
 
 rate_limiting:
-  requests_per_minute: 60
-  requests_per_hour: 1000
+  requests_per_minute: 30
+  requests_per_hour: 300
   retry_attempts: 3
-  retry_backoff_seconds: 2
+  retry_backoff_seconds: 4
 
-endpoints:
-  - name: entities
-    path: /entities
-    method: GET
-    pagination: true
-    page_size: 100
-  - name: events
-    path: /events
-    method: GET
-    pagination: true
-    page_size: 100
-  - name: metadata
-    path: /metadata
-    method: GET
-    pagination: false
+ingestion:
+  reports_per_page: 25      # max allowed by WCL API
+  attendance_per_page: 25   # max allowed by WCL API
+  # Fight data is fetched per report code and cached in the Volume —
+  # already-fetched reports are skipped on subsequent runs.

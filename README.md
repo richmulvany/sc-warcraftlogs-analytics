@@ -1,150 +1,294 @@
-# 🏗️ Databricks Medallion Pipeline Template
+# WarcraftLogs Guild Analytics
 
-[![CI](https://github.com/richmulvany/databricks-pipeline-template/actions/workflows/ci.yml/badge.svg)](https://github.com/richmulvany/databricks-pipeline-template/actions/workflows/ci.yml)
+[![CI](https://github.com/richmulvany/sc-warcraftlogs-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/richmulvany/sc-warcraftlogs-analytics/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-A production-grade, reusable template for building **Databricks DLT (Lakeflow Declarative Pipelines)** projects with a Bronze → Silver → Gold medallion architecture, a pluggable API ingestion layer, and a React frontend dashboard.
+A production-grade **Databricks medallion pipeline** that ingests WoW raid data from the [WarcraftLogs v2 GraphQL API](https://www.warcraftlogs.com/api/docs) and [Blizzard Profile API](https://develop.battle.net/documentation), processes it through a Bronze → Silver → Gold architecture, and serves it to a React dashboard.
 
-Built to run on the **Databricks Free Edition**.
+Built to run on **Databricks Free Edition** (serverless DLT).
+
+---
+
+## What it does
+
+Pulls data from WarcraftLogs and Blizzard nightly, transforms it into ~35 analytics tables, and surfaces insights across:
+
+- **Progression** — boss kill timelines, wipe analysis, best kill times
+- **Performance** — DPS/HPS parse percentiles, throughput trends, spec breakdowns
+- **Attendance** — who shows up, how often, which nights
+- **Roster** — guild rank structure, active raid team, alt detection
+- **Survivability** — who's dying, to what, how often
+- **Preparation** — consumable usage rates, combat stat distributions per player
 
 ---
 
 ## Architecture
 
 ```
-External API
-     │
-     ▼
-┌─────────────┐
-│  Ingestion  │  Pluggable adapter pattern — swap the API source easily
-└──────┬──────┘
-       │ Raw Delta tables
-       ▼
-┌─────────────┐
-│   Bronze    │  Raw landing — schema enforcement, metadata columns
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│   Silver    │  Cleaned, normalised, deduplicated
-└──────┬──────┘
-       │
-       ▼
-┌─────────────┐
-│    Gold     │  Business-ready data products
-└──────┬──────┘
-       │ Nightly JSON export
-       ▼
-┌─────────────┐
-│  Frontend   │  React dashboard (Vercel / Netlify / GitHub Pages)
-└─────────────┘
+WarcraftLogs API          Blizzard Profile API
+(GraphQL, OAuth2)         (REST, OAuth2)
+        │                         │
+        └──────────┬──────────────┘
+                   │
+                   ▼
+        ┌──────────────────────┐
+        │   ingest_primary.py  │  Databricks Workflow Job
+        │   7-step ingestion   │  JSONL → Unity Catalog Volume
+        └──────────┬───────────┘
+                   │ /Volumes/{catalog}/{schema}/landing/
+                   ▼
+        ┌──────────────────────┐
+        │   Bronze (DLT)       │  Auto Loader streams JSONL into Delta
+        │   9 raw tables       │  Schema enforcement, metadata columns
+        └──────────┬───────────┘
+                   │
+                   ▼
+        ┌──────────────────────┐
+        │   Silver (DLT)       │  Parse JSON, explode arrays, deduplicate
+        │   9 clean tables     │  Explicit StructType schemas, DLT expectations
+        └──────────┬───────────┘
+                   │
+                   ▼
+        ┌──────────────────────┐
+        │   Gold (DLT)         │  Fact tables, dimensions, aggregations
+        │   35+ tables         │  Business-ready, Z-ordered, CDF-enabled
+        └──────────┬───────────┘
+                   │ Nightly JSON export
+                   ▼
+        ┌──────────────────────┐
+        │   React Frontend     │  Static dashboard (Vite + TypeScript)
+        │                      │  Served via GitHub Pages / Vercel
+        └──────────────────────┘
 ```
+
+---
 
 ## Repository Structure
 
 ```
-.
-├── .github/
-│   ├── workflows/          # CI, Databricks deploy, frontend deploy
-│   └── ISSUE_TEMPLATE/     # Bug report, feature request templates
+sc-warcraftlogs-analytics/
 ├── ingestion/
+│   ├── jobs/
+│   │   └── ingest_primary.py     # 7-step ingestion orchestrator (Databricks job)
 │   ├── src/
-│   │   ├── adapters/       # Pluggable API adapter pattern
-│   │   └── endpoints/      # Per-domain API modules
-│   ├── jobs/               # Databricks job definitions
-│   └── config/             # Rate limits, API config
+│   │   ├── adapters/
+│   │   │   ├── base.py           # Abstract BaseAdapter interface
+│   │   │   ├── wcl/client.py     # WarcraftLogs GraphQL client (OAuth2, retry)
+│   │   │   └── blizzard/client.py# Blizzard REST client (guild roster)
+│   │   └── utils/helpers.py
+│   └── config/
+│       ├── source_config.yml     # API endpoints, rate limits
+│       └── rank_config.yml       # Guild rank definitions
 ├── pipeline/
-│   ├── bronze/             # DLT bronze layer tables
-│   ├── silver/             # DLT silver layer tables
-│   ├── gold/               # DLT gold layer data products
-│   └── expectations/       # Data quality rules
-├── frontend/               # React + Vite + TypeScript dashboard
-├── infra/                  # Databricks asset bundle config
-├── docs/
-│   ├── adr/                # Architecture Decision Records
-│   ├── runbooks/           # Operational runbooks
-│   ├── data_dictionary/    # Gold layer table definitions
-│   └── data_contracts/     # Producer/consumer schema agreements
-├── notebooks/              # Exploratory analysis
-├── scripts/                # Utility scripts
-├── data/samples/           # Mock API responses for testing
-├── Makefile
-├── pyproject.toml
-└── CHANGELOG.md
+│   ├── bronze/raw_source.py      # 9 Auto Loader table definitions
+│   ├── silver/
+│   │   ├── clean_reports.py      # guild_reports, fight_events
+│   │   ├── clean_players.py      # actor_roster, player_performance
+│   │   ├── clean_rankings.py     # player_rankings (WCL parse percentiles)
+│   │   ├── clean_events.py       # player_deaths (killing blow extraction)
+│   │   ├── clean_attendance.py   # raid_attendance
+│   │   ├── clean_zone_catalog.py # zone_catalog
+│   │   └── clean_guild_members.py# guild_members (rank labels, class names)
+│   └── gold/
+│       ├── core_facts.py         # fact_player_fight_performance, fact_player_events
+│       ├── core_dimensions.py    # dim_encounter, dim_player, dim_guild_member
+│       ├── player_products.py    # attendance, weekly activity, performance, boss roster
+│       ├── summary_products.py   # progression, best kills, wipe analysis
+│       ├── survivability_products.py # player survivability, boss mechanics
+│       ├── roster_products.py    # guild roster, raid team, player profile
+│       └── preparation_products.py  # consumables, combat stats, boss ability deaths
+├── frontend/                     # React + Vite + TypeScript dashboard
+├── docs/                         # Architecture, data dictionary, runbooks, ADRs
+├── databricks.yml                # Databricks Asset Bundle (pipeline + job config)
+├── pyproject.toml                # Python deps, ruff, mypy config
+└── CLAUDE.md                     # AI session context (architecture, patterns, gotchas)
 ```
 
-## Quick Start
+---
+
+## Data Sources
+
+### WarcraftLogs v2 GraphQL API
+- **Auth**: OAuth2 client credentials (`/oauth/token`)
+- **Rate limit**: ~30 req/min (manual retry loop with `Retry-After` header)
+- **Endpoints used**:
+  - `reportData.reports` — guild raid reports (paginated)
+  - `reportData.report.fights` — individual boss pulls per report
+  - `reportData.report.masterData.actors` — player roster per report
+  - `reportData.report.table(dataType:Summary)` — per-player combat stats (gear, consumables, stat ratings)
+  - `reportData.report.rankings(compare:Parses)` — WCL parse percentiles and DPS/HPS
+  - `reportData.report.table(dataType:Deaths)` — death events per fight
+  - `reportData.report.table(dataType:Casts, sourceID:0)` — attendance data
+  - `worldData.zones` — zone/encounter reference catalog
+
+### Blizzard Profile API
+- **Auth**: OAuth2 client credentials (basic auth)
+- **Endpoint**: `/data/wow/guild/{realm}/{guild}/roster`
+- Returns guild members with rank (0–9) and class_id
+
+---
+
+## Tables Produced
+
+### Bronze (9 tables — raw, schema-enforced)
+| Table | Source |
+|-------|--------|
+| `bronze_guild_reports` | WCL guild reports |
+| `bronze_report_fights` | WCL fight + masterData JSON |
+| `bronze_raid_attendance` | WCL table(Casts) attendance |
+| `bronze_actor_roster` | WCL masterData actors |
+| `bronze_player_details` | WCL table(Summary) playerDetails |
+| `bronze_fight_rankings` | WCL rankings(compare:Parses) |
+| `bronze_fight_deaths` | WCL table(Deaths) |
+| `bronze_zone_catalog` | WCL worldData zones |
+| `bronze_guild_members` | Blizzard guild roster |
+
+### Silver (9 tables — cleaned, normalised)
+| Table | Key transformations |
+|-------|---------------------|
+| `silver_guild_reports` | UTC timestamps, zone extracted, deduplicated |
+| `silver_fight_events` | Fights exploded, raid difficulties filtered (3/4/5), difficulty labels |
+| `silver_actor_roster` | Player actors per report, class/realm extracted |
+| `silver_player_performance` | playerDetails JSON parsed; role arrays exploded & unioned; spec, item level, combatant stats (Crit/Haste/Mastery/Vers), consumable use |
+| `silver_player_rankings` | Rankings JSON parsed; role arrays exploded & unioned; WCL DPS/HPS amount, rank percentile |
+| `silver_player_deaths` | Deaths JSON parsed; one row per death; killing blow = first non-friendly damage event via `FILTER()` |
+| `silver_raid_attendance` | Attendance exploded; presence codes mapped to labels |
+| `silver_zone_catalog` | Zone/encounter reference; difficulty names collected |
+| `silver_guild_members` | Deduplicated; rank labels (GM→Social); class names from Blizzard class_id enum |
+
+### Gold (35 tables — business-ready)
+
+**Dimensions**
+| Table | Description |
+|-------|-------------|
+| `dim_encounter` | Boss encounter reference (active tiers only) |
+| `dim_player` | Canonical player identity; guild membership; class enriched from perf data |
+| `dim_guild_member` | Authoritative Blizzard roster; attendance stats; `is_active` flag |
+
+**Facts**
+| Table | Description |
+|-------|-------------|
+| `fact_player_fight_performance` | One row per player per kill fight; throughput (WCL rankings.amount), parse %, gear, consumables, stat ratings |
+| `fact_player_events` | One row per death event; fight_id, killing blow, zone context |
+
+**Aggregations**
+| Table | Question answered |
+|-------|-------------------|
+| `gold_player_attendance` | Who shows up and how often? |
+| `gold_weekly_activity` | How many raids per week, how much progress? |
+| `gold_player_performance_summary` | How does each player perform across all kills? |
+| `gold_boss_kill_roster` | Who was on each kill and how did they do? |
+| `gold_player_boss_performance` | Per-boss performance per player with trend indicator |
+| `gold_boss_progression` | Kill/wipe counts per encounter |
+| `gold_raid_summary` | One row per raid night with aggregate stats |
+| `gold_progression_timeline` | Cumulative first-kills over time |
+| `gold_best_kills` | Fastest kill per encounter with mm:ss formatting |
+| `gold_boss_wipe_analysis` | Wipe phase/% breakdown per boss |
+| `gold_boss_mechanics` | Enhanced wipe analysis — phase buckets, duration buckets, weekly trend |
+| `gold_player_survivability` | Deaths per kill, most common killing blow per player |
+| `gold_boss_ability_deaths` | What abilities kill players most per boss |
+| `gold_player_consumables` | Potion/healthstone usage rate per player, per boss |
+| `gold_player_combat_stats` | Crit/Haste/Mastery/Vers ratings per player (latest + avg) |
+| `gold_encounter_catalog` | Zone/encounter reference for frontend filters |
+| `gold_guild_roster` | Full Blizzard guild roster with class, attendance |
+| `gold_raid_team` | Active raid team with possible alt flags |
+| `gold_player_profile` | Comprehensive per-player identity + performance summary |
+| `gold_roster` | Active roster from WCL actor logs |
+
+---
+
+## Setup
+
+See [SETUP.md](SETUP.md) for the full step-by-step guide. Summary:
 
 ### Prerequisites
-
-- [Databricks Free Edition](https://www.databricks.com/try-databricks) account
-- [Databricks CLI](https://docs.databricks.com/dev-tools/cli/index.html) installed and configured
+- [Databricks Free Edition](https://www.databricks.com/try-databricks) workspace
+- [Databricks CLI](https://docs.databricks.com/dev-tools/cli/index.html) v0.210+ configured
 - Python 3.11+
-- Node.js 18+
 
-### 1. Use this template
+### 1. Configure secrets
 
-Click **"Use this template"** on GitHub, or:
-
-```bash
-pip install cookiecutter
-cookiecutter gh:richmulvany/databricks-pipeline-template
-```
-
-### 2. First-time setup
+In your Databricks workspace, create a secret scope named `pipeline-secrets`:
 
 ```bash
-make init
+databricks secrets create-scope pipeline-secrets
+databricks secrets put-secret pipeline-secrets wcl_client_id       --string-value "..."
+databricks secrets put-secret pipeline-secrets wcl_client_secret    --string-value "..."
+databricks secrets put-secret pipeline-secrets blizzard_client_id   --string-value "..."
+databricks secrets put-secret pipeline-secrets blizzard_client_secret --string-value "..."
 ```
 
-This will:
-- Install Python dependencies
-- Copy `.env.example` to `.env`
-- Verify Databricks CLI connection
-- Set up pre-commit hooks
-
-### 3. Configure your data source
-
-Copy `ingestion/src/adapters/example_adapter/` and implement the three required methods.
-See [Adapter Guide](docs/architecture/adapter_guide.md).
-
-### 4. Deploy the pipeline
+### 2. Deploy
 
 ```bash
-make deploy-pipeline
+databricks bundle deploy
+databricks bundle run nightly_ingestion   # first ingestion run
 ```
 
-### 5. Deploy the frontend
+The DLT pipeline runs automatically after ingestion completes.
 
-```bash
-make deploy-frontend
+### 3. Customise for your guild
+
+Edit `databricks.yml` variables:
+```yaml
+variables:
+  guild_name: "Your Guild Name"
+  guild_server_slug: "realm-name"
+  guild_server_region: EU   # EU / US / KR / TW
 ```
-
-See [SETUP.md](SETUP.md) for the full step-by-step guide.
 
 ---
 
-## Swapping the Data Source
+## Key Implementation Details
 
-This template uses an **adapter pattern** for ingestion. To use a different API:
+### Throughput metric
+`throughput_per_second` in all performance tables comes from `silver_player_rankings.amount` — the WCL DPS/HPS value used for ranking (already per-second normalised). The `playerDetails` endpoint provides combatant info (gear, stats, consumables) but **not** damage/healing totals.
 
-1. Copy `ingestion/src/adapters/example_adapter/` to `ingestion/src/adapters/your_source/`
-2. Implement `BaseAdapter` methods: `authenticate()`, `fetch()`, `validate()`
-3. Update `ingestion/config/source_config.yml`
-4. Update gold layer table definitions in `pipeline/gold/`
+### Archived reports
+WCL eventually archives old reports. `ArchivedReportError` is caught at ingestion time and a skip marker file written to `landing/archived/{report_code}`. Archived reports are never retried.
 
-See [docs/architecture/adapter_guide.md](docs/architecture/adapter_guide.md).
+### Rate limiting
+Manual retry loop reads `Retry-After` header on 429 responses. 5xx errors use exponential backoff (3 attempts, max 30s). Token refresh is proactive (5 min before expiry).
+
+### Guild rank mapping (Blizzard API)
+Blizzard returns 0-indexed rank IDs. Our guild mapping:
+
+| Rank ID | Label |
+|---------|-------|
+| 0 | Guild Master |
+| 1 | GM Alt |
+| 2 | Officer |
+| 3 | Officer Alt |
+| 4 | Officer Alt |
+| 5 | Raider |
+| 6 | Raider Alt |
+| 7 | Bestie |
+| 8 | Trial |
+| 9 | Social |
+
+Raid team = ranks 0, 1, 2, 3, 4, 5, 8.
+
+### WoW Class IDs
+Blizzard returns `class_id` (integer). Silver layer maps to name: 1=Warrior, 2=Paladin, 3=Hunter, 4=Rogue, 5=Priest, 6=Death Knight, 7=Shaman, 8=Mage, 9=Warlock, 10=Monk, 11=Druid, 12=Demon Hunter, 13=Evoker.
 
 ---
 
-## Testing
+## Development
 
 ```bash
-make test          # Run all tests
-make test-unit     # Unit tests only
-make test-lint     # Linting only
+# Install dependencies
+pip install -e ".[dev]"
+
+# Lint + type check
+ruff check .
+mypy ingestion/
+
+# Tests
+pytest ingestion/tests/
+
+# Deploy pipeline changes
+databricks bundle deploy
 ```
 
 ---
@@ -153,27 +297,7 @@ make test-lint     # Linting only
 
 - [Setup Guide](SETUP.md)
 - [Architecture Overview](docs/architecture/overview.md)
-- [Adapter Guide](docs/architecture/adapter_guide.md)
-- [ADR Index](docs/adr/README.md)
 - [Data Dictionary](docs/data_dictionary/README.md)
-- [Data Contracts](docs/data_contracts/README.md)
 - [Runbooks](docs/runbooks/README.md)
-- [Contributing](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md)
-
----
-
-## Built With Enterprise Patterns
-
-| Pattern | Implementation |
-|---|---|
-| Medallion architecture | Databricks DLT (Lakeflow) |
-| Infrastructure as Code | Databricks Asset Bundles |
-| Data quality | DLT Expectations |
-| CI/CD | GitHub Actions |
-| Adapter pattern | Pluggable ingestion layer |
-| ADRs | Architecture Decision Records in `docs/adr/` |
-| Data contracts | Producer/consumer schema agreements in `docs/data_contracts/` |
-| Secret management | Databricks Secret Scopes |
-| Code quality | ruff + mypy + pre-commit |
-
+- [ADR Index](docs/adr/README.md)
+- [AI Session Context](CLAUDE.md)

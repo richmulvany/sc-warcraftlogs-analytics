@@ -1,0 +1,51 @@
+encounter_id,boss_name,zone_id,zone_name,difficulty,difficulty_label,total_pulls,total_kills,total_wipes,best_kill_seconds,avg_pull_duration_seconds,is_killed,first_kill_date,last_attempt_date,wipe_to_kill_ratio
+2590,The Primal Council,31,Vault of the Incarnates,3,Normal,6,6,0,149,207.33333333333334,True,2022-12-14,2024-04-29,0.0
+2433,The Eye of the Jailer,28,Sanctum of Domination,4,Heroic,21,14,7,218,274.6666666666667,True,2021-07-12,2022-08-31,0.5
+2587,Eranog,31,Vault of the Incarnates,3,Normal,6,6,0,121,165.5,True,2022-12-14,2024-04-29,0.0
+2731,"Larodar, Keeper of the Flame",35,"Amirdrassil, the Dream's Hope",3,Normal,5,4,1,127,159.4,True,2023-11-15,2024-05-08,0.25
+2684,Echo of Neltharion,33,"Aberrus, the Shadowed Crucible",3,Normal,10,6,4,175,238.4,True,2023-05-10,2024-05-01,0.67
+3134,Nexus-King Salhadaar,44,Manaforge Omega,3,Normal,3,3,0,127,173.66666666666666,True,2025-08-13,2025-11-23,0.0
+2824,Smolderon,31,Vault of the Incarnates,4,Heroic,1,1,0,190,190.0,True,2024-08-19,2024-08-19,0.0
+2682,Assault of the Zaqali,33,"Aberrus, the Shadowed Crucible",3,Normal,7,6,1,39,147.71428571428572,True,2023-05-10,2024-05-01,0.17
+3182,"Belo'ren, Child of Al'ar",46,VS / DR / MQD,4,Heroic,14,1,13,223,174.5,True,2026-04-08,2026-04-08,13.0
+1094,Malygos,26,Castle Nathria,3,Normal,1,1,0,87,87.0,True,2021-03-25,2021-03-25,0.0
+2436,Guardian of the First Ones,28,Sanctum of Domination,4,Heroic,51,11,40,213,201.62745098039215,True,2021-07-19,2022-08-31,3.64
+2614,Broodkeeper Diurna,31,Vault of the Incarnates,5,Mythic,98,2,96,503,226.3877551020408,True,2023-03-13,2023-04-19,48.0
+3134,Nexus-King Salhadaar,44,Manaforge Omega,5,Mythic,368,3,365,183,155.33967391304347,True,2025-11-05,2026-01-26,121.67
+2689,"The Vigilant Steward, Zskarn",31,Vault of the Incarnates,4,Heroic,1,1,0,112,112.0,True,2024-08-19,2024-08-19,0.0
+3132,Forgeweaver Araz,44,Manaforge Omega,3,Normal,4,3,1,127,198.5,True,2025-08-13,2025-11-23,0.33
+2607,Raszageth the Storm-Eater,31,Vault of the Incarnates,3,Normal,19,5,14,453,387.42105263157896,True,2022-12-19,2024-04-29,2.8
+3010,Cauldron of Carnage,42,Liberation of Undermine,4,Heroic,19,12,7,153,227.57894736842104,True,2025-03-10,2025-07-30,0.58
+2682,Assault of the Zaqali,33,"Aberrus, the Shadowed Crucible",5,Mythic,14,9,5,260,294.42857142857144,True,2023-05-31,2024-05-06,0.56
+2918,Rasha'nan,38,Nerub-ar Palace,3,Normal,20,14,6,121,121.8,True,2024-09-11,2024-11-03,0.43
+2917,The Bloodbound Horror,38,Nerub-ar Palace,4,Heroic,26,15,11,146,231.15384615384616,True,2024-09-16,2025-01-13,0.73
+2432,Remnant of Ner'zhul,28,Sanctum of Domination,4,Heroic,37,13,24,162,192.67567567567568,True,2021-07-12,2022-08-31,1.85
+2820,Gnarlroot,35,"Amirdrassil, the Dream's Hope",4,Heroic,12,11,1,140,177.66666666666666,True,2023-11-15,2024-06-19,0.09
+3178,Vaelgor & Ezzorak,46,VS / DR / MQD,3,Normal,3,2,1,258,352.6666666666667,True,2026-03-18,2026-03-25,0.5
+2919,Broodtwister Ovi'nax,38,Nerub-ar Palace,4,Heroic,29,11,18,235,271.9655172413793,True,2024-09-16,2025-01-13,1.64
+2429,The Nine,28,Sanctum of Domination,5,Mythic,16,8,8,338,315.4375,True,2021-08-23,2021-09-29,1.0
+2546,Anduin Wrynn,29,Sepulcher of the First Ones,4,Heroic,48,7,41,321,237.625,True,2022-03-23,2022-09-12,5.86
+3181,Crown of the Cosmos,46,VS / DR / MQD,3,Normal,4,2,2,391,454.0,True,2026-03-18,2026-03-25,1.0
+2917,The Bloodbound Horror,38,Nerub-ar Palace,3,Normal,21,14,7,126,140.57142857142858,True,2024-09-11,2024-11-03,0.5
+2592,"Sennarth, The Cold Breath",31,Vault of the Incarnates,5,Mythic,61,9,52,376,274.655737704918,True,2023-01-25,2023-04-25,5.78
+2405,Artificer Xy'mox,26,Castle Nathria,3,Normal,2,2,0,241,268.0,True,2021-01-31,2021-03-25,0.0
+2920,Nexus-Princess Ky'veza,38,Nerub-ar Palace,5,Mythic,234,1,233,362,125.1068376068376,True,2024-12-16,2024-12-16,233.0
+3046,Golem Lord Argelmach,40,Blackrock Depths,3,Normal,3,1,2,271,201.66666666666666,True,2024-10-23,2024-10-23,2.0
+3046,Golem Lord Argelmach,40,Blackrock Depths,4,Heroic,6,1,5,270,217.66666666666666,True,2024-10-27,2024-10-27,5.0
+2786,"Tindral Sageswift, Seer of the Flame",35,"Amirdrassil, the Dream's Hope",3,Normal,5,4,1,181,266.8,True,2023-11-15,2024-05-08,0.25
+3122,The Soul Hunters,44,Manaforge Omega,4,Heroic,11,9,2,264,323.45454545454544,True,2025-08-18,2025-12-01,0.22
+2728,Council of Dreams,35,"Amirdrassil, the Dream's Hope",3,Normal,4,4,0,89,140.0,True,2023-11-15,2024-05-08,0.0
+2824,Smolderon,35,"Amirdrassil, the Dream's Hope",4,Heroic,60,13,47,185,210.11666666666667,True,2023-11-21,2024-06-19,3.62
+3012,Stix Bunkjunker,42,Liberation of Undermine,4,Heroic,25,10,15,235,241.48,True,2025-03-10,2025-07-30,1.5
+2398,Shriekwing,26,Castle Nathria,5,Mythic,14,12,2,259,346.14285714285717,True,2021-02-03,2021-03-31,0.17
+2418,Huntsman Altimor,26,Castle Nathria,5,Mythic,41,13,28,283,240.17073170731706,True,2021-02-03,2021-04-05,2.15
+2422,Kel'Thuzad,28,Sanctum of Domination,5,Mythic,81,2,79,416,174.20987654320987,True,2021-12-08,2022-02-25,39.5
+3129,Plexus Sentinel,44,Manaforge Omega,3,Normal,4,3,1,126,185.75,True,2025-08-13,2025-11-23,0.33
+2635,"Dathea, Ascended",31,Vault of the Incarnates,3,Normal,10,6,4,132,196.1,True,2022-12-14,2024-04-29,0.67
+2431,Fatescribe Roh-Kalo,28,Sanctum of Domination,4,Heroic,40,8,32,360,294.075,True,2021-07-26,2022-08-31,4.0
+3133,Fractillus,44,Manaforge Omega,5,Mythic,68,4,64,276,178.48529411764707,True,2025-09-29,2025-10-15,16.0
+3135,"Dimensius, the All-Devouring",44,Manaforge Omega,4,Heroic,18,1,17,471,219.55555555555554,True,2025-09-01,2025-09-01,17.0
+2737,Volcoross,35,"Amirdrassil, the Dream's Hope",5,Mythic,14,7,7,230,209.64285714285714,True,2023-12-11,2024-05-13,1.0
+2688,"Kazzara, the Hellforged",33,"Aberrus, the Shadowed Crucible",3,Normal,6,6,0,117,165.33333333333334,True,2023-05-10,2024-05-01,0.0
+2537,The Jailer,29,Sepulcher of the First Ones,4,Heroic,91,3,88,487,215.93406593406593,True,2022-04-25,2022-09-12,29.33
+2436,Guardian of the First Ones,28,Sanctum of Domination,3,Normal,11,5,6,205,212.9090909090909,True,2021-08-08,2021-09-02,1.2
