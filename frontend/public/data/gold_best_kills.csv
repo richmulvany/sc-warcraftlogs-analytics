@@ -1,0 +1,51 @@
+encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,avg_kill_seconds,total_kills,first_kill_date,latest_kill_date,best_kill_mm_ss
+2639,Terros,Vault of the Incarnates,5,Mythic,296,343.90909090909093,11,2023-01-16,2023-04-25,4m 56s
+3135,"Dimensius, the All-Devouring",Manaforge Omega,4,Heroic,471,471.0,1,2025-09-01,2025-09-01,7m 51s
+2539,"Lihuvim, Principal Architect",Sepulcher of the First Ones,4,Heroic,183,303.6,10,2022-03-08,2022-09-12,3m 03s
+2728,Council of Dreams,"Amirdrassil, the Dream's Hope",3,Normal,89,140.0,4,2023-11-15,2024-05-08,1m 29s
+2922,Queen Ansurek,Nerub-ar Palace,3,Normal,238,316.2307692307692,13,2024-09-11,2024-11-03,3m 58s
+3011,Rik Reverb,Liberation of Undermine,3,Normal,169,216.66666666666666,6,2025-03-05,2025-05-04,2m 49s
+2689,"The Vigilant Steward, Zskarn","Aberrus, the Shadowed Crucible",5,Mythic,304,304.0,1,2023-07-24,2023-07-24,5m 04s
+2824,Smolderon,"Amirdrassil, the Dream's Hope",3,Normal,104,149.0,4,2023-11-15,2024-05-08,1m 44s
+2417,Stone Legion Generals,Castle Nathria,3,Normal,293,318.6,5,2021-01-31,2021-03-25,4m 53s
+2529,Halondrus the Reclaimer,Sepulcher of the First Ones,4,Heroic,267,294.42857142857144,7,2022-03-23,2022-09-12,4m 27s
+2921,The Silken Court,Nerub-ar Palace,4,Heroic,282,405.46153846153845,13,2024-09-17,2025-01-13,4m 42s
+2402,Sun King's Salvation,Castle Nathria,3,Normal,315,315.0,1,2021-01-31,2021-01-31,5m 15s
+2902,Ulgrax the Devourer,Manaforge Omega,5,Mythic,42,42.0,1,2026-01-26,2026-01-26,0m 42s
+2422,Kel'Thuzad,Sanctum of Domination,3,Normal,361,419.75,4,2021-08-08,2021-09-02,6m 01s
+2920,Nexus-Princess Ky'veza,Nerub-ar Palace,3,Normal,118,177.07142857142858,14,2024-09-11,2024-11-03,1m 58s
+2689,"The Vigilant Steward, Zskarn","Aberrus, the Shadowed Crucible",4,Heroic,132,192.71428571428572,7,2023-05-15,2024-06-12,2m 12s
+2737,Volcoross,"Amirdrassil, the Dream's Hope",3,Normal,74,113.25,4,2023-11-15,2024-05-08,1m 14s
+3132,Forgeweaver Araz,Manaforge Omega,4,Heroic,248,326.14285714285717,7,2025-08-18,2025-12-01,4m 08s
+2919,Broodtwister Ovi'nax,Nerub-ar Palace,3,Normal,143,183.5,14,2024-09-11,2024-11-03,2m 23s
+2402,Sun King's Salvation,Castle Nathria,5,Mythic,295,305.25,4,2021-03-01,2021-03-31,4m 55s
+2430,Painsmith Raznal,Sanctum of Domination,5,Mythic,426,426.0,1,2021-11-01,2021-11-01,7m 06s
+3014,One-Armed Bandit,Liberation of Undermine,4,Heroic,165,241.31578947368422,19,2025-03-17,2025-07-30,2m 45s
+2412,The Council of Blood,Castle Nathria,4,Heroic,230,352.3636363636364,11,2021-01-27,2022-09-14,3m 50s
+3011,Rik Reverb,Liberation of Undermine,5,Mythic,320,356.1666666666667,6,2025-04-07,2025-05-07,5m 20s
+2592,"Sennarth, The Cold Breath",Vault of the Incarnates,5,Mythic,376,401.77777777777777,9,2023-01-25,2023-04-25,6m 16s
+2435,Sylvanas Windrunner,Sanctum of Domination,4,Heroic,694,730.7142857142857,7,2021-08-16,2022-08-15,11m 34s
+2542,"Skolex, the Insatiable Ravener",Sepulcher of the First Ones,4,Heroic,150,227.6,10,2022-03-02,2022-09-12,2m 30s
+2682,Assault of the Zaqali,Vault of the Incarnates,4,Heroic,31,31.0,1,2024-08-19,2024-08-19,0m 31s
+3048,The Seven,Blackrock Depths,3,Normal,291,291.0,1,2024-10-23,2024-10-23,4m 51s
+2728,Council of Dreams,"Amirdrassil, the Dream's Hope",4,Heroic,152,230.16666666666666,12,2023-11-20,2024-06-19,2m 32s
+2590,The Primal Council,Vault of the Incarnates,3,Normal,149,207.33333333333334,6,2022-12-14,2024-04-29,2m 29s
+2432,Remnant of Ner'zhul,Sanctum of Domination,5,Mythic,339,353.0,2,2021-09-08,2021-09-29,5m 39s
+3014,One-Armed Bandit,Liberation of Undermine,3,Normal,167,243.5,6,2025-03-05,2025-05-04,2m 47s
+2918,Rasha'nan,Nerub-ar Palace,4,Heroic,158,258.42857142857144,14,2024-09-16,2025-01-13,2m 38s
+2737,Volcoross,Vault of the Incarnates,4,Heroic,109,109.0,1,2024-08-19,2024-08-19,1m 49s
+3179,Fallen-King Salhadaar,VS / DR / MQD,3,Normal,183,231.5,2,2026-03-18,2026-03-25,3m 03s
+3010,Cauldron of Carnage,Liberation of Undermine,5,Mythic,317,370.6,10,2025-03-24,2025-05-07,5m 17s
+3130,Soulbinder Naazindhri,Manaforge Omega,5,Mythic,302,342.875,8,2025-08-27,2025-10-15,5m 02s
+2685,Scalecommander Sarkareth,"Aberrus, the Shadowed Crucible",3,Normal,249,347.1666666666667,6,2023-05-15,2024-05-01,4m 09s
+3177,Vorasius,VS / DR / MQD,5,Mythic,374,374.0,1,2026-04-06,2026-04-06,6m 14s
+2587,Eranog,Vault of the Incarnates,5,Mythic,159,186.69230769230768,13,2022-12-28,2024-05-15,2m 39s
+2590,The Primal Council,Vault of the Incarnates,4,Heroic,120,167.11111111111111,9,2022-12-19,2024-08-19,2m 00s
+2918,Rasha'nan,Nerub-ar Palace,5,Mythic,278,324.42857142857144,7,2024-10-21,2024-12-29,4m 38s
+2605,Kurog Grimtotem,Vault of the Incarnates,3,Normal,210,276.1666666666667,6,2022-12-18,2024-04-29,3m 30s
+2429,The Nine,Sanctum of Domination,3,Normal,204,283.0,6,2021-07-07,2021-09-02,3m 24s
+2543,Lords of Dread,Sepulcher of the First Ones,3,Normal,327,398.6666666666667,3,2022-03-13,2022-03-30,5m 27s
+3134,Nexus-King Salhadaar,Manaforge Omega,5,Mythic,183,332.3333333333333,3,2025-11-05,2026-01-26,3m 03s
+3131,Loom'ithar,Manaforge Omega,3,Normal,117,144.0,3,2025-08-13,2025-11-23,1m 57s
+2418,Huntsman Altimor,Castle Nathria,5,Mythic,283,312.9230769230769,13,2021-02-03,2021-04-05,4m 43s
+2383,Hungering Destroyer,Castle Nathria,4,Heroic,101,248.4375,16,2021-01-27,2022-09-14,1m 41s
