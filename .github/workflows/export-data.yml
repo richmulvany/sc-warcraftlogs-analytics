@@ -7,7 +7,7 @@ on:
 
 jobs:
   export:
-    name: Export gold tables to static JSON
+    name: Export frontend data CSVs
     runs-on: ubuntu-latest
     if: github.repository != 'richmulvany/databricks-pipeline-template'
     steps:
@@ -25,12 +25,12 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_CATALOG: ${{ vars.DATABRICKS_CATALOG }}
           DATABRICKS_SCHEMA: ${{ vars.DATABRICKS_SCHEMA }}
-          EXPORT_OUTPUT_DIR: data/exports
+          EXPORT_OUTPUT_DIR: frontend/public/data
         run: python scripts/export_gold_tables.py
       - name: Commit exported data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/exports/
+          git add frontend/public/data/
           git diff --staged --quiet || git commit -m "chore: nightly data export [skip ci]"
           git push
