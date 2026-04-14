@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Swords } from 'lucide-react'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
@@ -8,7 +9,7 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { WeeklyActivityChart } from '../components/charts/WeeklyActivityChart'
-import { ParseDistributionChart } from '../components/charts/ParseDistributionChart'
+import { ParseHistogramChart } from '../components/charts/ParseHistogramChart'
 import { ClassDot } from '../components/ui/ClassLabel'
 import {
   useRaidSummary,
@@ -16,19 +17,21 @@ import {
   useBossProgression,
   useWeeklyActivity,
   useGuildRoster,
+  useBossKillRoster,
 } from '../hooks/useGoldData'
 import { formatNumber, formatDateShort } from '../utils/format'
 import { formatThroughput } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
 export function Overview() {
-  const { getParseColor, killColor, wipeColor } = useColourBlind()
-  const raids   = useRaidSummary()
-  const players = usePlayerPerformance()
-  const bosses  = useBossProgression()
-  const weekly  = useWeeklyActivity()
-  const roster  = useGuildRoster()
-  const navigate = useNavigate()
+  const { getParseColor, killColor, wipeColor, chartColors } = useColourBlind()
+  const raids      = useRaidSummary()
+  const players    = usePlayerPerformance()
+  const bosses     = useBossProgression()
+  const weekly     = useWeeklyActivity()
+  const roster     = useGuildRoster()
+  const killRoster = useBossKillRoster()
+  const navigate   = useNavigate()
 
   const stats = useMemo(() => {
     if (!raids.data.length) return null
@@ -119,17 +122,18 @@ export function Overview() {
              <WeeklyActivityChart data={weekly.data} />}
             <div className="flex items-center gap-5 mt-3">
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-0.5 rounded bg-ctp-blue" />
+                <div className="w-4 h-0.5 rounded" style={{ backgroundColor: chartColors.primary }} />
                 <span className="text-[11px] font-mono text-ctp-overlay0">Boss Kills</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-4 h-0.5 rounded bg-ctp-red" />
+                <div className="w-4 h-0.5 rounded" style={{ backgroundColor: chartColors.secondary }} />
                 <span className="text-[11px] font-mono text-ctp-overlay0">Wipes</span>
               </div>
             </div>
           </CardBody>
         </Card>
 
+        {/* Recent raids — clickable rows navigate to raid detail */}
         <Card>
           <CardHeader>
             <CardTitle>Recent Raids</CardTitle>
@@ -138,34 +142,39 @@ export function Overview() {
             {raids.loading ? (
               <div className="p-5"><LoadingState rows={5} /></div>
             ) : recentRaids.map(r => (
-              <div key={r.report_code} className="px-4 py-3 hover:bg-ctp-surface1/30 transition-colors cursor-default">
+              <button
+                key={r.report_code}
+                onClick={() => navigate(`/raids/${r.report_code}`)}
+                className="w-full text-left px-4 py-3 hover:bg-ctp-surface1/40 transition-colors"
+              >
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="text-xs text-ctp-text font-medium truncate flex-1">{r.zone_name}</span>
                   <DiffBadge label={r.primary_difficulty} />
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-mono text-ctp-overlay0">{formatDateShort(r.raid_night_date)}</span>
-                  <span className="text-[11px] font-mono">
-                    <span style={{ color: killColor }}>{r.boss_kills}↓</span>
+                  <span className="text-[11px] font-mono flex items-center gap-0.5">
+                    <Swords className="w-2.5 h-2.5 flex-shrink-0" style={{ color: killColor }} />
+                    <span style={{ color: killColor }}>{r.boss_kills}</span>
                     <span className="text-ctp-overlay0 mx-0.5">/</span>
                     <span style={{ color: wipeColor }}>{r.total_wipes}✗</span>
                   </span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </Card>
       </div>
 
-      {/* Bottom row: parse chart + leaderboard */}
+      {/* Bottom row: parse histogram + leaderboard */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Parse Distribution</CardTitle>
-            <p className="text-xs text-ctp-overlay1 mt-0.5">Average WCL rank % per player (top 15)</p>
+            <p className="text-xs text-ctp-overlay1 mt-0.5">How many parses fall in each 10% bracket (all tracked fights)</p>
           </CardHeader>
           <CardBody>
-            {players.loading ? <LoadingState rows={4} /> : <ParseDistributionChart data={players.data} />}
+            {killRoster.loading ? <LoadingState rows={4} /> : <ParseHistogramChart data={killRoster.data} />}
           </CardBody>
         </Card>
 

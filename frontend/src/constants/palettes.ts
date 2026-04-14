@@ -183,6 +183,20 @@ export function getRoleColorForMode(role: string, mode: ColourBlindMode): string
   return '#6c7086'
 }
 
+/** Three-colour set safe for each mode, used for phase breakdown charts. */
+export function getPhaseColorsForMode(mode: ColourBlindMode): [string, string, string] {
+  switch (mode) {
+    case 'deuteranopia':
+      return ['#56B4E9', '#E69F00', '#CC79A7']   // sky-blue, orange, rose
+    case 'protanopia':
+      return ['#56B4E9', '#E69F00', '#CC79A7']   // same safe set
+    case 'tritanopia':
+      return ['#3CB371', '#FF6347', '#9370DB']   // green, red, purple
+    default:
+      return ['#89b4fa', '#cba6f7', '#f38ba8']   // blue, mauve, red
+  }
+}
+
 export const MODE_LABELS: Record<ColourBlindMode, string> = {
   normal:       'Normal',
   deuteranopia: 'Deuteranopia',

@@ -5,6 +5,7 @@ import {
   getParseColorForMode,
   getDifficultyColorForMode,
   getRoleColorForMode,
+  getPhaseColorsForMode,
 } from '../constants/palettes'
 
 interface ChartColors {
@@ -23,6 +24,8 @@ export interface ColourBlindContextValue {
   killColor:    string
   wipeColor:    string
   chartColors:  ChartColors
+  /** Three distinct colours safe for each mode — for phase/category breakdowns */
+  phaseColors:  [string, string, string]
 }
 
 const ColourBlindContext = createContext<ColourBlindContextValue | null>(null)
@@ -56,6 +59,7 @@ export function ColourBlindProvider({ children }: { children: ReactNode }) {
       killColor:    palette.kill,
       wipeColor:    palette.wipe,
       chartColors:  { primary: palette.chartA, secondary: palette.chartB },
+      phaseColors:  getPhaseColorsForMode(mode),
     }
   }, [mode, setMode])
 

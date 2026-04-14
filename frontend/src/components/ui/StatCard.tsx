@@ -20,17 +20,18 @@ interface StatCardProps {
   trend?: 'up' | 'down' | 'neutral'
   icon?: ReactNode
   accent?: Accent
+  /** Override the value colour with a colourblind-aware inline colour */
+  valueColor?: string
   className?: string
 }
 
-export function StatCard({ label, value, subValue, trend, icon, accent = 'none', className }: StatCardProps) {
+export function StatCard({ label, value, subValue, trend, icon, accent = 'none', valueColor, className }: StatCardProps) {
   const style = ACCENT_STYLES[accent]
 
   return (
     <div
       className={clsx(
         'bg-ctp-surface0 rounded-2xl p-5 border shadow-card',
-        'transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5',
         style.border,
         className
       )}
@@ -47,7 +48,10 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
 
       {/* Value */}
       <div className="flex items-end gap-2">
-        <span className={clsx('text-2xl font-semibold tracking-tight', style.text)}>
+        <span
+          className={clsx('text-2xl font-semibold tracking-tight', !valueColor && style.text)}
+          style={valueColor ? { color: valueColor } : undefined}
+        >
           {value}
         </span>
         {trend && (

@@ -56,7 +56,7 @@ export function Bosses() {
   }, [best.data])
 
   return (
-    <AppLayout title="Bosses" subtitle="progression tracker">
+    <AppLayout title="Boss Progression" subtitle="progression tracker">
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {prog.loading ? (

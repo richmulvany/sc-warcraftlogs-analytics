@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Skull, TrendingDown, Swords, CalendarDays, Shield, Eye, ChevronDown } from 'lucide-react'
+import { LayoutDashboard, Users, Skull, TrendingDown, Swords, CalendarDays, Shield, Eye, ChevronDown, AlertTriangle } from 'lucide-react'
 import clsx from 'clsx'
 import { useColourBlind } from '../../context/ColourBlindContext'
 import { type ColourBlindMode, MODE_LABELS } from '../../constants/palettes'
 
 const NAV = [
-  { to: '/',              label: 'Dashboard',     Icon: LayoutDashboard },
-  { to: '/players',       label: 'Players',       Icon: Users },
-  { to: '/bosses',        label: 'Bosses',        Icon: Skull },
-  { to: '/wipe-analysis', label: 'Wipe Analysis', Icon: TrendingDown },
-  { to: '/raids',         label: 'Raids',         Icon: Swords },
+  { to: '/',               label: 'Dashboard',        Icon: LayoutDashboard },
+  { to: '/players',        label: 'Players',          Icon: Users },
+  { to: '/bosses',         label: 'Boss Progression', Icon: Skull },
+  { to: '/boss-wipes',     label: 'Boss Wipes',       Icon: TrendingDown },
+  { to: '/wipe-analysis',  label: 'Wipe Analysis',    Icon: AlertTriangle },
+  { to: '/raids',          label: 'Raids',            Icon: Swords },
 ]
 
 const SECONDARY = [
@@ -111,7 +112,7 @@ export function Sidebar() {
               Colour mode
             </p>
             {mode !== 'normal' && (
-              <span className="text-[9px] font-mono text-ctp-mauve truncate max-w-[60px]">
+              <span className="text-[9px] font-mono text-ctp-mauve truncate max-w-[54px]">
                 {MODE_LABELS[mode]}
               </span>
             )}
