@@ -1,122 +1,195 @@
-/**
- * Wipe Analysis — focuses on WHY wipes happen.
- * Data sources: gold_boss_mechanics (pull duration distribution, phase progression,
- * improvement trend) and gold_player_survivability (death counts, killing blows).
- */
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
-  Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend,
 } from 'recharts'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
+import { DiffBadge } from '../components/ui/Badge'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot } from '../components/ui/ClassLabel'
 import { useBossMechanics, usePlayerSurvivability, useBossWipeAnalysis } from '../hooks/useGoldData'
-import { formatNumber } from '../utils/format'
+import { formatDate, formatNumber, formatPct } from '../utils/format'
+import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
+
+function hasZoneScope(zones: string, zone: string): boolean {
+  if (zone === 'All') return true
+  return zones?.toLowerCase().includes(zone.toLowerCase()) ?? false
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CtpTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-ctp-surface0 border border-ctp-surface2 rounded-xl px-3 py-2.5 text-xs font-mono shadow-xl">
-      <p className="text-ctp-overlay1 mb-2">{label}</p>
+      {label ? <p className="text-ctp-overlay1 mb-2">{label}</p> : null}
       {payload.map((p: { name: string; value: number; color: string }, i: number) => (
         <p key={i} style={{ color: p.color }}>
-          {p.name}: <span className="font-semibold">{typeof p.value === 'number' ? p.value.toFixed(1) : p.value}</span>
+          {p.name}: <span className="font-semibold">{typeof p.value === 'number' ? formatNumber(p.value) : p.value}</span>
         </p>
       ))}
     </div>
   )
 }
 
+const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
+
 export function WipeAnalysis() {
-  const { wipeColor, phaseColors, chartColors, getDeathRateColor } = useColourBlind()
-  const mechs      = useBossMechanics()
-  const survival   = usePlayerSurvivability()
-  const wipeData   = useBossWipeAnalysis()
+  const { wipeColor, phaseColors, chartColors, getDeathRateColor, getParseColor, topTierColor } = useColourBlind()
+  const mechs = useBossMechanics()
+  const survival = usePlayerSurvivability()
+  const wipes = useBossWipeAnalysis()
 
-  const [bossFilter, setBossFilter] = useState('All')
-  const [search,     setSearch]     = useState('')
+  const [diff, setDiff] = useState('All')
+  const [zone, setZone] = useState('All')
+  const [search, setSearch] = useState('')
 
-  // Boss options for filter
-  const bossOptions = useMemo(() => {
-    const names = [...new Set(mechs.data.map(m => m.boss_name))].sort()
-    return ['All', ...names]
+  const zones = useMemo(() => {
+    const values = [...new Set(wipes.data.map(row => row.zone_name))].sort()
+    return ['All', ...values]
+  }, [wipes.data])
+
+  const filteredWipes = useMemo(() =>
+    wipes.data
+      .filter(row => diff === 'All' || row.difficulty_label === diff)
+      .filter(row => zone === 'All' || row.zone_name === zone)
+      .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => Number(b.total_wipes) - Number(a.total_wipes)),
+    [wipes.data, diff, zone, search]
+  )
+
+  const mechanicsMap = useMemo(() => {
+    const map = new Map<string, typeof mechs.data[number]>()
+    for (const row of mechs.data) {
+      map.set(`${row.encounter_id}-${row.difficulty}`, row)
+    }
+    return map
   }, [mechs.data])
 
-  // Filtered mechanics rows
-  const filteredMechs = useMemo(() =>
+  const filteredMechanics = useMemo(() =>
     mechs.data
-      .filter(m => bossFilter === 'All' || m.boss_name === bossFilter)
-      .filter(m => !search.trim() || m.boss_name.toLowerCase().includes(search.toLowerCase())),
-    [mechs.data, bossFilter, search]
+      .filter(row => diff === 'All' || row.difficulty_label === diff)
+      .filter(row => zone === 'All' || row.zone_name === zone)
+      .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => Number(b.total_wipes) - Number(a.total_wipes)),
+    [mechs.data, diff, zone, search]
   )
 
-  // Summary stats
+  const filteredSurvival = useMemo(() =>
+    survival.data
+      .filter(row => Number(row.total_deaths) > 0)
+      .filter(row => hasZoneScope(row.zones_died_in, zone)),
+    [survival.data, zone]
+  )
+
+  const playersWithTrackedKills = useMemo(() =>
+    filteredSurvival.filter(row => Number(row.kills_tracked) > 0),
+    [filteredSurvival]
+  )
+
   const stats = useMemo(() => {
-    const totalDeaths     = survival.data.reduce((s, p) => s + Number(p.total_deaths), 0)
-    const avgDeathsPerKill = survival.data.reduce((s, p) => s + Number(p.deaths_per_kill), 0) / (survival.data.length || 1)
-    const fastWipes       = mechs.data.reduce((s, m) => s + Number(m.wipes_lt_1min), 0)
-    const totalWipes      = wipeData.data.reduce((s, b) => s + Number(b.total_wipes), 0)
-    return { totalDeaths, avgDeathsPerKill, fastWipes, totalWipes }
-  }, [survival.data, mechs.data, wipeData.data])
+    const totalWipes = filteredWipes.reduce((sum, row) => sum + Number(row.total_wipes), 0)
+    const totalDeaths = filteredSurvival.reduce((sum, row) => sum + Number(row.total_deaths), 0)
+    const earlyWipes = filteredMechanics.reduce((sum, row) => sum + Number(row.wipes_lt_1min), 0)
+    const closestPull = [...filteredWipes]
+      .filter(row => Number(row.best_wipe_pct) > 0)
+      .sort((a, b) => Number(a.best_wipe_pct) - Number(b.best_wipe_pct))[0]
+    const topBlocker = [...filteredWipes]
+      .sort((a, b) => Number(b.total_wipes) - Number(a.total_wipes))[0]
+    const avgDeathsPerKill = playersWithTrackedKills.length
+      ? playersWithTrackedKills.reduce((sum, row) => sum + Number(row.deaths_per_kill), 0) / playersWithTrackedKills.length
+      : 0
 
-  // Killing blow aggregation — top causes of death across all players
-  const killingBlows = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const p of survival.data) {
-      if (!p.most_common_killing_blow) continue
-      const count = Number(p.most_common_killing_blow_count) || 1
-      map.set(p.most_common_killing_blow, (map.get(p.most_common_killing_blow) ?? 0) + count)
+    return {
+      totalWipes,
+      totalDeaths,
+      earlyWipes,
+      avgDeathsPerKill,
+      bossesInScope: filteredWipes.length,
+      closestPull,
+      topBlocker,
     }
-    return [...map.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12)
-      .map(([name, count]) => ({ name: name.length > 22 ? name.slice(0, 21) + '…' : name, count, fullName: name }))
-  }, [survival.data])
+  }, [filteredWipes, filteredMechanics, filteredSurvival, playersWithTrackedKills])
 
-  // Pull duration distribution — aggregated across filtered bosses
   const durationBuckets = useMemo(() => {
     const totals = { lt1: 0, one3: 0, three5: 0, gt5: 0 }
-    for (const m of filteredMechs) {
-      totals.lt1   += Number(m.wipes_lt_1min)
-      totals.one3  += Number(m.wipes_1_3min)
-      totals.three5 += Number(m.wipes_3_5min)
-      totals.gt5   += Number(m.wipes_5plus_min)
+    for (const row of filteredMechanics) {
+      totals.lt1 += Number(row.wipes_lt_1min)
+      totals.one3 += Number(row.wipes_1_3min)
+      totals.three5 += Number(row.wipes_3_5min)
+      totals.gt5 += Number(row.wipes_5plus_min)
     }
-    return [
-      { label: '<1 min',   wipes: totals.lt1,    fill: phaseColors[0] },
-      { label: '1–3 min',  wipes: totals.one3,   fill: phaseColors[1] },
-      { label: '3–5 min',  wipes: totals.three5, fill: phaseColors[2] },
-      { label: '5+ min',   wipes: totals.gt5,    fill: phaseColors[3] },
-    ]
-  }, [filteredMechs, phaseColors])
 
-  // Boss progress trend — avg boss % over time (last few bosses, sorted by latest attempt)
-  const progressTrend = useMemo(() =>
-    [...mechs.data]
-      .filter(m => m.progress_trend != null)
-      .sort((a, b) => a.boss_name.localeCompare(b.boss_name))
-      .map(m => ({
-        boss:      m.boss_name.length > 12 ? m.boss_name.slice(0, 11) + '…' : m.boss_name,
-        avgPct:    Number(m.avg_boss_pct),
-        lastWeek:  Number(m.last_week_avg_boss_pct),
-        trend:     Number(m.progress_trend),
-      })),
-    [mechs.data]
+    return [
+      { label: '<1 min', wipes: totals.lt1, fill: phaseColors[0] },
+      { label: '1-3 min', wipes: totals.one3, fill: phaseColors[1] },
+      { label: '3-5 min', wipes: totals.three5, fill: phaseColors[2] },
+      { label: '5+ min', wipes: totals.gt5, fill: phaseColors[3] },
+    ]
+  }, [filteredMechanics, phaseColors])
+
+  const topWipeBosses = useMemo(() =>
+    filteredWipes.slice(0, 10).map(row => ({
+      boss: row.boss_name.length > 20 ? `${row.boss_name.slice(0, 19)}…` : row.boss_name,
+      wipes: Number(row.total_wipes),
+      bestPct: Number(row.best_wipe_pct),
+      fullName: row.boss_name,
+      diff: row.difficulty_label,
+    })),
+    [filteredWipes]
   )
 
-  const loading = mechs.loading || survival.loading || wipeData.loading
-  const error   = mechs.error   || survival.error   || wipeData.error
+  const progressRows = useMemo(() =>
+    filteredWipes
+      .map(row => {
+        const mech = mechanicsMap.get(`${row.encounter_id}-${row.difficulty}`)
+        return {
+          ...row,
+          avgBossPct: Number(mech?.avg_boss_pct ?? row.avg_wipe_pct),
+          lastWeek: Number(mech?.last_week_avg_boss_pct ?? 0),
+          trend: Number(mech?.progress_trend ?? 0),
+          maxPhase: Number(row.max_phase_reached ?? 0),
+        }
+      })
+      .sort((a, b) => Number(a.best_wipe_pct) - Number(b.best_wipe_pct))
+      .slice(0, 12),
+    [filteredWipes, mechanicsMap]
+  )
+
+  const killingBlows = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const row of filteredSurvival) {
+      if (!row.most_common_killing_blow) continue
+      const count = Number(row.most_common_killing_blow_count) || 0
+      counts.set(row.most_common_killing_blow, (counts.get(row.most_common_killing_blow) ?? 0) + count)
+    }
+
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({
+        name: name.length > 24 ? `${name.slice(0, 23)}…` : name,
+        fullName: name,
+        count,
+      }))
+  }, [filteredSurvival])
+
+  const playerRows = useMemo(() =>
+    [...filteredSurvival]
+      .sort((a, b) => Number(b.total_deaths) - Number(a.total_deaths))
+      .slice(0, 15),
+    [filteredSurvival]
+  )
+
+  const loading = mechs.loading || survival.loading || wipes.loading
+  const error = mechs.error || survival.error || wipes.error
+  const hasBossData = filteredWipes.length > 0
 
   return (
-    <AppLayout title="Wipe Analysis" subtitle="understanding why wipes happen">
-      {/* KPI strip */}
+    <AppLayout title="Wipe Analysis" subtitle="where progression stalls and what tends to kill raids">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {loading ? (
           Array(4).fill(null).map((_, i) => <SkeletonCard key={i} />)
@@ -125,32 +198,31 @@ export function WipeAnalysis() {
         ) : (
           <>
             <StatCard
+              label="Bosses In Scope"
+              value={stats.bossesInScope}
+              subValue={diff === 'All' ? 'all tracked difficulties' : diff}
+              icon="◈"
+              accent="mauve"
+            />
+            <StatCard
               label="Total Wipes"
               value={formatNumber(stats.totalWipes)}
-              subValue="all bosses"
+              subValue={zone === 'All' ? 'all zones in scope' : zone}
               icon="✗"
               valueColor={wipeColor}
               accent="none"
             />
             <StatCard
-              label="Total Deaths"
-              value={formatNumber(stats.totalDeaths)}
-              subValue="across all kills"
-              icon="💀"
-              valueColor={wipeColor}
+              label="Closest Pull"
+              value={stats.closestPull ? formatPct(stats.closestPull.best_wipe_pct) : '—'}
+              subValue={stats.closestPull?.boss_name ?? 'no wipes in scope'}
+              valueColor={stats.closestPull ? getParseColor(100 - Number(stats.closestPull.best_wipe_pct)) : undefined}
               accent="none"
             />
             <StatCard
-              label="Avg Deaths / Kill"
-              value={stats.avgDeathsPerKill.toFixed(1)}
-              subValue="per boss kill"
-              valueColor={getDeathRateColor(stats.avgDeathsPerKill)}
-              accent="none"
-            />
-            <StatCard
-              label="Early Wipes (<1 min)"
-              value={formatNumber(stats.fastWipes)}
-              subValue="immediate failures"
+              label="Early Wipes"
+              value={formatNumber(stats.earlyWipes)}
+              subValue={stats.totalWipes ? `${((stats.earlyWipes / stats.totalWipes) * 100).toFixed(0)}% of wipes` : 'no wipe data'}
               valueColor={wipeColor}
               accent="none"
             />
@@ -158,238 +230,350 @@ export function WipeAnalysis() {
         )}
       </div>
 
-      {/* Boss filter */}
-      <div className="flex flex-wrap items-center gap-3">
-        <select
-          value={bossFilter}
-          onChange={e => setBossFilter(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors"
-        >
-          {bossOptions.map(b => <option key={b} value={b}>{b}</option>)}
-        </select>
-        <input
-          type="text"
-          placeholder="Search boss…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-44"
-        />
-        {(bossFilter !== 'All' || search) && (
-          <button
-            onClick={() => { setBossFilter('All'); setSearch('') }}
-            className="text-xs font-mono text-ctp-mauve hover:text-ctp-mauve/70 transition-colors"
+      <Card>
+        <CardHeader>
+          <CardTitle>Analysis Scope</CardTitle>
+          <p className="text-xs text-ctp-overlay1 mt-0.5">
+            Boss panels below respect the current difficulty, zone, and boss filters. Survivability is guild-wide player data and can only be narrowed by zone.
+          </p>
+        </CardHeader>
+        <CardBody className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
+            {DIFFS.map(label => (
+              <button
+                key={label}
+                onClick={() => setDiff(label)}
+                className={[
+                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                  diff === label
+                    ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
+                    : 'text-ctp-overlay1 hover:text-ctp-subtext1',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <select
+            value={zone}
+            onChange={e => setZone(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors"
           >
-            clear
-          </button>
-        )}
-      </div>
+            {zones.map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+          <input
+            type="text"
+            placeholder="Filter boss name…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-48"
+          />
+          <span className="ml-auto text-xs font-mono text-ctp-overlay0">
+            {stats.bossesInScope} bosses · {formatNumber(stats.totalWipes)} wipes · {formatNumber(filteredSurvival.length)} players with deaths
+          </span>
+        </CardBody>
+      </Card>
 
-      {/* Top row: pull duration + killing blows */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pull duration distribution */}
+      {!loading && !error && !hasBossData ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Wipe Duration Breakdown</CardTitle>
-            <p className="text-xs text-ctp-overlay1 mt-0.5">
-              How long pulls last before wiping — early wipes suggest coordination or tank issues
-            </p>
-          </CardHeader>
           <CardBody>
-            {mechs.loading ? <LoadingState rows={4} /> : (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={durationBuckets} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
-                    axisLine={false} tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
-                    axisLine={false} tickLine={false}
-                  />
-                  <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                  <Bar dataKey="wipes" name="Wipes" radius={[4, 4, 0, 0]}>
-                    {durationBuckets.map((b, i) => (
-                      <Cell key={i} fill={b.fill} fillOpacity={0.85} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+            <p className="text-xs text-ctp-overlay0 font-mono text-center py-10">
+              No wipe-analysis rows match the current filters.
+            </p>
           </CardBody>
         </Card>
+      ) : null}
 
-        {/* Most common killing blows */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Most Common Killing Blows</CardTitle>
-            <p className="text-xs text-ctp-overlay1 mt-0.5">
-              Mechanics killing players most frequently — the mechanics to learn
-            </p>
-          </CardHeader>
-          <CardBody>
-            {survival.loading ? <LoadingState rows={6} /> : killingBlows.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart
-                  data={killingBlows}
-                  layout="vertical"
-                  margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
-                >
-                  <XAxis
-                    type="number"
-                    tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
-                    axisLine={false} tickLine={false}
-                  />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    width={130}
-                    tick={{ fontSize: 10, fill: '#a6adc8', fontFamily: 'IBM Plex Mono, monospace' }}
-                    axisLine={false} tickLine={false}
-                  />
-                  <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                  <Bar dataKey="count" name="Deaths" radius={[0, 4, 4, 0]} fill={wipeColor} fillOpacity={0.8} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No survivability data</p>
-            )}
-          </CardBody>
-        </Card>
-      </div>
-
-      {/* Progress trend — boss % improvement over time */}
-      {progressTrend.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Boss HP % on Wipe — This Week vs Last</CardTitle>
-            <p className="text-xs text-ctp-overlay1 mt-0.5">
-              Lower % = closer to kill. Downward trend is good.
-            </p>
-          </CardHeader>
-          <CardBody>
-            {mechs.loading ? <LoadingState rows={4} /> : (
-              <>
-                <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={progressTrend} margin={{ top: 4, right: 4, left: -20, bottom: 36 }}>
-                    <XAxis
-                      dataKey="boss"
-                      tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
-                      axisLine={false} tickLine={false}
-                      angle={-35} textAnchor="end" interval={0}
-                    />
-                    <YAxis
-                      tickFormatter={v => `${v}%`}
-                      tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
-                      axisLine={false} tickLine={false}
-                    />
-                    <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                    <Legend
-                      iconType="circle"
-                      iconSize={7}
-                      formatter={(value: string, entry: { color?: string }) => (
-                        <span style={{ fontSize: 11, color: entry.color ?? '#a6adc8', fontFamily: 'IBM Plex Mono' }}>
-                          {value}
-                        </span>
-                      )}
-                    />
-                    <Bar dataKey="lastWeek" name="Last Week Avg %" radius={[4, 4, 0, 0]} fill={chartColors.secondary} fillOpacity={0.45} />
-                    <Bar dataKey="avgPct"   name="This Week Avg %" radius={[4, 4, 0, 0]} fill={wipeColor} fillOpacity={0.85} />
-                  </BarChart>
-                </ResponsiveContainer>
-                <p className="text-[10px] font-mono text-ctp-overlay0 mt-2">
-                  * Boss HP % remaining on wipe. Lower = closer to kill. Missing last-week bar means first week on boss.
+      {hasBossData && (
+        <>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <Card className="xl:col-span-2">
+              <CardHeader>
+                <CardTitle>Top Wipe Walls</CardTitle>
+                <p className="text-xs text-ctp-overlay1 mt-0.5">
+                  Bosses generating the most wipes in the current scope. Best boss % shows how close the best pull got.
                 </p>
-              </>
+              </CardHeader>
+              <CardBody>
+                {wipes.loading ? <LoadingState rows={4} /> : (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={topWipeBosses} margin={{ top: 4, right: 8, left: -20, bottom: 36 }}>
+                      <XAxis
+                        dataKey="boss"
+                        tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                        axisLine={false}
+                        tickLine={false}
+                        angle={-35}
+                        textAnchor="end"
+                        interval={0}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                      <Bar dataKey="wipes" name="Wipes" radius={[4, 4, 0, 0]}>
+                        {topWipeBosses.map((row, index) => (
+                          <Cell key={index} fill={row.bestPct > 0 ? getParseColor(100 - row.bestPct) : chartColors.secondary} fillOpacity={0.9} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Current Read</CardTitle>
+                <p className="text-xs text-ctp-overlay1 mt-0.5">Quick interpretation of the filtered wipe set</p>
+              </CardHeader>
+              <CardBody className="space-y-4">
+                <div className="rounded-xl bg-ctp-surface1/40 p-3">
+                  <p className="section-label mb-1">Top Blocker</p>
+                  <p className="text-sm font-semibold text-ctp-text">{stats.topBlocker?.boss_name ?? '—'}</p>
+                  <p className="text-xs text-ctp-overlay0 mt-1">
+                    {stats.topBlocker ? `${formatNumber(stats.topBlocker.total_wipes)} wipes across ${stats.topBlocker.raid_nights_attempted} raid nights` : 'No wipe data'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-ctp-surface1/40 p-3">
+                  <p className="section-label mb-1">Best Recovery Point</p>
+                  <p className="text-sm font-semibold" style={{ color: stats.closestPull ? getParseColor(100 - Number(stats.closestPull.best_wipe_pct)) : topTierColor }}>
+                    {stats.closestPull ? `${stats.closestPull.boss_name} · ${formatPct(stats.closestPull.best_wipe_pct)}` : '—'}
+                  </p>
+                  <p className="text-xs text-ctp-overlay0 mt-1">
+                    {stats.closestPull ? `${stats.closestPull.difficulty_label} · ${formatDuration(Number(stats.closestPull.longest_wipe_seconds))} longest pull` : 'No qualifying pull'}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-ctp-surface1/40 p-3">
+                  <p className="section-label mb-1">Guild Survivability</p>
+                  <p className="text-sm font-semibold" style={{ color: playersWithTrackedKills.length ? getDeathRateColor(stats.avgDeathsPerKill) : undefined }}>
+                    {playersWithTrackedKills.length ? stats.avgDeathsPerKill.toFixed(1) : '—'}
+                  </p>
+                  <p className="text-xs text-ctp-overlay0 mt-1">
+                    Average deaths per kill across {playersWithTrackedKills.length} players with tracked kills
+                  </p>
+                </div>
+              </CardBody>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Wipe Duration Breakdown</CardTitle>
+                <p className="text-xs text-ctp-overlay1 mt-0.5">
+                  Early wipes usually indicate opener or positioning failures. Long wipes suggest later-phase execution issues.
+                </p>
+              </CardHeader>
+              <CardBody>
+                {mechs.loading ? <LoadingState rows={4} /> : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={durationBuckets} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                      <Bar dataKey="wipes" name="Wipes" radius={[4, 4, 0, 0]}>
+                        {durationBuckets.map((bucket, index) => (
+                          <Cell key={index} fill={bucket.fill} fillOpacity={0.88} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Progress Snapshot</CardTitle>
+                <p className="text-xs text-ctp-overlay1 mt-0.5">
+                  Lower boss HP is better. Trend compares current average wipe HP to the previous week when available.
+                </p>
+              </CardHeader>
+              <CardBody>
+                {wipes.loading ? <LoadingState rows={4} /> : (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={progressRows} margin={{ top: 4, right: 8, left: -20, bottom: 36 }}>
+                      <XAxis
+                        dataKey="boss_name"
+                        tickFormatter={(value: string) => value.length > 14 ? `${value.slice(0, 13)}…` : value}
+                        tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                        axisLine={false}
+                        tickLine={false}
+                        angle={-35}
+                        textAnchor="end"
+                        interval={0}
+                      />
+                      <YAxis
+                        tickFormatter={value => `${value}%`}
+                        tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                      <Legend
+                        iconType="circle"
+                        iconSize={7}
+                        formatter={(value: string, entry: { color?: string }) => (
+                          <span style={{ fontSize: 11, color: entry.color ?? '#a6adc8', fontFamily: 'IBM Plex Mono' }}>
+                            {value}
+                          </span>
+                        )}
+                      />
+                      <Bar dataKey="lastWeek" name="Last Week Avg %" radius={[4, 4, 0, 0]} fill={chartColors.secondary} fillOpacity={0.4} />
+                      <Bar dataKey="avgBossPct" name="Current Avg %" radius={[4, 4, 0, 0]} fill={wipeColor} fillOpacity={0.9} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardBody>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Boss Progress Table</CardTitle>
+              <p className="text-xs text-ctp-overlay1 mt-0.5">Best pull, average wipe HP, duration, phase reached, and raid-night spread for each boss in scope</p>
+            </CardHeader>
+            {wipes.loading ? (
+              <CardBody><LoadingState rows={8} /></CardBody>
+            ) : (
+              <Table>
+                <THead>
+                  <tr>
+                    <Th>Boss</Th>
+                    <Th>Zone</Th>
+                    <Th>Diff</Th>
+                    <Th right>Wipes</Th>
+                    <Th right>Best %</Th>
+                    <Th right>Avg %</Th>
+                    <Th right>Max Phase</Th>
+                    <Th right>Avg Duration</Th>
+                    <Th right>Trend</Th>
+                    <Th right>Nights</Th>
+                    <Th>Last Wipe</Th>
+                  </tr>
+                </THead>
+                <TBody>
+                  {progressRows.map(row => (
+                    <Tr key={`${row.encounter_id}-${row.difficulty}`}>
+                      <Td className="font-medium text-ctp-text">{row.boss_name}</Td>
+                      <Td className="text-ctp-overlay1 text-xs max-w-[150px] truncate">{row.zone_name}</Td>
+                      <Td><DiffBadge label={row.difficulty_label} /></Td>
+                      <Td right mono style={{ color: wipeColor }}>{formatNumber(row.total_wipes)}</Td>
+                      <Td right mono style={{ color: getParseColor(100 - Number(row.best_wipe_pct)) }}>{formatPct(row.best_wipe_pct)}</Td>
+                      <Td right mono className="text-ctp-overlay1">{formatPct(row.avgBossPct)}</Td>
+                      <Td right mono className="text-ctp-overlay1">{row.maxPhase || '—'}</Td>
+                      <Td right mono className="text-ctp-overlay1">{formatDuration(Number(row.avg_wipe_duration_seconds))}</Td>
+                      <Td right mono style={{ color: Number(row.trend) < 0 ? topTierColor : wipeColor }}>
+                        {Number(row.trend) > 0 ? '+' : ''}{Number(row.trend).toFixed(1)}%
+                      </Td>
+                      <Td right mono className="text-ctp-overlay1">{formatNumber(row.raid_nights_attempted)}</Td>
+                      <Td className="text-xs text-ctp-overlay0">{formatDate(row.latest_wipe_date)}</Td>
+                    </Tr>
+                  ))}
+                </TBody>
+              </Table>
             )}
-          </CardBody>
-        </Card>
+          </Card>
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Most Common Killing Blows</CardTitle>
+                <p className="text-xs text-ctp-overlay1 mt-0.5">
+                  Guild-wide survivability data{zone !== 'All' ? ` filtered to players who died in ${zone}` : ''}. This is not boss-specific.
+                </p>
+              </CardHeader>
+              <CardBody>
+                {survival.loading ? <LoadingState rows={5} /> : killingBlows.length > 0 ? (
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={killingBlows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        width={150}
+                        tick={{ fontSize: 10, fill: '#a6adc8', fontFamily: 'IBM Plex Mono, monospace' }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+                      <Bar dataKey="count" name="Deaths" radius={[0, 4, 4, 0]} fill={wipeColor} fillOpacity={0.85} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No survivability rows match the current zone scope</p>
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Player Survivability</CardTitle>
+                <p className="text-xs text-ctp-overlay1 mt-0.5">
+                  Sorted by total deaths so low-kill outliers do not dominate the table. Deaths/kill is only coloured when the player has recorded kills.
+                </p>
+              </CardHeader>
+              {survival.loading ? (
+                <CardBody><LoadingState rows={6} /></CardBody>
+              ) : (
+                <Table>
+                  <THead>
+                    <tr>
+                      <Th>Player</Th>
+                      <Th right>Deaths</Th>
+                      <Th right>Kills</Th>
+                      <Th right>Deaths/Kill</Th>
+                      <Th>Most Killed By</Th>
+                    </tr>
+                  </THead>
+                  <TBody>
+                    {playerRows.map(row => (
+                      <Tr key={row.player_name}>
+                        <Td>
+                          <div className="flex items-center gap-2">
+                            <ClassDot className={row.player_class} />
+                            <span className="text-xs font-medium text-ctp-text">{row.player_name}</span>
+                          </div>
+                        </Td>
+                        <Td right mono style={{ color: wipeColor }}>{formatNumber(row.total_deaths)}</Td>
+                        <Td right mono className="text-ctp-overlay1">{formatNumber(row.kills_tracked)}</Td>
+                        <Td
+                          right
+                          mono
+                          style={Number(row.kills_tracked) > 0 ? { color: getDeathRateColor(Number(row.deaths_per_kill)) } : undefined}
+                          className={Number(row.kills_tracked) === 0 ? 'text-ctp-overlay0' : undefined}
+                        >
+                          {Number(row.kills_tracked) > 0 ? Number(row.deaths_per_kill).toFixed(1) : '—'}
+                        </Td>
+                        <Td className="text-[10px] font-mono text-ctp-overlay0 max-w-[180px] truncate">
+                          {row.most_common_killing_blow || '—'}
+                        </Td>
+                      </Tr>
+                    ))}
+                  </TBody>
+                </Table>
+              )}
+            </Card>
+          </div>
+        </>
       )}
-
-      {/* Per-player death analysis */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Deaths per player */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Deaths per Kill by Player</CardTitle>
-            <p className="text-xs text-ctp-overlay1 mt-0.5">High deaths/kill = consistent mechanic failure</p>
-          </CardHeader>
-          {survival.loading ? (
-            <CardBody><LoadingState rows={6} /></CardBody>
-          ) : (
-            <Table>
-              <THead>
-                <tr>
-                  <Th>Player</Th>
-                  <Th right>Total Deaths</Th>
-                  <Th right>Deaths/Kill</Th>
-                  <Th>Most Killed By</Th>
-                </tr>
-              </THead>
-              <TBody>
-                {[...survival.data]
-                  .sort((a, b) => Number(b.deaths_per_kill) - Number(a.deaths_per_kill))
-                  .slice(0, 15)
-                  .map(p => (
-                    <Tr key={p.player_name}>
-                      <Td>
-                        <div className="flex items-center gap-2">
-                          <ClassDot className={p.player_class} />
-                          <span className="text-ctp-text font-medium text-xs">{p.player_name}</span>
-                        </div>
-                      </Td>
-                      <Td right mono style={{ color: wipeColor }}>{formatNumber(p.total_deaths)}</Td>
-                      <Td right mono style={{ color: getDeathRateColor(Number(p.deaths_per_kill)) }}>
-                        {Number(p.deaths_per_kill).toFixed(2)}
-                      </Td>
-                      <Td className="text-[10px] text-ctp-overlay0 font-mono truncate max-w-[140px]">
-                        {p.most_common_killing_blow ?? '—'}
-                      </Td>
-                    </Tr>
-                  ))}
-              </TBody>
-            </Table>
-          )}
-        </Card>
-
-        {/* Boss mechanics detail */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Per-Boss Mechanics</CardTitle>
-            <p className="text-xs text-ctp-overlay1 mt-0.5">Phase distribution and pull duration data</p>
-          </CardHeader>
-          {mechs.loading ? (
-            <CardBody><LoadingState rows={6} /></CardBody>
-          ) : (
-            <Table>
-              <THead>
-                <tr>
-                  <Th>Boss</Th>
-                  <Th right>Wipes</Th>
-                  <Th right>Avg %</Th>
-                  <Th right>P1%</Th>
-                  <Th right>P2%</Th>
-                  <Th right>P3+%</Th>
-                </tr>
-              </THead>
-              <TBody>
-                {filteredMechs
-                  .sort((a, b) => Number(b.total_wipes) - Number(a.total_wipes))
-                  .map(m => (
-                    <Tr key={`${m.encounter_id}-${m.difficulty}`}>
-                      <Td className="font-medium text-ctp-text text-xs">{m.boss_name}</Td>
-                      <Td right mono style={{ color: wipeColor }}>{formatNumber(m.total_wipes)}</Td>
-                      <Td right mono className="text-ctp-overlay1">{Number(m.avg_boss_pct).toFixed(1)}%</Td>
-                      <Td right mono style={{ color: phaseColors[0] }}>{Number(m.pct_wipes_phase_1).toFixed(0)}%</Td>
-                      <Td right mono style={{ color: phaseColors[1] }}>{Number(m.pct_wipes_phase_2).toFixed(0)}%</Td>
-                      <Td right mono style={{ color: phaseColors[2] }}>{Number(m.pct_wipes_phase_3_plus).toFixed(0)}%</Td>
-                    </Tr>
-                  ))}
-              </TBody>
-            </Table>
-          )}
-        </Card>
-      </div>
     </AppLayout>
   )
 }
