@@ -9,9 +9,11 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { useRaidSummary } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { formatDuration } from '../constants/wow'
+import { useColourBlind } from '../context/ColourBlindContext'
 import clsx from 'clsx'
 
 export function Raids() {
+  const { killColor, wipeColor } = useColourBlind()
   const raids = useRaidSummary()
 
   const [search,   setSearch]   = useState('')
@@ -179,11 +181,11 @@ export function Raids() {
                       {/* Stats grid */}
                       <div className="grid grid-cols-3 gap-2 mb-3">
                         <div className="text-center bg-ctp-surface1/40 rounded-xl py-1.5">
-                          <p className="text-base font-semibold text-ctp-green leading-none">{r.boss_kills}</p>
+                          <p className="text-base font-semibold leading-none" style={{ color: killColor }}>{r.boss_kills}</p>
                           <p className="text-[9px] font-mono text-ctp-overlay0 mt-0.5">kills</p>
                         </div>
                         <div className="text-center bg-ctp-surface1/40 rounded-xl py-1.5">
-                          <p className="text-base font-semibold text-ctp-red leading-none">{r.total_wipes}</p>
+                          <p className="text-base font-semibold leading-none" style={{ color: wipeColor }}>{r.total_wipes}</p>
                           <p className="text-[9px] font-mono text-ctp-overlay0 mt-0.5">wipes</p>
                         </div>
                         <div className="text-center bg-ctp-surface1/40 rounded-xl py-1.5">
@@ -236,8 +238,8 @@ export function Raids() {
                   <Td className="font-medium text-ctp-text">{formatDate(r.raid_night_date)}</Td>
                   <Td className="text-ctp-overlay1 text-xs">{r.zone_name}</Td>
                   <Td><DiffBadge label={r.primary_difficulty} /></Td>
-                  <Td right mono className="text-ctp-green">{r.boss_kills}</Td>
-                  <Td right mono className="text-ctp-red/80">{r.total_wipes}</Td>
+                  <Td right mono style={{ color: killColor }}>{r.boss_kills}</Td>
+                  <Td right mono style={{ color: wipeColor }}>{r.total_wipes}</Td>
                   <Td right mono className="text-ctp-overlay1">{r.total_pulls}</Td>
                   <Td right mono className="text-ctp-overlay1">
                     {r.unique_bosses_killed}/{r.unique_bosses_engaged}

@@ -33,16 +33,19 @@ export function Th({ children, className, right }: { children: React.ReactNode; 
 export function Td({
   children,
   className,
+  style,
   right,
   mono,
 }: {
   children: React.ReactNode
   className?: string
+  style?: React.CSSProperties
   right?: boolean
   mono?: boolean
 }) {
   return (
     <td
+      style={style}
       className={clsx(
         'px-4 py-3 text-sm text-ctp-subtext1 whitespace-nowrap',
         right && 'text-right',

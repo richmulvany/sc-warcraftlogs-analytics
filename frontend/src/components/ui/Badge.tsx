@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { useColourBlind } from '../../context/ColourBlindContext'
 
 export type BadgeVariant = 'default' | 'mauve' | 'blue' | 'green' | 'yellow' | 'peach' | 'red' | 'teal' | 'ghost'
 
@@ -40,16 +41,39 @@ export function Badge({ children, variant = 'default', size = 'sm', className, s
   )
 }
 
+// Inline-styled badge driven by a hex colour from context.
+// Generates background at 10% opacity and border at 20% opacity automatically.
+function ColourBadge({ label, color, size = 'sm' }: { label: string; color: string; size?: 'xs' | 'sm' | 'md' }) {
+  return (
+    <span
+      className={clsx(
+        'inline-flex items-center font-mono font-medium border rounded-lg',
+        size === 'xs' ? 'text-[9px] px-1 py-0.5' :
+        size === 'sm' ? 'text-[10px] px-1.5 py-0.5' :
+                        'text-xs px-2 py-1',
+      )}
+      style={{
+        color,
+        backgroundColor: `${color}1a`,  // ~10% opacity
+        borderColor:     `${color}33`,  // ~20% opacity
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+
 export function DiffBadge({ label }: { label: string }) {
-  const variant: BadgeVariant =
-    label === 'Mythic' ? 'mauve' :
-    label === 'Heroic' ? 'blue' :
-    label === 'Normal' ? 'green' : 'ghost'
-  return <Badge variant={variant} size="sm">{label}</Badge>
+  const { getDifficultyColor } = useColourBlind()
+  // Ghost for unknown difficulties
+  if (!label || label === 'LFR' || label === 'Unknown') {
+    return <Badge variant="ghost" size="sm">{label || '—'}</Badge>
+  }
+  return <ColourBadge label={label} color={getDifficultyColor(label)} />
 }
 
 export function RoleBadge({ role }: { role: string }) {
-  const label   = role === 'dps' ? 'DPS' : role === 'healer' ? 'Healer' : role === 'tank' ? 'Tank' : role
-  const variant: BadgeVariant = role === 'healer' ? 'teal' : role === 'tank' ? 'blue' : 'red'
-  return <Badge variant={variant} size="sm">{label}</Badge>
+  const { getRoleColor } = useColourBlind()
+  const label = role === 'dps' ? 'DPS' : role === 'healer' ? 'Healer' : role === 'tank' ? 'Tank' : role
+  return <ColourBadge label={label} color={getRoleColor(role)} />
 }

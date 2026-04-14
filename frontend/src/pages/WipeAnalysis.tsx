@@ -32,7 +32,7 @@ function CtpTooltip({ active, payload, label }: any) {
 }
 
 export function WipeAnalysis() {
-  const { getDifficultyColor } = useColourBlind()
+  const { getDifficultyColor, wipeColor } = useColourBlind()
   const wipes   = useBossWipeAnalysis()
   const mechs   = useBossMechanics()
   const [diff,   setDiff]   = useState('All')
@@ -281,7 +281,7 @@ export function WipeAnalysis() {
                     <Td className="font-medium text-ctp-text">{b.boss_name}</Td>
                     <Td className="text-ctp-overlay1 text-xs truncate max-w-[130px]">{b.zone_name}</Td>
                     <Td><DiffBadge label={b.difficulty_label} /></Td>
-                    <Td right mono className="text-ctp-red">{formatNumber(b.total_wipes)}</Td>
+                    <Td right mono style={{ color: wipeColor }}>{formatNumber(b.total_wipes)}</Td>
                     <Td right mono>
                       <span style={{ color: closeColor }}>{b.best_wipe_pct?.toFixed(1)}%</span>
                     </Td>

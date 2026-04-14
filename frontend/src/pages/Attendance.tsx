@@ -9,6 +9,7 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { usePlayerAttendance } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
+import { useColourBlind } from '../context/ColourBlindContext'
 
 function attendanceColor(pct: number): string {
   if (pct >= 90) return '#a6e3a1'
@@ -20,6 +21,7 @@ function attendanceColor(pct: number): string {
 type SortKey = 'attendance_rate_pct' | 'raids_present' | 'total_raids_tracked'
 
 export function Attendance() {
+  const { killColor, wipeColor } = useColourBlind()
   const att = usePlayerAttendance()
   const [search, setSearch]     = useState('')
   const [sortKey, setSortKey]   = useState<SortKey>('attendance_rate_pct')
@@ -158,10 +160,10 @@ export function Attendance() {
                         showLabel={false}
                       />
                     </Td>
-                    <Td right mono className="text-ctp-green">{formatNumber(p.raids_present)}</Td>
+                    <Td right mono style={{ color: killColor }}>{formatNumber(p.raids_present)}</Td>
                     <Td right mono className="text-ctp-overlay1">{formatNumber(p.total_raids_tracked)}</Td>
                     <Td right mono className="text-ctp-yellow/70">{p.raids_benched || 0}</Td>
-                    <Td right mono className="text-ctp-red/70">{p.raids_absent || 0}</Td>
+                    <Td right mono style={{ color: wipeColor }}>{p.raids_absent || 0}</Td>
                     <Td className="text-xs text-ctp-overlay0">{formatDate(p.first_raid_date)}</Td>
                     <Td className="text-xs text-ctp-overlay0">{formatDate(p.last_raid_date)}</Td>
                   </Tr>

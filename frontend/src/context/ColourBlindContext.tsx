@@ -1,15 +1,28 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react'
 import {
   type ColourBlindMode,
+  getPaletteForMode,
   getParseColorForMode,
   getDifficultyColorForMode,
+  getRoleColorForMode,
 } from '../constants/palettes'
 
-interface ColourBlindContextValue {
+interface ChartColors {
+  primary:   string   // kills / positive series
+  secondary: string   // wipes / negative series
+}
+
+export interface ColourBlindContextValue {
   mode:               ColourBlindMode
   setMode:            (mode: ColourBlindMode) => void
+  // Per-value getters
   getParseColor:      (pct: number) => string
   getDifficultyColor: (diff: string) => string
+  getRoleColor:       (role: string) => string
+  // Semantic colours (access directly where needed)
+  killColor:    string
+  wipeColor:    string
+  chartColors:  ChartColors
 }
 
 const ColourBlindContext = createContext<ColourBlindContextValue | null>(null)
@@ -18,10 +31,8 @@ const STORAGE_KEY = 'sc-wcl-colour-mode'
 
 function loadMode(): ColourBlindMode {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'normal' || stored === 'deuteranopia' || stored === 'protanopia' || stored === 'tritanopia') {
-      return stored
-    }
+    const s = localStorage.getItem(STORAGE_KEY)
+    if (s === 'normal' || s === 'deuteranopia' || s === 'protanopia' || s === 'tritanopia') return s
   } catch { /* ignore */ }
   return 'normal'
 }
@@ -34,11 +45,22 @@ export function ColourBlindProvider({ children }: { children: ReactNode }) {
     try { localStorage.setItem(STORAGE_KEY, m) } catch { /* ignore */ }
   }, [])
 
-  const getParseColor      = useCallback((pct: number) => getParseColorForMode(pct, mode), [mode])
-  const getDifficultyColor = useCallback((diff: string) => getDifficultyColorForMode(diff, mode), [mode])
+  const value = useMemo((): ColourBlindContextValue => {
+    const palette = getPaletteForMode(mode)
+    return {
+      mode,
+      setMode,
+      getParseColor:      (pct)  => getParseColorForMode(pct, mode),
+      getDifficultyColor: (diff) => getDifficultyColorForMode(diff, mode),
+      getRoleColor:       (role) => getRoleColorForMode(role, mode),
+      killColor:    palette.kill,
+      wipeColor:    palette.wipe,
+      chartColors:  { primary: palette.chartA, secondary: palette.chartB },
+    }
+  }, [mode, setMode])
 
   return (
-    <ColourBlindContext.Provider value={{ mode, setMode, getParseColor, getDifficultyColor }}>
+    <ColourBlindContext.Provider value={value}>
       {children}
     </ColourBlindContext.Provider>
   )

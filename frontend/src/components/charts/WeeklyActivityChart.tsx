@@ -2,6 +2,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import type { WeeklyActivity } from '../../types'
+import { useColourBlind } from '../../context/ColourBlindContext'
 
 interface Props { data: WeeklyActivity[] }
 
@@ -23,6 +24,9 @@ function Tip({ active, payload, label }: any) {
 }
 
 export function WeeklyActivityChart({ data }: Props) {
+  const { chartColors } = useColourBlind()
+  const killC = chartColors.primary
+  const wipeC = chartColors.secondary
   const sorted = [...data].sort((a, b) => a.week_start.localeCompare(b.week_start))
 
   return (
@@ -30,12 +34,12 @@ export function WeeklyActivityChart({ data }: Props) {
       <AreaChart data={sorted} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
         <defs>
           <linearGradient id="killsGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#89b4fa" stopOpacity={0.4} />
-            <stop offset="95%" stopColor="#89b4fa" stopOpacity={0} />
+            <stop offset="5%"  stopColor={killC} stopOpacity={0.4} />
+            <stop offset="95%" stopColor={killC} stopOpacity={0} />
           </linearGradient>
           <linearGradient id="wipesGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#f38ba8" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#f38ba8" stopOpacity={0} />
+            <stop offset="5%"  stopColor={wipeC} stopOpacity={0.3} />
+            <stop offset="95%" stopColor={wipeC} stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#45475a" vertical={false} />
@@ -57,21 +61,21 @@ export function WeeklyActivityChart({ data }: Props) {
           type="monotoneX"
           dataKey="total_boss_kills"
           name="Boss Kills"
-          stroke="#89b4fa"
+          stroke={killC}
           strokeWidth={2}
           fill="url(#killsGrad)"
           dot={false}
-          activeDot={{ r: 4, fill: '#89b4fa', stroke: '#1e1e2e', strokeWidth: 2 }}
+          activeDot={{ r: 4, fill: killC, stroke: '#1e1e2e', strokeWidth: 2 }}
         />
         <Area
           type="monotoneX"
           dataKey="total_wipes"
           name="Wipes"
-          stroke="#f38ba8"
+          stroke={wipeC}
           strokeWidth={1.5}
           fill="url(#wipesGrad)"
           dot={false}
-          activeDot={{ r: 4, fill: '#f38ba8', stroke: '#1e1e2e', strokeWidth: 2 }}
+          activeDot={{ r: 4, fill: wipeC, stroke: '#1e1e2e', strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>

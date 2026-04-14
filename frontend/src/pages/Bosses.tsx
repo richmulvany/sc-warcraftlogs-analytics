@@ -16,7 +16,7 @@ import clsx from 'clsx'
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
 
 export function Bosses() {
-  const { getDifficultyColor } = useColourBlind()
+  const { getDifficultyColor, killColor, wipeColor } = useColourBlind()
   const prog = useBossProgression()
   const best = useBestKills()
 
@@ -130,7 +130,7 @@ export function Bosses() {
                   <div className="flex items-center gap-1.5">
                     <span
                       className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-0.5"
-                      style={{ backgroundColor: killed ? '#a6e3a1' : '#6c7086' }}
+                      style={{ backgroundColor: killed ? killColor : '#6c7086' }}
                     />
                     <p className="text-xs font-semibold text-ctp-text leading-tight">{b.boss_name}</p>
                   </div>
@@ -144,8 +144,8 @@ export function Bosses() {
 
                 {/* Stats row */}
                 <div className="flex items-center justify-between text-[11px] font-mono mb-2.5">
-                  <span className="text-ctp-green">{b.total_kills}↓</span>
-                  <span className="text-ctp-red">{b.total_wipes}✗</span>
+                  <span style={{ color: killColor }}>{b.total_kills}↓</span>
+                  <span style={{ color: wipeColor }}>{b.total_wipes}✗</span>
                   {killed && bk ? (
                     <span className="text-ctp-yellow">{bk.best_kill_mm_ss || formatDuration(Number(b.best_kill_seconds))}</span>
                   ) : (
@@ -217,7 +217,7 @@ export function Bosses() {
                       <div className="flex items-center gap-2">
                         <span
                           className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: killed ? '#a6e3a1' : '#6c7086' }}
+                          style={{ backgroundColor: killed ? killColor : '#6c7086' }}
                         />
                         <span className="font-medium text-ctp-text">{b.boss_name}</span>
                       </div>
@@ -225,10 +225,10 @@ export function Bosses() {
                     <Td className="text-ctp-overlay1 text-xs max-w-[140px] truncate">{b.zone_name}</Td>
                     <Td><DiffBadge label={b.difficulty_label} /></Td>
                     <Td right mono>{formatNumber(b.total_pulls)}</Td>
-                    <Td right mono className={killed ? 'text-ctp-green' : 'text-ctp-overlay1'}>
+                    <Td right mono style={{ color: killed ? killColor : undefined }}>
                       {formatNumber(b.total_kills)}
                     </Td>
-                    <Td right mono className="text-ctp-red/80">{formatNumber(b.total_wipes)}</Td>
+                    <Td right mono style={{ color: wipeColor }}>{formatNumber(b.total_wipes)}</Td>
                     <Td right mono className="text-ctp-yellow font-semibold">
                       {bk?.best_kill_mm_ss || (killed ? formatDuration(Number(b.best_kill_seconds)) : '—')}
                     </Td>

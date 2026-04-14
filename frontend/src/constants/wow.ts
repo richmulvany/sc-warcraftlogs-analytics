@@ -1,10 +1,10 @@
 // WoW class colour map — keys match the player_class values in gold tables.
 // Note: the pipeline outputs "DeathKnight" (no space) and "DemonHunter".
-// Colours are slightly adjusted from Blizzard-official for dark-mode readability:
-//   Priest   #E8E8E8 → #B8B8C8 (less blindingly white on dark bg)
-//   Monk     #00FF98 → #00CC7A (less neon)
-//   Rogue    #FFF468 → #DDD24A (less neon)
-//   Shaman   #2459FF → #4B7AFF (was too dark on dark bg)
+// Near-Blizzard-official colours with minimal dark-mode adjustments:
+//   Priest   #E8E8E8 → #DCDCDC (barely darker — keeps silver quality)
+//   Monk     #00FF98 → #00EE8A (very slight neon reduction)
+//   Rogue    #FFF468 → #F5E040 (very slight neon reduction)
+//   Shaman   #2459FF → #4B7AFF (was too dark against dark bg, rest are original)
 export const CLASS_COLORS: Record<string, string> = {
   // Space variants (WCL output)
   'Death Knight': '#C41E3A',
@@ -13,10 +13,10 @@ export const CLASS_COLORS: Record<string, string> = {
   'Evoker':       '#33937F',
   'Hunter':       '#AAD372',
   'Mage':         '#3FC7EB',
-  'Monk':         '#00CC7A',
+  'Monk':         '#00EE8A',
   'Paladin':      '#F48CBA',
-  'Priest':       '#B8B8C8',
-  'Rogue':        '#DDD24A',
+  'Priest':       '#DCDCDC',
+  'Rogue':        '#F5E040',
   'Shaman':       '#4B7AFF',
   'Warlock':      '#8788EE',
   'Warrior':      '#C69B3A',

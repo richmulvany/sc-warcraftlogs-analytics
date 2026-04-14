@@ -22,7 +22,7 @@ import { formatThroughput } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
 export function Overview() {
-  const { getParseColor } = useColourBlind()
+  const { getParseColor, killColor, wipeColor } = useColourBlind()
   const raids   = useRaidSummary()
   const players = usePlayerPerformance()
   const bosses  = useBossProgression()
@@ -146,9 +146,9 @@ export function Overview() {
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-mono text-ctp-overlay0">{formatDateShort(r.raid_night_date)}</span>
                   <span className="text-[11px] font-mono">
-                    <span className="text-ctp-green">{r.boss_kills}↓</span>
+                    <span style={{ color: killColor }}>{r.boss_kills}↓</span>
                     <span className="text-ctp-overlay0 mx-0.5">/</span>
-                    <span className="text-ctp-red">{r.total_wipes}✗</span>
+                    <span style={{ color: wipeColor }}>{r.total_wipes}✗</span>
                   </span>
                 </div>
               </div>

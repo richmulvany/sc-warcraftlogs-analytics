@@ -16,7 +16,7 @@ import clsx from 'clsx'
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
 
 export function Progression() {
-  const { getDifficultyColor } = useColourBlind()
+  const { getDifficultyColor, killColor, wipeColor } = useColourBlind()
   const prog  = useBossProgression()
   const wipes = useBossWipeAnalysis()
   const best  = useBestKills()
@@ -72,7 +72,7 @@ export function Progression() {
       {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-3">
         {/* Difficulty tabs */}
-        <div className="flex items-center gap-1 bg-surface-2 rounded-lg p-1 border border-white/[0.06]">
+        <div className="flex items-center gap-1 bg-ctp-surface0 rounded-lg p-1 border border-ctp-surface1">
           {DIFFS.map(d => (
             <button
               key={d}
@@ -80,8 +80,8 @@ export function Progression() {
               className={clsx(
                 'px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
                 diffFilter === d
-                  ? 'bg-brand-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-ctp-mauve/20 text-ctp-mauve'
+                  : 'text-ctp-overlay1 hover:text-ctp-text'
               )}
             >
               {d}
@@ -93,12 +93,12 @@ export function Progression() {
         <select
           value={zoneFilter}
           onChange={e => setZoneFilter(e.target.value)}
-          className="bg-surface-2 border border-white/[0.06] rounded-lg px-3 py-1.5 text-xs text-slate-300 font-mono focus:outline-none focus:border-brand-500/50"
+          className="bg-ctp-surface0 border border-ctp-surface1 rounded-lg px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40"
         >
           {zones.map(z => <option key={z} value={z}>{z}</option>)}
         </select>
 
-        <span className="text-xs font-mono text-slate-600 ml-auto">
+        <span className="text-xs font-mono text-ctp-surface2 ml-auto">
           {filtered.length} boss{filtered.length !== 1 ? 'es' : ''}
         </span>
       </div>
@@ -142,28 +142,28 @@ export function Progression() {
                       <div className="flex items-center gap-2">
                         <span
                           className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: killed ? '#4ADE80' : '#6B7280' }}
+                          style={{ backgroundColor: killed ? killColor : '#6B7280' }}
                         />
-                        <span className="font-medium text-slate-200">{b.boss_name}</span>
+                        <span className="font-medium text-ctp-text">{b.boss_name}</span>
                       </div>
                     </Td>
-                    <Td className="text-slate-500 text-xs max-w-[140px] truncate">{b.zone_name}</Td>
+                    <Td className="text-ctp-overlay1 text-xs max-w-[140px] truncate">{b.zone_name}</Td>
                     <Td><DiffBadge label={b.difficulty_label} /></Td>
                     <Td right mono>{formatNumber(b.total_pulls)}</Td>
-                    <Td right mono className={killed ? 'text-green-400' : 'text-slate-400'}>
+                    <Td right mono style={{ color: killed ? killColor : undefined }}>
                       {formatNumber(b.total_kills)}
                     </Td>
-                    <Td right mono className="text-red-400/70">{formatNumber(b.total_wipes)}</Td>
-                    <Td right mono className="text-slate-300">
+                    <Td right mono style={{ color: wipeColor }}>{formatNumber(b.total_wipes)}</Td>
+                    <Td right mono className="text-ctp-subtext1">
                       {killed ? formatDuration(Number(b.best_kill_seconds)) : (
                         wipeInfo
-                          ? <span className="text-slate-500">{wipeInfo.avg_wipe_pct_rounded?.toFixed(0)}% avg</span>
+                          ? <span className="text-ctp-overlay0">{wipeInfo.avg_wipe_pct_rounded?.toFixed(0)}% avg</span>
                           : '—'
                       )}
                     </Td>
-                    <Td className="text-xs text-slate-500">
+                    <Td className="text-xs text-ctp-overlay0">
                       {killed ? formatDate(b.first_kill_date) : (
-                        <span className="text-slate-600 italic">In progress</span>
+                        <span className="text-ctp-surface2 italic">In progress</span>
                       )}
                     </Td>
                     <Td className="w-28">
@@ -185,7 +185,7 @@ export function Progression() {
       <Card>
         <CardHeader>
           <CardTitle>Best Kill Times</CardTitle>
-          <p className="text-xs text-slate-500 mt-0.5">Fastest recorded kills per boss</p>
+          <p className="text-xs text-ctp-overlay0 mt-0.5">Fastest recorded kills per boss</p>
         </CardHeader>
         {best.loading ? (
           <CardBody><LoadingState rows={5} /></CardBody>
@@ -209,14 +209,14 @@ export function Progression() {
                 .slice(0, 20)
                 .map(b => (
                   <Tr key={`${b.encounter_id}-${b.difficulty}`}>
-                    <Td className="font-medium text-slate-200">{b.boss_name}</Td>
-                    <Td className="text-xs text-slate-500">{b.zone_name}</Td>
+                    <Td className="font-medium text-ctp-text">{b.boss_name}</Td>
+                    <Td className="text-xs text-ctp-overlay0">{b.zone_name}</Td>
                     <Td><DiffBadge label={b.difficulty_label} /></Td>
                     <Td right mono className="text-ctp-yellow font-semibold">{b.best_kill_mm_ss || formatDuration(Number(b.best_kill_seconds))}</Td>
-                    <Td right mono className="text-slate-400">{formatDuration(Number(b.avg_kill_seconds))}</Td>
+                    <Td right mono className="text-ctp-overlay1">{formatDuration(Number(b.avg_kill_seconds))}</Td>
                     <Td right mono>{b.total_kills}</Td>
-                    <Td className="text-xs text-slate-500">{formatDate(b.first_kill_date)}</Td>
-                    <Td className="text-xs text-slate-500">{formatDate(b.latest_kill_date)}</Td>
+                    <Td className="text-xs text-ctp-overlay0">{formatDate(b.first_kill_date)}</Td>
+                    <Td className="text-xs text-ctp-overlay0">{formatDate(b.latest_kill_date)}</Td>
                   </Tr>
                 ))}
             </TBody>

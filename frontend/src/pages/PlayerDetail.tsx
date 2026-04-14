@@ -22,7 +22,7 @@ import { useColourBlind } from '../context/ColourBlindContext'
 import { formatDate, formatPct } from '../utils/format'
 
 export function PlayerDetail() {
-  const { getParseColor } = useColourBlind()
+  const { getParseColor, wipeColor } = useColourBlind()
   const { playerName } = useParams<{ playerName: string }>()
   const navigate       = useNavigate()
 
@@ -293,7 +293,7 @@ export function PlayerDetail() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-ctp-surface1/40 rounded-xl p-3">
                     <p className="section-label mb-1">Total Deaths</p>
-                    <p className="text-xl font-semibold text-ctp-red">{survRow.total_deaths}</p>
+                    <p className="text-xl font-semibold" style={{ color: wipeColor }}>{survRow.total_deaths}</p>
                   </div>
                   <div className="bg-ctp-surface1/40 rounded-xl p-3">
                     <p className="section-label mb-1">Deaths / Kill</p>

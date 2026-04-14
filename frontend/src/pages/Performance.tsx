@@ -18,7 +18,7 @@ type SortKey = 'avg_rank_percent' | 'best_rank_percent' | 'avg_throughput_per_se
 type RoleFilter = 'all' | 'dps' | 'healer' | 'tank'
 
 export function Performance() {
-  const { getParseColor } = useColourBlind()
+  const { getParseColor, wipeColor } = useColourBlind()
   const perf = usePlayerPerformance()
   const surv = usePlayerSurvivability()
 
@@ -217,7 +217,7 @@ export function Performance() {
                     </Td>
                     <Td>
                       {sv ? (
-                        <span className="text-xs font-mono text-ctp-red/70">
+                        <span className="text-xs font-mono" style={{ color: wipeColor }}>
                           {formatNumber(sv.total_deaths)} total
                         </span>
                       ) : (
@@ -270,7 +270,7 @@ export function Performance() {
                         </div>
                       </div>
                     </Td>
-                    <Td right mono className="text-ctp-red">{formatNumber(s.total_deaths)}</Td>
+                    <Td right mono style={{ color: wipeColor }}>{formatNumber(s.total_deaths)}</Td>
                     <Td right mono className="text-ctp-overlay1">
                       {s.deaths_per_kill ? s.deaths_per_kill.toFixed(1) : '—'}
                     </Td>
