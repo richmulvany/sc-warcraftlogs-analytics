@@ -11,17 +11,10 @@ import { usePlayerAttendance } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { useColourBlind } from '../context/ColourBlindContext'
 
-function attendanceColor(pct: number): string {
-  if (pct >= 90) return '#a6e3a1'
-  if (pct >= 70) return '#f9e2af'
-  if (pct >= 50) return '#fab387'
-  return '#f38ba8'
-}
-
 type SortKey = 'attendance_rate_pct' | 'raids_present' | 'total_raids_tracked'
 
 export function Attendance() {
-  const { killColor, wipeColor } = useColourBlind()
+  const { killColor, wipeColor, getAttendanceColor, topTierColor } = useColourBlind()
   const att = usePlayerAttendance()
   const [search, setSearch]     = useState('')
   const [sortKey, setSortKey]   = useState<SortKey>('attendance_rate_pct')
@@ -66,8 +59,8 @@ export function Attendance() {
       {stats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Players Tracked" value={stats.total} subValue="unique raiders" icon="◎" />
-          <StatCard label="Guild Avg Attendance" value={`${stats.avgAtt.toFixed(1)}%`} subValue="participation rate" icon="◷" accent="mauve" />
-          <StatCard label="Perfect Attendance" value={stats.perfect} subValue="100% raid rate" />
+          <StatCard label="Guild Avg Attendance" value={`${stats.avgAtt.toFixed(1)}%`} subValue="participation rate" icon="◷" valueColor={getAttendanceColor(stats.avgAtt)} accent="none" />
+          <StatCard label="Perfect Attendance" value={stats.perfect} subValue="100% raid rate" accent="green" />
           <StatCard label="Raids Tracked" value={stats.tracked} subValue="maximum for any player" />
         </div>
       )}
@@ -134,7 +127,7 @@ export function Attendance() {
             <TBody>
               {sorted.map((p, i) => {
                 const pct = Number(p.attendance_rate_pct) || 0
-                const color = attendanceColor(pct)
+                const color = getAttendanceColor(pct)
                 return (
                   <Tr key={p.player_name}>
                     <Td mono className="text-ctp-surface2 text-xs">{i + 1}</Td>
@@ -162,7 +155,7 @@ export function Attendance() {
                     </Td>
                     <Td right mono style={{ color: killColor }}>{formatNumber(p.raids_present)}</Td>
                     <Td right mono className="text-ctp-overlay1">{formatNumber(p.total_raids_tracked)}</Td>
-                    <Td right mono className="text-ctp-yellow/70">{p.raids_benched || 0}</Td>
+                    <Td right mono style={{ color: topTierColor, opacity: 0.7 }}>{p.raids_benched || 0}</Td>
                     <Td right mono style={{ color: wipeColor }}>{p.raids_absent || 0}</Td>
                     <Td className="text-xs text-ctp-overlay0">{formatDate(p.first_raid_date)}</Td>
                     <Td className="text-xs text-ctp-overlay0">{formatDate(p.last_raid_date)}</Td>

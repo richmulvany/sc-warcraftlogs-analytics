@@ -6,6 +6,9 @@ import {
   getDifficultyColorForMode,
   getRoleColorForMode,
   getPhaseColorsForMode,
+  getAttendanceColorForMode,
+  getDeathRateColorForMode,
+  getTopTierColorForMode,
 } from '../constants/palettes'
 
 interface ChartColors {
@@ -20,12 +23,16 @@ export interface ColourBlindContextValue {
   getParseColor:      (pct: number) => string
   getDifficultyColor: (diff: string) => string
   getRoleColor:       (role: string) => string
+  getAttendanceColor: (pct: number) => string
+  getDeathRateColor:  (deathsPerKill: number) => string
   // Semantic colours (access directly where needed)
   killColor:    string
   wipeColor:    string
+  /** Top-tier colour — legendary parse / best-ever values (gold/pink/trophy) */
+  topTierColor: string
   chartColors:  ChartColors
-  /** Three distinct colours safe for each mode — for phase/category breakdowns */
-  phaseColors:  [string, string, string]
+  /** Four distinct colours safe for each mode — for phase/category/bucket breakdowns */
+  phaseColors:  [string, string, string, string]
 }
 
 const ColourBlindContext = createContext<ColourBlindContextValue | null>(null)
@@ -56,8 +63,11 @@ export function ColourBlindProvider({ children }: { children: ReactNode }) {
       getParseColor:      (pct)  => getParseColorForMode(pct, mode),
       getDifficultyColor: (diff) => getDifficultyColorForMode(diff, mode),
       getRoleColor:       (role) => getRoleColorForMode(role, mode),
+      getAttendanceColor: (pct)  => getAttendanceColorForMode(pct, mode),
+      getDeathRateColor:  (dpk)  => getDeathRateColorForMode(dpk, mode),
       killColor:    palette.kill,
       wipeColor:    palette.wipe,
+      topTierColor: getTopTierColorForMode(mode),
       chartColors:  { primary: palette.chartA, secondary: palette.chartB },
       phaseColors:  getPhaseColorsForMode(mode),
     }

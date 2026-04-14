@@ -32,30 +32,10 @@ export function getClassColor(cls: string): string {
   return CLASS_COLORS[cls] ?? '#6B7280'
 }
 
-export const ROLE_COLORS: Record<string, string> = {
-  dps:    '#F87171',
-  healer: '#4ADE80',
-  tank:   '#60A5FA',
-}
-
 export const ROLE_LABELS: Record<string, string> = {
   dps:    'DPS',
   healer: 'Healer',
   tank:   'Tank',
-}
-
-export function getRoleColor(role: string): string {
-  return ROLE_COLORS[role?.toLowerCase()] ?? '#6B7280'
-}
-
-export const DIFFICULTY_COLORS: Record<string, string> = {
-  'Normal':  '#4ADE80',
-  'Heroic':  '#3FC7EB',
-  'Mythic':  '#C084FC',
-  'LFR':     '#6B7280',
-  '3':       '#4ADE80',
-  '4':       '#3FC7EB',
-  '5':       '#C084FC',
 }
 
 export const DIFFICULTY_ORDER: Record<string, number> = {
@@ -63,10 +43,6 @@ export const DIFFICULTY_ORDER: Record<string, number> = {
   'Normal': 1,
   'Heroic': 2,
   'Mythic': 3,
-}
-
-export function getDifficultyColor(diff: string): string {
-  return DIFFICULTY_COLORS[diff] ?? '#6B7280'
 }
 
 export const RANK_CATEGORY_COLORS: Record<string, string> = {
@@ -78,16 +54,6 @@ export const RANK_CATEGORY_COLORS: Record<string, string> = {
 
 export function getRankColor(category: string): string {
   return RANK_CATEGORY_COLORS[category] ?? '#6c7086'
-}
-
-// Parse percent → colour band (WCL-inspired, tuned for Catppuccin Mocha)
-export function getParseColor(pct: number): string {
-  if (pct >= 99) return '#f5c2e7' // ctp-pink  (legendary)
-  if (pct >= 95) return '#fab387' // ctp-peach (orange)
-  if (pct >= 75) return '#cba6f7' // ctp-mauve (purple)
-  if (pct >= 50) return '#89b4fa' // ctp-blue
-  if (pct >= 25) return '#a6e3a1' // ctp-green
-  return '#6c7086'                // ctp-overlay0 (grey)
 }
 
 // Format seconds as "Xm Ys"

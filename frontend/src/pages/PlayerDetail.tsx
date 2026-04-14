@@ -22,7 +22,7 @@ import { useColourBlind } from '../context/ColourBlindContext'
 import { formatDate, formatPct } from '../utils/format'
 
 export function PlayerDetail() {
-  const { getParseColor, wipeColor } = useColourBlind()
+  const { getParseColor, wipeColor, getDeathRateColor, getAttendanceColor } = useColourBlind()
   const { playerName } = useParams<{ playerName: string }>()
   const navigate       = useNavigate()
 
@@ -188,21 +188,24 @@ export function PlayerDetail() {
               value={summary?.avg_rank_percent ? `${summary.avg_rank_percent.toFixed(1)}%` : '—'}
               subValue={`Best: ${summary?.best_rank_percent ? `${summary.best_rank_percent.toFixed(0)}%` : '—'}`}
               icon="◈"
-              accent="mauve"
+              valueColor={summary?.avg_rank_percent ? getParseColor(summary.avg_rank_percent) : undefined}
+              accent="none"
             />
             <StatCard
               label="Deaths per Kill"
               value={survRow?.deaths_per_kill != null ? survRow.deaths_per_kill.toFixed(1) : '—'}
               subValue={`${survRow?.total_deaths ?? 0} total deaths`}
               icon="☠"
-              accent="red"
+              valueColor={survRow?.deaths_per_kill != null ? getDeathRateColor(survRow.deaths_per_kill) : undefined}
+              accent="none"
             />
             <StatCard
               label="Attendance"
               value={attRow?.attendance_rate_pct != null ? formatPct(attRow.attendance_rate_pct) : '—'}
               subValue={attRow ? `${attRow.raids_present} / ${attRow.total_raids_tracked} raids` : 'No data'}
               icon="◷"
-              accent="green"
+              valueColor={attRow?.attendance_rate_pct != null ? getAttendanceColor(attRow.attendance_rate_pct) : undefined}
+              accent="none"
             />
           </>
         )}
@@ -297,7 +300,7 @@ export function PlayerDetail() {
                   </div>
                   <div className="bg-ctp-surface1/40 rounded-xl p-3">
                     <p className="section-label mb-1">Deaths / Kill</p>
-                    <p className="text-xl font-semibold text-ctp-peach">
+                    <p className="text-xl font-semibold" style={{ color: getDeathRateColor(Number(survRow.deaths_per_kill) || 0) }}>
                       {survRow.deaths_per_kill?.toFixed(1) ?? '—'}
                     </p>
                   </div>

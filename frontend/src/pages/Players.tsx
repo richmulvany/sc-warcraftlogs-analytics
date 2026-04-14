@@ -26,7 +26,7 @@ const ROLES: { key: RoleFilter; label: string }[] = [
 ]
 
 export function Players() {
-  const { getParseColor } = useColourBlind()
+  const { getParseColor, topTierColor } = useColourBlind()
   const perf     = usePlayerPerformance()
   const navigate = useNavigate()
 
@@ -90,8 +90,8 @@ export function Players() {
           <>
             <StatCard label="Players Tracked" value={stats?.total ?? 0}            subValue="in logs"          icon="◉" accent="blue" />
             <StatCard label="With Parse Data"  value={stats?.count ?? 0}            subValue="min 1 kill"       icon="◈" accent="mauve" />
-            <StatCard label="Guild Avg Parse"  value={`${stats?.avg?.toFixed(1) ?? '—'}%`} subValue="WCL rank %" icon="◷" accent="peach" />
-            <StatCard label="Best Parse"       value={`${stats?.top?.toFixed(0) ?? '—'}%`} subValue="guild record"          accent="green" />
+            <StatCard label="Guild Avg Parse"  value={`${stats?.avg?.toFixed(1) ?? '—'}%`} subValue="WCL rank %" icon="◷" valueColor={stats ? getParseColor(stats.avg) : undefined} accent="none" />
+            <StatCard label="Best Parse"       value={`${stats?.top?.toFixed(0) ?? '—'}%`} subValue="guild record" valueColor={stats ? topTierColor : undefined} accent="none" />
           </>
         )}
       </div>

@@ -11,12 +11,14 @@ import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { useGuildRoster, useRaidTeam } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { getRankColor } from '../constants/wow'
+import { useColourBlind } from '../context/ColourBlindContext'
 import clsx from 'clsx'
 
 type TabKey = 'full' | 'team'
 type SortKey = 'attendance_rate_pct' | 'raids_present' | 'name' | 'rank'
 
 export function Roster() {
+  const { killColor, getAttendanceColor } = useColourBlind()
   const fullRoster = useGuildRoster()
   const raidTeam   = useRaidTeam()
 
@@ -182,11 +184,8 @@ export function Roster() {
                         </span>
                       </Td>
                       <Td>
-                        <span className={clsx(
-                          'inline-flex items-center gap-1 text-[10px] font-mono',
-                          isActive ? 'text-ctp-green' : 'text-ctp-surface2'
-                        )}>
-                          <span className={clsx('w-1.5 h-1.5 rounded-full', isActive ? 'bg-ctp-green' : 'bg-ctp-surface2')} />
+                        <span className={clsx('inline-flex items-center gap-1 text-[10px] font-mono', !isActive && 'text-ctp-surface2')} style={{ color: isActive ? killColor : undefined }}>
+                          <span className={clsx('w-1.5 h-1.5 rounded-full', !isActive && 'bg-ctp-surface2')} style={{ backgroundColor: isActive ? killColor : undefined }} />
                           {isActive ? 'Active' : 'Inactive'}
                         </span>
                       </Td>
@@ -197,10 +196,11 @@ export function Roster() {
                             <>
                               <ProgressBar
                                 value={Number(m.attendance_rate_pct)}
+                                color={getAttendanceColor(Number(m.attendance_rate_pct))}
                                 height="xs"
                                 className="w-16"
                               />
-                              <span className="text-xs font-mono text-ctp-overlay1 w-10 text-right">
+                              <span className="text-xs font-mono w-10 text-right" style={{ color: getAttendanceColor(Number(m.attendance_rate_pct)) }}>
                                 {Number(m.attendance_rate_pct).toFixed(0)}%
                               </span>
                             </>
@@ -262,11 +262,8 @@ export function Roster() {
                         </span>
                       </Td>
                       <Td>
-                        <span className={clsx(
-                          'inline-flex items-center gap-1 text-[10px] font-mono',
-                          isActive ? 'text-ctp-green' : 'text-ctp-surface2'
-                        )}>
-                          <span className={clsx('w-1.5 h-1.5 rounded-full', isActive ? 'bg-ctp-green' : 'bg-ctp-surface2')} />
+                        <span className={clsx('inline-flex items-center gap-1 text-[10px] font-mono', !isActive && 'text-ctp-surface2')} style={{ color: isActive ? killColor : undefined }}>
+                          <span className={clsx('w-1.5 h-1.5 rounded-full', !isActive && 'bg-ctp-surface2')} style={{ backgroundColor: isActive ? killColor : undefined }} />
                           {isActive ? 'Active' : 'Inactive'}
                         </span>
                       </Td>
@@ -276,10 +273,11 @@ export function Roster() {
                           <div className="flex items-center justify-end gap-2">
                             <ProgressBar
                               value={Number(m.attendance_rate_pct)}
+                              color={getAttendanceColor(Number(m.attendance_rate_pct))}
                               height="xs"
                               className="w-16"
                             />
-                            <span className="text-xs font-mono text-ctp-overlay1 w-10 text-right">
+                            <span className="text-xs font-mono w-10 text-right" style={{ color: getAttendanceColor(Number(m.attendance_rate_pct)) }}>
                               {Number(m.attendance_rate_pct).toFixed(0)}%
                             </span>
                           </div>

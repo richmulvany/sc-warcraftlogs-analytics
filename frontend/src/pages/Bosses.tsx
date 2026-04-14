@@ -16,7 +16,7 @@ import clsx from 'clsx'
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
 
 export function Bosses() {
-  const { getDifficultyColor, killColor, wipeColor } = useColourBlind()
+  const { getDifficultyColor, killColor, wipeColor, topTierColor } = useColourBlind()
   const prog = useBossProgression()
   const best = useBestKills()
 
@@ -147,7 +147,7 @@ export function Bosses() {
                   <span style={{ color: killColor }}>{b.total_kills}↓</span>
                   <span style={{ color: wipeColor }}>{b.total_wipes}✗</span>
                   {killed && bk ? (
-                    <span className="text-ctp-yellow">{bk.best_kill_mm_ss || formatDuration(Number(b.best_kill_seconds))}</span>
+                    <span style={{ color: topTierColor }}>{bk.best_kill_mm_ss || formatDuration(Number(b.best_kill_seconds))}</span>
                   ) : (
                     <span className="text-ctp-overlay0">—</span>
                   )}
@@ -229,7 +229,7 @@ export function Bosses() {
                       {formatNumber(b.total_kills)}
                     </Td>
                     <Td right mono style={{ color: wipeColor }}>{formatNumber(b.total_wipes)}</Td>
-                    <Td right mono className="text-ctp-yellow font-semibold">
+                    <Td right mono className="font-semibold" style={{ color: topTierColor }}>
                       {bk?.best_kill_mm_ss || (killed ? formatDuration(Number(b.best_kill_seconds)) : '—')}
                     </Td>
                     <Td right mono className="text-ctp-overlay1">

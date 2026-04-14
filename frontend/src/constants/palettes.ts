@@ -74,7 +74,7 @@ const PALETTES: Record<ColourBlindMode, ColourPalette> = {
     parseEpic:      '#E69F00',  // Okabe orange
     parseGreat:     '#CC79A7',  // Okabe pink/rose — visible to deuteranopes
     parseGood:      '#56B4E9',  // Okabe sky blue
-    parseOk:        '#B0C4DE',  // lighter steel blue — lower tier
+    parseOk:        '#0072B2',  // Okabe blue — darker step below sky blue on dark UI
     parseGrey:      '#6c7086',
 
     diffMythic:  '#CC79A7',  // rose/pink — premium tier
@@ -183,18 +183,47 @@ export function getRoleColorForMode(role: string, mode: ColourBlindMode): string
   return '#6c7086'
 }
 
-/** Three-colour set safe for each mode, used for phase breakdown charts. */
-export function getPhaseColorsForMode(mode: ColourBlindMode): [string, string, string] {
+/** Four-colour set safe for each mode, used for phase/bucket breakdown charts. */
+export function getPhaseColorsForMode(mode: ColourBlindMode): [string, string, string, string] {
   switch (mode) {
     case 'deuteranopia':
-      return ['#56B4E9', '#E69F00', '#CC79A7']   // sky-blue, orange, rose
+      return ['#56B4E9', '#E69F00', '#CC79A7', '#FFD700']   // sky-blue, orange, rose, gold
     case 'protanopia':
-      return ['#56B4E9', '#E69F00', '#CC79A7']   // same safe set
+      return ['#009E73', '#E69F00', '#CC79A7', '#FFD700']   // teal, orange, rose, gold
     case 'tritanopia':
-      return ['#3CB371', '#FF6347', '#9370DB']   // green, red, purple
+      return ['#3CB371', '#FF6347', '#9370DB', '#FF1493']   // green, red, purple, deep-pink
     default:
-      return ['#89b4fa', '#cba6f7', '#f38ba8']   // blue, mauve, red
+      return ['#89b4fa', '#cba6f7', '#f38ba8', '#fab387']   // blue, mauve, red, peach
   }
+}
+
+/**
+ * Attendance / grade scale — always returns 4 distinct colours per mode.
+ * Semantic: higher % = better. Thresholds tuned for raid attendance
+ * (90/70/50), but applicable to any 0–100 "grade" value.
+ */
+export function getAttendanceColorForMode(pct: number, mode: ColourBlindMode): string {
+  const p = PALETTES[mode]
+  if (pct >= 90) return p.kill            // positive (good attendance)
+  if (pct >= 70) return p.parseLegendary  // elite tier (visually distinct from kill)
+  if (pct >= 50) return p.parseGreat      // middle tier
+  return p.wipe                            // negative (poor attendance)
+}
+
+/**
+ * Death-rate severity — inverse of a grade (lower is better).
+ * Returns a safe colour per mode indicating how concerning a deaths/kill value is.
+ */
+export function getDeathRateColorForMode(deathsPerKill: number, mode: ColourBlindMode): string {
+  const p = PALETTES[mode]
+  if (deathsPerKill >= 2) return p.wipe          // high — concerning
+  if (deathsPerKill >= 1) return p.parseEpic     // medium — warning
+  return p.parseGrey                              // low — neutral
+}
+
+/** Top-tier (legendary/trophy) colour — for "best ever" values like best kill time. */
+export function getTopTierColorForMode(mode: ColourBlindMode): string {
+  return PALETTES[mode].parseLegendary
 }
 
 export const MODE_LABELS: Record<ColourBlindMode, string> = {

@@ -18,7 +18,6 @@ import { ClassDot } from '../components/ui/ClassLabel'
 import { useBossMechanics, usePlayerSurvivability, useBossWipeAnalysis } from '../hooks/useGoldData'
 import { formatNumber } from '../utils/format'
 import { useColourBlind } from '../context/ColourBlindContext'
-import clsx from 'clsx'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CtpTooltip({ active, payload, label }: any) {
@@ -36,7 +35,7 @@ function CtpTooltip({ active, payload, label }: any) {
 }
 
 export function WipeAnalysis() {
-  const { wipeColor, phaseColors, chartColors } = useColourBlind()
+  const { wipeColor, phaseColors, chartColors, getDeathRateColor } = useColourBlind()
   const mechs      = useBossMechanics()
   const survival   = usePlayerSurvivability()
   const wipeData   = useBossWipeAnalysis()
@@ -94,7 +93,7 @@ export function WipeAnalysis() {
       { label: '<1 min',   wipes: totals.lt1,    fill: phaseColors[0] },
       { label: '1–3 min',  wipes: totals.one3,   fill: phaseColors[1] },
       { label: '3–5 min',  wipes: totals.three5, fill: phaseColors[2] },
-      { label: '5+ min',   wipes: totals.gt5,    fill: '#cba6f7' },
+      { label: '5+ min',   wipes: totals.gt5,    fill: phaseColors[3] },
     ]
   }, [filteredMechs, phaseColors])
 
@@ -138,13 +137,15 @@ export function WipeAnalysis() {
               value={formatNumber(stats.totalDeaths)}
               subValue="across all kills"
               icon="💀"
-              accent="red"
+              valueColor={wipeColor}
+              accent="none"
             />
             <StatCard
               label="Avg Deaths / Kill"
               value={stats.avgDeathsPerKill.toFixed(1)}
               subValue="per boss kill"
-              accent="peach"
+              valueColor={getDeathRateColor(stats.avgDeathsPerKill)}
+              accent="none"
             />
             <StatCard
               label="Early Wipes (<1 min)"
@@ -338,13 +339,7 @@ export function WipeAnalysis() {
                         </div>
                       </Td>
                       <Td right mono style={{ color: wipeColor }}>{formatNumber(p.total_deaths)}</Td>
-                      <Td right mono className={clsx(
-                        Number(p.deaths_per_kill) >= 2
-                          ? 'text-ctp-red'
-                          : Number(p.deaths_per_kill) >= 1
-                          ? 'text-ctp-peach'
-                          : 'text-ctp-overlay1'
-                      )}>
+                      <Td right mono style={{ color: getDeathRateColor(Number(p.deaths_per_kill)) }}>
                         {Number(p.deaths_per_kill).toFixed(2)}
                       </Td>
                       <Td className="text-[10px] text-ctp-overlay0 font-mono truncate max-w-[140px]">

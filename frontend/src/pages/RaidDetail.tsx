@@ -106,13 +106,11 @@ export function RaidDetail() {
               label="Total Pulls"
               value={formatNumber(raid?.total_pulls ?? 0)}
               subValue="including kills"
-              accent="blue"
             />
             <StatCard
               label="Raid Duration"
               value={formatDuration(Number(raid?.total_fight_seconds ?? 0))}
               subValue="active fight time"
-              accent="peach"
             />
           </>
         )}

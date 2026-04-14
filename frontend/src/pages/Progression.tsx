@@ -16,7 +16,7 @@ import clsx from 'clsx'
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
 
 export function Progression() {
-  const { getDifficultyColor, killColor, wipeColor } = useColourBlind()
+  const { getDifficultyColor, killColor, wipeColor, topTierColor } = useColourBlind()
   const prog  = useBossProgression()
   const wipes = useBossWipeAnalysis()
   const best  = useBestKills()
@@ -65,7 +65,7 @@ export function Progression() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Bosses Killed" value={summaryStats.killed} subValue="unique bosses" icon="⚔" accent="mauve" />
         <StatCard label="Total Kills"   value={formatNumber(summaryStats.totalKills)} subValue="all difficulties" />
-        <StatCard label="Mythic Kills"  value={summaryStats.mythicKills} subValue="mythic difficulty" />
+        <StatCard label="Mythic Kills"  value={summaryStats.mythicKills} subValue="mythic difficulty" accent="peach" />
         <StatCard label="Total Pulls"   value={formatNumber(summaryStats.totalPulls)} subValue="all attempts" />
       </div>
 
@@ -212,7 +212,7 @@ export function Progression() {
                     <Td className="font-medium text-ctp-text">{b.boss_name}</Td>
                     <Td className="text-xs text-ctp-overlay0">{b.zone_name}</Td>
                     <Td><DiffBadge label={b.difficulty_label} /></Td>
-                    <Td right mono className="text-ctp-yellow font-semibold">{b.best_kill_mm_ss || formatDuration(Number(b.best_kill_seconds))}</Td>
+                    <Td right mono className="font-semibold" style={{ color: topTierColor }}>{b.best_kill_mm_ss || formatDuration(Number(b.best_kill_seconds))}</Td>
                     <Td right mono className="text-ctp-overlay1">{formatDuration(Number(b.avg_kill_seconds))}</Td>
                     <Td right mono>{b.total_kills}</Td>
                     <Td className="text-xs text-ctp-overlay0">{formatDate(b.first_kill_date)}</Td>

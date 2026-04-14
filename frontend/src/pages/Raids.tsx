@@ -76,7 +76,6 @@ export function Raids() {
               value={formatNumber(stats?.count ?? 0)}
               subValue="tracked nights"
               icon="◷"
-              accent="blue"
             />
             <StatCard
               label="Total Boss Kills"
@@ -97,7 +96,6 @@ export function Raids() {
               value={formatDuration(stats?.totalSecs ?? 0)}
               subValue="fight time only"
               icon="◈"
-              accent="teal"
             />
           </>
         )}

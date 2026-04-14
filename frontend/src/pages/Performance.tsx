@@ -18,7 +18,7 @@ type SortKey = 'avg_rank_percent' | 'best_rank_percent' | 'avg_throughput_per_se
 type RoleFilter = 'all' | 'dps' | 'healer' | 'tank'
 
 export function Performance() {
-  const { getParseColor, wipeColor } = useColourBlind()
+  const { getParseColor, topTierColor, wipeColor, getDeathRateColor } = useColourBlind()
   const perf = usePlayerPerformance()
   const surv = usePlayerSurvivability()
 
@@ -83,8 +83,8 @@ export function Performance() {
       {statsAll && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Players Tracked" value={statsAll.count} subValue="with parse data" icon="◉" />
-          <StatCard label="Guild Avg Parse"  value={`${statsAll.avgParse.toFixed(1)}%`} subValue="WCL rank %" icon="◈" accent="mauve" />
-          <StatCard label="Best Parse"       value={`${statsAll.topParse.toFixed(0)}%`} subValue="guild record" />
+          <StatCard label="Guild Avg Parse"  value={`${statsAll.avgParse.toFixed(1)}%`} subValue="WCL rank %" icon="◈" valueColor={getParseColor(statsAll.avgParse)} accent="none" />
+          <StatCard label="Best Parse"       value={`${statsAll.topParse.toFixed(0)}%`} subValue="guild record" valueColor={topTierColor} accent="none" />
           <StatCard label="Avg Item Level"   value={statsAll.avgIlvl.toFixed(0)} subValue="across all players" />
         </div>
       )}
@@ -271,7 +271,7 @@ export function Performance() {
                       </div>
                     </Td>
                     <Td right mono style={{ color: wipeColor }}>{formatNumber(s.total_deaths)}</Td>
-                    <Td right mono className="text-ctp-overlay1">
+                    <Td right mono style={{ color: getDeathRateColor(Number(s.deaths_per_kill) || 0) }}>
                       {s.deaths_per_kill ? s.deaths_per_kill.toFixed(1) : '—'}
                     </Td>
                     <Td className="text-xs text-ctp-overlay1 max-w-[200px] truncate">
