@@ -10,6 +10,7 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { useGuildRoster, useRaidTeam } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
+import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { getRankColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import clsx from 'clsx'
@@ -31,8 +32,8 @@ export function Roster() {
   const filteredFull = useMemo(() => {
     let rows = fullRoster.data
     if (search.trim()) {
-      const q = search.toLowerCase()
-      rows = rows.filter(r => r.name.toLowerCase().includes(q) || r.player_class.toLowerCase().includes(q))
+      const q = normaliseSearchText(search)
+      rows = rows.filter(r => matchesLooseSearch(q, r.name) || matchesLooseSearch(q, r.player_class))
     }
     return [...rows].sort((a, b) => {
       if (sortKey === 'name') {
@@ -53,8 +54,8 @@ export function Roster() {
   const filteredTeam = useMemo(() => {
     let rows = raidTeam.data
     if (search.trim()) {
-      const q = search.toLowerCase()
-      rows = rows.filter(r => r.name.toLowerCase().includes(q) || r.player_class.toLowerCase().includes(q))
+      const q = normaliseSearchText(search)
+      rows = rows.filter(r => matchesLooseSearch(q, r.name) || matchesLooseSearch(q, r.player_class))
     }
     return [...rows].sort((a, b) => Number(b.attendance_rate_pct) - Number(a.attendance_rate_pct))
   }, [raidTeam.data, search])

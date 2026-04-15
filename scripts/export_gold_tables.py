@@ -23,9 +23,11 @@ from databricks.sdk.service import sql
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 CATALOG = os.environ.get("DATABRICKS_CATALOG", "04_sdp")
 SCHEMA = os.environ.get("DATABRICKS_SCHEMA", "warcraftlogs")
-OUTPUT_DIR = Path(os.environ.get("EXPORT_OUTPUT_DIR", "frontend/public/data"))
+_output_dir = Path(os.environ.get("EXPORT_OUTPUT_DIR", "frontend/public/data"))
+OUTPUT_DIR = _output_dir if _output_dir.is_absolute() else REPO_ROOT / _output_dir
 POLL_INTERVAL_SECONDS = float(os.environ.get("EXPORT_POLL_INTERVAL_SECONDS", "2"))
 POLL_TIMEOUT_SECONDS = int(os.environ.get("EXPORT_POLL_TIMEOUT_SECONDS", "300"))
 

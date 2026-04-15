@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
@@ -6,7 +6,7 @@ import { DiffBadge } from '../components/ui/Badge'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
-import { useRaidSummary } from '../hooks/useGoldData'
+import { useRaidSummary, useBossKillRoster } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -15,9 +15,16 @@ import clsx from 'clsx'
 export function Raids() {
   const { killColor, wipeColor } = useColourBlind()
   const raids = useRaidSummary()
+  const killRoster = useBossKillRoster()
+
+  function getReportUrl(reportCode: string): string {
+    return `https://www.warcraftlogs.com/reports/${reportCode}`
+  }
 
   const [search,   setSearch]   = useState('')
   const [diff,     setDiff]     = useState('All')
+  const [selectedTier, setSelectedTier] = useState('')
+  const [selectedBoss, setSelectedBoss] = useState('All')
   const [sortDesc, setSortDesc] = useState(true)
 
   function hasRealText(value: unknown): value is string {
@@ -35,14 +42,58 @@ export function Raids() {
   )
 
 
+  const currentTier = useMemo(() =>
+    [...validRaidRows]
+      .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))[0]?.zone_name ?? '',
+    [validRaidRows]
+  )
+
+  useEffect(() => {
+    if (!selectedTier && currentTier) setSelectedTier(currentTier)
+  }, [selectedTier, currentTier])
+
+  const tierOptions = useMemo(() => {
+    const tiers = [...new Set(
+      [...validRaidRows]
+        .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
+        .map(r => r.zone_name)
+    )]
+    return tiers
+  }, [validRaidRows])
+
   const diffs = useMemo(() => {
     const ds = [...new Set(validRaidRows.map(r => r.primary_difficulty))].sort()
     return ['All', ...ds]
   }, [validRaidRows])
 
+  const bossOptions = useMemo(() => {
+    const bosses = [...new Set(
+      killRoster.data
+        .filter(row => row.zone_name === selectedTier)
+        .map(row => row.boss_name)
+        .filter(hasRealText)
+    )].sort()
+    return ['All', ...bosses]
+  }, [killRoster.data, selectedTier])
+
+  useEffect(() => {
+    if (!bossOptions.includes(selectedBoss)) setSelectedBoss('All')
+  }, [bossOptions, selectedBoss])
+
   const filtered = useMemo(() => {
     let rows = validRaidRows
+    if (selectedTier) rows = rows.filter(r => r.zone_name === selectedTier)
     if (diff !== 'All') rows = rows.filter(r => r.primary_difficulty === diff)
+    if (selectedBoss !== 'All') {
+      const matchingReports = new Set(
+        killRoster.data
+          .filter(row => row.zone_name === selectedTier)
+          .filter(row => diff === 'All' || row.difficulty_label === diff)
+          .filter(row => row.boss_name === selectedBoss)
+          .map(row => row.report_code)
+      )
+      rows = rows.filter(r => matchingReports.has(r.report_code))
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       rows = rows.filter(r =>
@@ -56,16 +107,16 @@ export function Raids() {
         ? b.raid_night_date.localeCompare(a.raid_night_date)
         : a.raid_night_date.localeCompare(b.raid_night_date)
     )
-  }, [validRaidRows, diff, search, sortDesc])
+  }, [validRaidRows, selectedTier, diff, selectedBoss, search, sortDesc, killRoster.data])
 
   const stats = useMemo(() => {
-    if (!validRaidRows.length) return null
-    const totalKills  = validRaidRows.reduce((s, r) => s + Number(r.boss_kills), 0)
-    const totalWipes  = validRaidRows.reduce((s, r) => s + Number(r.total_wipes), 0)
-    const totalSecs   = validRaidRows.reduce((s, r) => s + Number(r.total_fight_seconds), 0)
-    const avgKills    = totalKills / validRaidRows.length
-    return { totalKills, totalWipes, totalSecs, avgKills, count: validRaidRows.length }
-  }, [validRaidRows])
+    if (!filtered.length) return null
+    const totalKills  = filtered.reduce((s, r) => s + Number(r.boss_kills), 0)
+    const totalWipes  = filtered.reduce((s, r) => s + Number(r.total_wipes), 0)
+    const totalSecs   = filtered.reduce((s, r) => s + Number(r.total_fight_seconds), 0)
+    const avgKills    = totalKills / filtered.length
+    return { totalKills, totalWipes, totalSecs, avgKills, count: filtered.length }
+  }, [filtered])
 
   // Calendar-like view: group by zone
   const byZone = useMemo(() => {
@@ -133,6 +184,20 @@ export function Raids() {
             </button>
           ))}
         </div>
+        <select
+          value={selectedTier}
+          onChange={e => setSelectedTier(e.target.value)}
+          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-48"
+        >
+          {tierOptions.map(tier => <option key={tier} value={tier}>{tier}</option>)}
+        </select>
+        <select
+          value={selectedBoss}
+          onChange={e => setSelectedBoss(e.target.value)}
+          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
+        >
+          {bossOptions.map(boss => <option key={boss} value={boss}>{boss}</option>)}
+        </select>
         <input
           type="text"
           placeholder="Search raid, zone, date…"
@@ -173,9 +238,12 @@ export function Raids() {
 
 
                   return (
-                    <div
+                    <a
                       key={r.report_code}
-                      className="bg-ctp-surface0 rounded-2xl border border-ctp-surface1 p-4 hover:border-ctp-surface2 hover:-translate-y-0.5 transition-all duration-200 shadow-card"
+                      href={getReportUrl(r.report_code)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="bg-ctp-mauve/8 rounded-2xl border border-ctp-mauve/20 p-4 hover:border-ctp-mauve/35 hover:bg-ctp-mauve/10 hover:-translate-y-0.5 transition-all duration-200 shadow-card"
                     >
                       {/* Header row */}
                       <div className="flex items-start justify-between gap-2 mb-3">
@@ -192,15 +260,15 @@ export function Raids() {
 
                       {/* Stats grid */}
                       <div className="grid grid-cols-3 gap-2 mb-3">
-                        <div className="text-center bg-ctp-surface1/40 rounded-xl py-1.5">
+                        <div className="text-center bg-ctp-mauve/10 rounded-xl py-1.5">
                           <p className="text-base font-semibold leading-none" style={{ color: killColor }}>{r.boss_kills}</p>
                           <p className="text-[9px] font-mono text-ctp-overlay0 mt-0.5">kills</p>
                         </div>
-                        <div className="text-center bg-ctp-surface1/40 rounded-xl py-1.5">
+                        <div className="text-center bg-ctp-mauve/10 rounded-xl py-1.5">
                           <p className="text-base font-semibold leading-none" style={{ color: wipeColor }}>{r.total_wipes}</p>
                           <p className="text-[9px] font-mono text-ctp-overlay0 mt-0.5">wipes</p>
                         </div>
-                        <div className="text-center bg-ctp-surface1/40 rounded-xl py-1.5">
+                        <div className="text-center bg-ctp-mauve/10 rounded-xl py-1.5">
                           <p className="text-base font-semibold text-ctp-subtext1 leading-none">{r.total_pulls}</p>
                           <p className="text-[9px] font-mono text-ctp-overlay0 mt-0.5">pulls</p>
                         </div>
@@ -211,7 +279,7 @@ export function Raids() {
                         <span>{formatDuration(Number(r.total_fight_seconds))} fight time</span>
                         <span>{r.unique_bosses_killed}/{r.unique_bosses_engaged} bosses</span>
                       </div>
-                    </div>
+                    </a>
                   )
                 })}
               </div>
@@ -260,7 +328,14 @@ export function Raids() {
                     {formatDuration(Number(r.total_fight_seconds))}
                   </Td>
                   <Td>
-                    <span className="text-[10px] font-mono text-ctp-overlay0">{r.report_code}</span>
+                    <a
+                      href={getReportUrl(r.report_code)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] font-mono text-ctp-overlay0 hover:text-ctp-mauve transition-colors"
+                    >
+                      {r.report_code}
+                    </a>
                   </Td>
                 </Tr>
               ))}

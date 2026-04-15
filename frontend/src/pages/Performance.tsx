@@ -10,28 +10,13 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { usePlayerPerformance, usePlayerSurvivability } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
+import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { formatThroughput, getThroughputColor, normaliseRole } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import clsx from 'clsx'
 
 type SortKey = 'avg_rank_percent' | 'best_rank_percent' | 'avg_throughput_per_second' | 'kills_tracked' | 'avg_item_level'
 type RoleFilter = 'all' | 'dps' | 'healer' | 'tank'
-
-function normaliseSearchText(value: unknown): string {
-  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
-}
-
-function fuzzyMatch(query: string, value: string): boolean {
-  if (!query) return true
-  if (value.includes(query)) return true
-
-  let index = 0
-  for (const char of value) {
-    if (char === query[index]) index += 1
-    if (index === query.length) return true
-  }
-  return false
-}
 
 export function Performance() {
   const { getParseColor, topTierColor, wipeColor, getDeathRateColor } = useColourBlind()
@@ -49,8 +34,8 @@ export function Performance() {
     if (search.trim()) {
       const q = normaliseSearchText(search)
       rows = rows.filter(r =>
-        fuzzyMatch(q, normaliseSearchText(r.player_name)) ||
-        fuzzyMatch(q, normaliseSearchText(r.player_class))
+        matchesLooseSearch(q, r.player_name) ||
+        matchesLooseSearch(q, r.player_class)
       )
     }
     return [...rows].sort((a, b) => {

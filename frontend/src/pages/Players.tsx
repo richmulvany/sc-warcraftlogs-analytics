@@ -12,6 +12,7 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { useBossKillRoster, useRaidSummary } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
+import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { formatThroughput, getThroughputColor, normaliseRole } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
@@ -42,22 +43,6 @@ const ROLES: { key: RoleFilter; label: string }[] = [
 
 const DIFFICULTIES: DifficultyFilter[] = ['All', 'Mythic', 'Heroic', 'Normal']
 
-function normaliseSearchText(value: unknown): string {
-  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
-}
-
-function fuzzyMatch(query: string, value: string): boolean {
-  if (!query) return true
-  if (value.includes(query)) return true
-
-  let index = 0
-  for (const char of value) {
-    if (char === query[index]) index += 1
-    if (index === query.length) return true
-  }
-  return false
-}
-
 export function Players() {
   const { getParseColor, topTierColor } = useColourBlind()
   const raids = useRaidSummary()
@@ -68,6 +53,8 @@ export function Players() {
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
+  const [showTierHint, setShowTierHint] = useState(true)
+  const [showBossHint, setShowBossHint] = useState(true)
   const [sortKey, setSortKey] = useState<SortKey>('avg_rank_percent')
   const [sortDesc, setSortDesc] = useState(true)
   const [search, setSearch] = useState('')
@@ -185,8 +172,8 @@ export function Players() {
     if (search.trim()) {
       const q = normaliseSearchText(search)
       r = r.filter(p =>
-        fuzzyMatch(q, normaliseSearchText(p.player_name)) ||
-        fuzzyMatch(q, normaliseSearchText(p.player_class))
+        matchesLooseSearch(q, p.player_name) ||
+        matchesLooseSearch(q, p.player_class)
       )
     }
     return [...r].sort((a, b) => {
@@ -271,25 +258,43 @@ export function Players() {
           ))}
         </div>
 
-        <select
-          value={selectedTier}
-          onChange={e => setSelectedTier(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
-        >
-          {tierOptions.map(tier => (
-            <option key={tier} value={tier}>{tier}</option>
-          ))}
-        </select>
+        <div className="relative">
+          {showTierHint && (
+            <span className="absolute right-7 top-1/2 -translate-y-1/2 text-xs font-mono text-ctp-overlay0 pointer-events-none">
+              tier
+            </span>
+          )}
+          <select
+            value={selectedTier}
+            onFocus={() => setShowTierHint(false)}
+            onMouseDown={() => setShowTierHint(false)}
+            onChange={e => setSelectedTier(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl pl-3 pr-14 py-2 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-48 max-w-48"
+          >
+            {tierOptions.map(tier => (
+              <option key={tier} value={tier}>{tier}</option>
+            ))}
+          </select>
+        </div>
 
-        <select
-          value={selectedBoss}
-          onChange={e => setSelectedBoss(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
-        >
-          {bossOptions.map(boss => (
-            <option key={boss} value={boss}>{boss}</option>
-          ))}
-        </select>
+        <div className="relative">
+          {showBossHint && (
+            <span className="absolute right-7 top-1/2 -translate-y-1/2 text-xs font-mono text-ctp-overlay0 pointer-events-none">
+              boss
+            </span>
+          )}
+          <select
+            value={selectedBoss}
+            onFocus={() => setShowBossHint(false)}
+            onMouseDown={() => setShowBossHint(false)}
+            onChange={e => setSelectedBoss(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl pl-3 pr-14 py-2 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52 max-w-52"
+          >
+            {bossOptions.map(boss => (
+              <option key={boss} value={boss}>{boss}</option>
+            ))}
+          </select>
+        </div>
 
         <input
           type="text"
@@ -298,16 +303,19 @@ export function Players() {
           onChange={e => setSearch(e.target.value)}
           className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52"
         />
-
-        <span className="ml-auto text-xs font-mono text-ctp-overlay0">{rows.length} players</span>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>All Players</CardTitle>
-          <p className="text-xs text-ctp-overlay1 mt-0.5">
-            {selectedTier || currentTier || 'No tier'} · {difficulty} · {selectedBoss}
-          </p>
+        <CardHeader className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>All Players</CardTitle>
+            <p className="text-xs text-ctp-overlay1 mt-0.5">
+              {selectedTier || currentTier || 'No tier'} · {difficulty} · {selectedBoss}
+            </p>
+          </div>
+          <span className="inline-flex items-center rounded-lg border border-ctp-mauve/30 bg-ctp-mauve/12 px-2 py-1 text-xs font-mono text-ctp-mauve flex-shrink-0">
+            {rows.length} players
+          </span>
         </CardHeader>
         {loading ? (
           <div className="p-5"><LoadingState rows={10} /></div>

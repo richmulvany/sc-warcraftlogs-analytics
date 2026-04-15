@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend,
 } from 'recharts'
@@ -15,9 +15,9 @@ import { formatDate, formatNumber, formatPct } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
-function hasZoneScope(zones: string, zone: string): boolean {
-  if (zone === 'All') return true
-  return zones?.toLowerCase().includes(zone.toLowerCase()) ?? false
+function hasTierScope(zones: string, tier: string): boolean {
+  if (tier === 'All') return true
+  return zones?.toLowerCase().includes(tier.toLowerCase()) ?? false
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,21 +45,48 @@ export function WipeAnalysis() {
   const roster = useBossKillRoster()
 
   const [diff, setDiff] = useState('All')
-  const [zone, setZone] = useState('All')
+  const [selectedTier, setSelectedTier] = useState('All')
+  const [selectedBoss, setSelectedBoss] = useState('All')
   const [search, setSearch] = useState('')
 
-  const zones = useMemo(() => {
-    const values = [...new Set(wipes.data.map(row => row.zone_name))].sort()
-    return ['All', ...values]
+  const tierOptions = useMemo(() => {
+    const values = [...wipes.data]
+      .sort((a, b) => String(b.latest_wipe_date ?? '').localeCompare(String(a.latest_wipe_date ?? '')))
+      .map(row => row.zone_name)
+      .filter(Boolean)
+    return ['All', ...new Set(values)]
   }, [wipes.data])
+
+  const currentTier = tierOptions[1] ?? 'All'
+
+  useEffect(() => {
+    if (selectedTier === 'All' && currentTier !== 'All') {
+      setSelectedTier(currentTier)
+    }
+  }, [selectedTier, currentTier])
+
+  const bossOptions = useMemo(() => {
+    const values = [...new Set(
+      wipes.data
+        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+        .map(row => row.boss_name)
+        .filter(Boolean)
+    )].sort()
+    return ['All', ...values]
+  }, [wipes.data, selectedTier])
+
+  useEffect(() => {
+    if (!bossOptions.includes(selectedBoss)) setSelectedBoss('All')
+  }, [bossOptions, selectedBoss])
 
   const filteredWipes = useMemo(() =>
     wipes.data
       .filter(row => diff === 'All' || row.difficulty_label === diff)
-      .filter(row => zone === 'All' || row.zone_name === zone)
+      .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+      .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
       .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => Number(b.total_wipes) - Number(a.total_wipes)),
-    [wipes.data, diff, zone, search]
+    [wipes.data, diff, selectedTier, selectedBoss, search]
   )
 
   const mechanicsMap = useMemo(() => {
@@ -73,10 +100,11 @@ export function WipeAnalysis() {
   const filteredMechanics = useMemo(() =>
     mechs.data
       .filter(row => diff === 'All' || row.difficulty_label === diff)
-      .filter(row => zone === 'All' || row.zone_name === zone)
+      .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+      .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
       .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => Number(b.total_wipes) - Number(a.total_wipes)),
-    [mechs.data, diff, zone, search]
+    [mechs.data, diff, selectedTier, selectedBoss, search]
   )
 
   const scopedPlayerNames = useMemo(() => {
@@ -84,17 +112,18 @@ export function WipeAnalysis() {
     return new Set(
       roster.data
         .filter(row => encounterKeys.has(`${row.encounter_id}-${row.difficulty}`))
-        .filter(row => zone === 'All' || row.zone_name === zone)
+        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+        .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
         .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))
         .map(row => row.player_name)
     )
-  }, [filteredWipes, roster.data, zone, search])
+  }, [filteredWipes, roster.data, selectedTier, selectedBoss, search])
 
   const filteredSurvival = useMemo(() =>
     survival.data
       .filter(row => Number(row.total_deaths) > 0)
-      .filter(row => hasZoneScope(row.zones_died_in, zone)),
-    [survival.data, zone]
+      .filter(row => hasTierScope(row.zones_died_in, selectedTier)),
+    [survival.data, selectedTier]
   )
 
   const scopedSurvival = useMemo(() => {
@@ -224,7 +253,7 @@ export function WipeAnalysis() {
             <StatCard
               label="Total Wipes"
               value={formatNumber(stats.totalWipes)}
-              subValue={zone === 'All' ? 'all zones in scope' : zone}
+              subValue={selectedTier === 'All' ? 'all tiers in scope' : selectedTier}
               icon="✗"
               valueColor={wipeColor}
               accent="none"
@@ -251,7 +280,7 @@ export function WipeAnalysis() {
         <CardHeader>
           <CardTitle>Analysis Scope</CardTitle>
           <p className="text-xs text-ctp-overlay1 mt-0.5">
-            Boss panels below respect the current difficulty, zone, and boss filters. Player survivability is restricted to raiders found in the matching boss scope, but the death totals remain aggregate per player.
+            Boss panels below respect the current difficulty, tier, and boss filters. Player survivability is restricted to raiders found in the matching boss scope, but the death totals remain aggregate per player.
           </p>
         </CardHeader>
         <CardBody className="flex flex-wrap items-center gap-3">
@@ -272,11 +301,18 @@ export function WipeAnalysis() {
             ))}
           </div>
           <select
-            value={zone}
-            onChange={e => setZone(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors"
+            value={selectedTier}
+            onChange={e => setSelectedTier(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-48"
           >
-            {zones.map(value => <option key={value} value={value}>{value}</option>)}
+            {tierOptions.map(value => <option key={value} value={value}>{value}</option>)}
+          </select>
+          <select
+            value={selectedBoss}
+            onChange={e => setSelectedBoss(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
+          >
+            {bossOptions.map(value => <option key={value} value={value}>{value}</option>)}
           </select>
           <input
             type="text"
@@ -509,7 +545,7 @@ export function WipeAnalysis() {
               <CardHeader>
                 <CardTitle>Most Common Killing Blows</CardTitle>
                 <p className="text-xs text-ctp-overlay1 mt-0.5">
-                  Player-level survivability for raiders present in the current boss scope{zone !== 'All' ? ` within ${zone}` : ''}. Values are still aggregate by player, not per encounter.
+                  Player-level survivability for raiders present in the current boss scope{selectedTier !== 'All' ? ` within ${selectedTier}` : ''}. Values are still aggregate by player, not per encounter.
                 </p>
               </CardHeader>
               <CardBody>
