@@ -44,7 +44,7 @@ export function WipeAnalysis() {
   const wipes = useBossWipeAnalysis()
   const roster = useBossKillRoster()
 
-  const [diff, setDiff] = useState('All')
+  const [diff, setDiff] = useState('Mythic')
   const [selectedTier, setSelectedTier] = useState('All')
   const [selectedBoss, setSelectedBoss] = useState('All')
   const [search, setSearch] = useState('')
@@ -290,7 +290,7 @@ export function WipeAnalysis() {
                 key={label}
                 onClick={() => setDiff(label)}
                 className={[
-                  'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                  'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                   diff === label
                     ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
                     : 'text-ctp-overlay1 hover:text-ctp-subtext1',

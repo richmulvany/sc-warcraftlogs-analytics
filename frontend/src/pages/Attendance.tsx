@@ -39,7 +39,7 @@ export function Attendance() {
   const [sortKey, setSortKey] = useState<SortKey>('attendance_rate_pct')
   const [sortDesc, setSortDesc] = useState(true)
   const [minRaids, setMinRaids] = useState(1)
-  const [difficulty, setDifficulty] = useState<DifficultyFilter>('All')
+  const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
 
@@ -58,7 +58,7 @@ export function Attendance() {
   )
 
   const tierOptions = useMemo(() =>
-    [...new Set(
+    ['All', ...new Set(
       [...validRaidRows]
         .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
         .map(r => r.zone_name)
@@ -66,7 +66,7 @@ export function Attendance() {
     [validRaidRows]
   )
 
-  const currentTier = tierOptions[0] ?? ''
+  const currentTier = tierOptions[1] ?? ''
 
   useEffect(() => {
     if (!selectedTier && currentTier) setSelectedTier(currentTier)
@@ -75,7 +75,7 @@ export function Attendance() {
   const bossOptions = useMemo(() => {
     const bosses = [...new Set(
       killRoster.data
-        .filter(row => row.zone_name === selectedTier)
+        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
         .map(row => row.boss_name)
         .filter(hasRealText)
     )].sort()
@@ -86,22 +86,24 @@ export function Attendance() {
     if (!bossOptions.includes(selectedBoss)) setSelectedBoss('All')
   }, [bossOptions, selectedBoss])
 
+  const scopedReportCodes = useMemo(() =>
+    new Set(
+      killRoster.data
+        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+        .filter(row => difficulty === 'All' || row.difficulty_label === difficulty)
+        .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
+        .map(row => row.report_code)
+    ),
+    [killRoster.data, selectedTier, difficulty, selectedBoss]
+  )
+
   const filteredSessions = useMemo(() => {
     let rows = validRaidRows
-    if (selectedTier) rows = rows.filter(r => r.zone_name === selectedTier)
+    if (selectedTier !== 'All') rows = rows.filter(r => r.zone_name === selectedTier)
     if (difficulty !== 'All') rows = rows.filter(r => r.primary_difficulty === difficulty)
-    if (selectedBoss !== 'All') {
-      const matchingReports = new Set(
-        killRoster.data
-          .filter(row => row.zone_name === selectedTier)
-          .filter(row => difficulty === 'All' || row.difficulty_label === difficulty)
-          .filter(row => row.boss_name === selectedBoss)
-          .map(row => row.report_code)
-      )
-      rows = rows.filter(r => matchingReports.has(r.report_code))
-    }
+    rows = rows.filter(r => scopedReportCodes.has(r.report_code))
     return rows
-  }, [validRaidRows, selectedTier, difficulty, selectedBoss, killRoster.data])
+  }, [validRaidRows, selectedTier, difficulty, scopedReportCodes])
 
   const scopedRows = useMemo(() => {
     const sessionCount = filteredSessions.length
@@ -111,7 +113,7 @@ export function Attendance() {
     const grouped = new Map<string, { reports: Set<string>; first: string; last: string; player_class: string }>()
 
     for (const row of killRoster.data) {
-      if (selectedTier && row.zone_name !== selectedTier) continue
+      if (selectedTier && selectedTier !== 'All' && row.zone_name !== selectedTier) continue
       if (difficulty !== 'All' && row.difficulty_label !== difficulty) continue
       if (selectedBoss !== 'All' && row.boss_name !== selectedBoss) continue
       if (!filteredSessions.some(session => session.report_code === row.report_code)) continue
@@ -185,7 +187,7 @@ export function Attendance() {
 
   function SortIcon({ k }: { k: SortKey }) {
     if (sortKey !== k) return <span className="text-ctp-overlay0 ml-1">↕</span>
-    return <span className="text-ctp-mauve ml-1">{sortDesc ? '↓' : '↑'}</span>
+    return <span className="text-ctp-blue ml-1">{sortDesc ? '↓' : '↑'}</span>
   }
 
   const loading = att.loading || raids.loading || killRoster.loading
@@ -209,9 +211,9 @@ export function Attendance() {
               key={option}
               onClick={() => setDifficulty(option)}
               className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                 difficulty === option
-                  ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
+                  ? 'bg-ctp-blue/20 text-ctp-blue shadow-mauve-glow'
                   : 'text-ctp-overlay1 hover:text-ctp-subtext1'
               )}
             >

@@ -251,7 +251,7 @@ export function BossWipes() {
               key={d}
               onClick={() => { setDiff(d); setActiveBoss(null) }}
               className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                 diff === d
                   ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
                   : 'text-ctp-overlay1 hover:text-ctp-subtext1'

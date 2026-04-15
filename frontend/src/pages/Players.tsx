@@ -73,7 +73,7 @@ export function Players() {
   )
 
   const tierOptions = useMemo(() =>
-    [...new Set(
+    ['All', ...new Set(
       [...validRaidRows]
         .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
         .map(r => r.zone_name)
@@ -81,7 +81,7 @@ export function Players() {
     [validRaidRows]
   )
 
-  const currentTier = tierOptions[0] ?? ''
+  const currentTier = tierOptions[1] ?? ''
 
   useEffect(() => {
     if (!selectedTier && currentTier) {
@@ -90,7 +90,7 @@ export function Players() {
   }, [selectedTier, currentTier])
 
   const tierBossRows = useMemo(() =>
-    killRoster.data.filter(row => row.zone_name === selectedTier),
+    killRoster.data.filter(row => selectedTier === 'All' || row.zone_name === selectedTier),
     [killRoster.data, selectedTier]
   )
 
@@ -230,7 +230,7 @@ export function Players() {
               key={r.key}
               onClick={() => setRole(r.key)}
               className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                 role === r.key
                   ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
                   : 'text-ctp-overlay1 hover:text-ctp-subtext1'
@@ -247,7 +247,7 @@ export function Players() {
               key={option}
               onClick={() => setDifficulty(option)}
               className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                 difficulty === option
                   ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
                   : 'text-ctp-overlay1 hover:text-ctp-subtext1'

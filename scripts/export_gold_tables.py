@@ -10,6 +10,8 @@ Usage:
 
 from __future__ import annotations
 
+import csv
+import io
 import logging
 import os
 import time
@@ -30,6 +32,11 @@ _output_dir = Path(os.environ.get("EXPORT_OUTPUT_DIR", "frontend/public/data"))
 OUTPUT_DIR = _output_dir if _output_dir.is_absolute() else REPO_ROOT / _output_dir
 POLL_INTERVAL_SECONDS = float(os.environ.get("EXPORT_POLL_INTERVAL_SECONDS", "2"))
 POLL_TIMEOUT_SECONDS = int(os.environ.get("EXPORT_POLL_TIMEOUT_SECONDS", "300"))
+LIVE_ROSTER_SHEET_ID = (
+    os.environ.get("LIVE_ROSTER_SHEET_ID") or "1fHtbnNTHrLVFqq5e7L7usN4qI4LGd1JKRKMdVuHnmRg"
+)
+LIVE_ROSTER_SHEET_GID = os.environ.get("LIVE_ROSTER_SHEET_GID") or "0"
+LIVE_ROSTER_FILENAME = os.environ.get("LIVE_ROSTER_FILENAME") or "live_raid_roster.csv"
 
 FRONTEND_TABLES: dict[str, str] = {
     "gold_raid_summary.csv": "gold_raid_summary",
@@ -46,6 +53,14 @@ FRONTEND_TABLES: dict[str, str] = {
     "gold_best_kills.csv": "gold_best_kills",
     "gold_boss_mechanics.csv": "gold_boss_mechanics",
     "gold_player_boss_performance.csv": "gold_player_boss_performance",
+}
+
+LIVE_ROSTER_COLUMNS = {
+    "name": 0,
+    "roster_rank": 3,
+    "player_class": 5,
+    "race": 119,
+    "note": 120,
 }
 
 
@@ -105,6 +120,89 @@ def _download_chunk(url: str) -> bytes:
         response = client.get(url, headers={})
         response.raise_for_status()
         return response.content
+
+
+def _download_text(url: str) -> str:
+    with httpx.Client(follow_redirects=True, timeout=120) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        return response.text
+
+
+def export_live_raid_roster(output_dir: Path) -> int:
+    if not LIVE_ROSTER_SHEET_ID:
+        logger.info("Skipping live raid roster export: no sheet id configured.")
+        return 0
+
+    sheet_url = (
+        f"https://docs.google.com/spreadsheets/d/{LIVE_ROSTER_SHEET_ID}/export"
+        f"?format=csv&gid={LIVE_ROSTER_SHEET_GID}"
+    )
+    logger.info("Exporting live raid roster -> %s", LIVE_ROSTER_FILENAME)
+    payload = _download_text(sheet_url)
+    rows = list(csv.reader(io.StringIO(payload)))
+    if len(rows) < 3:
+        raise RuntimeError("Live roster sheet returned too few rows to parse.")
+
+    refreshed_at = rows[1][1].strip() if len(rows[1]) > 1 else ""
+    seen_names: set[str] = set()
+    normalised_rows: list[dict[str, str]] = []
+
+    for row in rows[2:]:
+        if not row:
+            continue
+
+        name = (
+            row[LIVE_ROSTER_COLUMNS["name"]].strip()
+            if len(row) > LIVE_ROSTER_COLUMNS["name"]
+            else ""
+        )
+        if not name:
+            continue
+
+        key = name.casefold()
+        if key in seen_names:
+            continue
+        seen_names.add(key)
+
+        normalised_rows.append(
+            {
+                "name": name,
+                "roster_rank": row[LIVE_ROSTER_COLUMNS["roster_rank"]].strip()
+                if len(row) > LIVE_ROSTER_COLUMNS["roster_rank"]
+                else "",
+                "player_class": row[LIVE_ROSTER_COLUMNS["player_class"]].strip()
+                if len(row) > LIVE_ROSTER_COLUMNS["player_class"]
+                else "",
+                "race": row[LIVE_ROSTER_COLUMNS["race"]].strip()
+                if len(row) > LIVE_ROSTER_COLUMNS["race"]
+                else "",
+                "note": row[LIVE_ROSTER_COLUMNS["note"]].strip()
+                if len(row) > LIVE_ROSTER_COLUMNS["note"]
+                else "",
+                "source_refreshed_at": refreshed_at,
+            }
+        )
+
+    output_path = output_dir / LIVE_ROSTER_FILENAME
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=[
+                "name",
+                "roster_rank",
+                "player_class",
+                "race",
+                "note",
+                "source_refreshed_at",
+            ],
+        )
+        writer.writeheader()
+        writer.writerows(normalised_rows)
+
+    logger.info("  wrote %s live roster rows to %s", len(normalised_rows), output_path)
+    return len(normalised_rows)
 
 
 def _write_csv_from_statement(
@@ -177,10 +275,15 @@ def main() -> None:
     for filename, table_name in FRONTEND_TABLES.items():
         total_rows += export_table(client, warehouse_id, filename, table_name)
 
+    try:
+        total_rows += export_live_raid_roster(OUTPUT_DIR)
+    except Exception as exc:
+        logger.warning("Skipping live raid roster export: %s", exc)
+
     logger.info(
         "Export complete. %s total rows across %s files.",
         total_rows or "unknown",
-        len(FRONTEND_TABLES),
+        len(FRONTEND_TABLES) + 1,
     )
 
 

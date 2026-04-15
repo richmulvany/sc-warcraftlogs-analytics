@@ -7,7 +7,7 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
-import { useBossProgression, useBestKills, useRaidSummary } from '../hooks/useGoldData'
+import { useBossProgression, useBestKills, useRaidSummary, useBossWipeAnalysis } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -20,8 +20,9 @@ export function Bosses() {
   const prog = useBossProgression()
   const best = useBestKills()
   const raids = useRaidSummary()
+  const wipeAnalysis = useBossWipeAnalysis()
 
-  const [diff, setDiff] = useState('All')
+  const [diff, setDiff] = useState('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
   const [search, setSearch] = useState('')
@@ -36,7 +37,7 @@ export function Bosses() {
   )
 
   const tierOptions = useMemo(() =>
-    [...new Set(
+    ['All', ...new Set(
       [...validRaidRows]
         .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
         .map(r => r.zone_name)
@@ -44,14 +45,14 @@ export function Bosses() {
     [validRaidRows]
   )
 
-  const currentTier = tierOptions[0] ?? ''
+  const currentTier = tierOptions[1] ?? ''
 
   useEffect(() => {
     if (!selectedTier && currentTier) setSelectedTier(currentTier)
   }, [selectedTier, currentTier])
 
   const tierBosses = useMemo(() =>
-    prog.data.filter(b => b.zone_name === selectedTier),
+    prog.data.filter(b => selectedTier === 'All' || b.zone_name === selectedTier),
     [prog.data, selectedTier]
   )
 
@@ -87,10 +88,18 @@ export function Bosses() {
     return m
   }, [best.data])
 
+  const bestHpMap = useMemo(() => {
+    const m = new Map<string, number>()
+    wipeAnalysis.data.forEach(row => {
+      m.set(`${row.encounter_id}-${row.difficulty}`, Number(row.best_wipe_pct) || 100)
+    })
+    return m
+  }, [wipeAnalysis.data])
+
   return (
     <AppLayout title="Boss Progression" subtitle="progression tracker">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {prog.loading ? (
+        {prog.loading || wipeAnalysis.loading ? (
           Array(4).fill(null).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <>
@@ -109,7 +118,7 @@ export function Bosses() {
               key={d}
               onClick={() => setDiff(d)}
               className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                 diff === d
                   ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
                   : 'text-ctp-overlay1 hover:text-ctp-subtext1'
@@ -143,11 +152,11 @@ export function Bosses() {
         <span className="ml-auto text-xs font-mono text-ctp-overlay0">{filtered.length} boss rows</span>
       </div>
 
-      {!prog.loading && !prog.error && (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+      {!prog.loading && !prog.error && !wipeAnalysis.loading && !wipeAnalysis.error && (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[36rem] overflow-y-auto pr-2">
           {filtered.map(b => {
             const killed = b.is_killed === 'True' || b.is_killed === (true as unknown as string)
-            const killRate = Number(b.total_pulls) > 0 ? (Number(b.total_kills) / Number(b.total_pulls)) * 100 : 0
+            const bestHpRemaining = killed ? 0 : (bestHpMap.get(`${b.encounter_id}-${b.difficulty}`) ?? 100)
             const diffColor = getDifficultyColor(b.difficulty_label)
             const bk = wipeMap[`${b.encounter_id}-${b.difficulty}`]
 
@@ -178,9 +187,12 @@ export function Bosses() {
                     <span className="text-ctp-overlay0">—</span>
                   )}
                 </div>
-                <ProgressBar value={killRate} color={diffColor} height="xs" />
+                <ProgressBar value={bestHpRemaining} color={diffColor} height="xs" />
+                <p className="text-[10px] font-mono text-ctp-overlay0 mt-2">
+                  {killed ? 'Killed' : `Best HP: ${bestHpRemaining.toFixed(1)}%`}
+                </p>
                 {killed && b.first_kill_date && (
-                  <p className="text-[10px] font-mono text-ctp-overlay0 mt-2">First: {formatDate(b.first_kill_date)}</p>
+                  <p className="text-[10px] font-mono text-ctp-overlay0 mt-1">First: {formatDate(b.first_kill_date)}</p>
                 )}
               </div>
             )
@@ -193,7 +205,7 @@ export function Bosses() {
           {Array(12).fill(null).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       )}
-      {prog.error && <ErrorState message={prog.error} />}
+      {(prog.error || wipeAnalysis.error) && <ErrorState message={prog.error || wipeAnalysis.error || 'Unknown error'} />}
 
       <Card>
         <CardHeader>
@@ -205,7 +217,8 @@ export function Bosses() {
         ) : prog.error ? (
           <CardBody><ErrorState message={prog.error} /></CardBody>
         ) : (
-          <Table>
+          <div className="max-h-[34rem] overflow-auto">
+            <Table>
             <THead>
               <tr>
                 <Th>Boss</Th>
@@ -217,13 +230,13 @@ export function Bosses() {
                 <Th right>Best Kill</Th>
                 <Th right>Avg Kill</Th>
                 <Th>First Kill</Th>
-                <Th>Kill Rate</Th>
+                <Th>Best HP</Th>
               </tr>
             </THead>
             <TBody>
               {filtered.map(b => {
                 const killed = b.is_killed === 'True' || b.is_killed === (true as unknown as string)
-                const killRate = Number(b.total_pulls) > 0 ? (Number(b.total_kills) / Number(b.total_pulls)) * 100 : 0
+                const bestHpRemaining = killed ? 0 : (bestHpMap.get(`${b.encounter_id}-${b.difficulty}`) ?? 100)
                 const bk = wipeMap[`${b.encounter_id}-${b.difficulty}`]
 
                 return (
@@ -249,13 +262,19 @@ export function Bosses() {
                       {killed ? formatDate(b.first_kill_date) : <span className="italic text-ctp-overlay0">In progress</span>}
                     </Td>
                     <Td className="w-28">
-                      <ProgressBar value={killRate} color={getDifficultyColor(b.difficulty_label)} height="xs" />
+                      <div className="space-y-1">
+                        <ProgressBar value={bestHpRemaining} color={getDifficultyColor(b.difficulty_label)} height="xs" />
+                        <p className="text-[10px] font-mono text-ctp-overlay0 text-right">
+                          {killed ? '0.0%' : `${bestHpRemaining.toFixed(1)}%`}
+                        </p>
+                      </div>
                     </Td>
                   </Tr>
                 )
               })}
             </TBody>
-          </Table>
+            </Table>
+          </div>
         )}
       </Card>
     </AppLayout>

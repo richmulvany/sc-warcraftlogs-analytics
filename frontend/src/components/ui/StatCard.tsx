@@ -31,23 +31,23 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
   return (
     <div
       className={clsx(
-        'bg-ctp-surface0 rounded-2xl p-5 border shadow-card',
+        'bg-ctp-surface0 rounded-2xl p-5 border shadow-card min-h-[132px] h-full flex flex-col',
         style.border,
         className
       )}
     >
       {/* Label row */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-start justify-between gap-3 min-h-[28px]">
         <span className="section-label">{label}</span>
         {icon && (
-          <div className={clsx('w-7 h-7 rounded-lg flex items-center justify-center text-sm', style.iconBg)}>
+          <div className={clsx('w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0', style.iconBg)}>
             <span className={style.text}>{icon}</span>
           </div>
         )}
       </div>
 
       {/* Value */}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-2 mt-4">
         <span
           className={clsx('text-2xl font-semibold tracking-tight', !valueColor && style.text)}
           style={valueColor ? { color: valueColor } : undefined}
@@ -67,9 +67,11 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
         )}
       </div>
 
-      {subValue && (
-        <p className="mt-1.5 text-xs text-ctp-overlay0">{subValue}</p>
-      )}
+      <div className="mt-auto pt-1.5 min-h-[28px]">
+        {subValue && (
+          <p className="text-xs text-ctp-overlay0">{subValue}</p>
+        )}
+      </div>
     </div>
   )
 }

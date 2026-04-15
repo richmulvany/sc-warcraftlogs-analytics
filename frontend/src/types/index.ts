@@ -170,6 +170,15 @@ export interface RaidTeamMember {
   has_possible_alt_in_logs: string
 }
 
+export interface LiveRaidRosterEntry {
+  name: string
+  roster_rank: string
+  player_class: string
+  race: string
+  note: string
+  source_refreshed_at: string
+}
+
 export interface BestKill {
   encounter_id: string
   boss_name: string

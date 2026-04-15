@@ -25,6 +25,8 @@ jobs:
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
           DATABRICKS_CATALOG: ${{ vars.DATABRICKS_CATALOG }}
           DATABRICKS_SCHEMA: ${{ vars.DATABRICKS_SCHEMA }}
+          LIVE_ROSTER_SHEET_ID: ${{ vars.LIVE_ROSTER_SHEET_ID }}
+          LIVE_ROSTER_SHEET_GID: ${{ vars.LIVE_ROSTER_SHEET_GID }}
           EXPORT_OUTPUT_DIR: frontend/public/data
         run: python scripts/export_gold_tables.py
       - name: Commit exported data

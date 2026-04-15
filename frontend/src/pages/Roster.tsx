@@ -8,7 +8,7 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { LoadingState } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
-import { useGuildRoster, useRaidTeam } from '../hooks/useGoldData'
+import { useGuildRoster, useLiveRaidRoster, useRaidTeam } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { getRankColor } from '../constants/wow'
@@ -18,9 +18,29 @@ import clsx from 'clsx'
 type TabKey = 'full' | 'team'
 type SortKey = 'attendance_rate_pct' | 'raids_present' | 'name' | 'rank'
 
+interface TeamRow {
+  name: string
+  player_class: string
+  realm: string
+  rank_label: string
+  rank_category: string
+  is_active: string | boolean
+  total_raids_tracked: number | string
+  raids_present: number | string
+  attendance_rate_pct: number | string
+  last_raid_date: string
+  first_raid_date: string
+  possible_main: string
+  has_possible_alt_in_logs: string | boolean
+  race?: string
+  note?: string
+  source_refreshed_at?: string
+}
+
 export function Roster() {
   const { killColor, getAttendanceColor } = useColourBlind()
   const fullRoster = useGuildRoster()
+  const liveRoster = useLiveRaidRoster()
   const raidTeam   = useRaidTeam()
 
   const [tab, setTab]           = useState<TabKey>('full')
@@ -51,21 +71,53 @@ export function Roster() {
   }, [fullRoster.data, search, sortKey, sortDesc])
 
   // ── Raid team ──
+  const teamRows = useMemo<TeamRow[]>(() => {
+    if (liveRoster.data.length === 0) return raidTeam.data
+
+    const guildByName = new Map(fullRoster.data.map(row => [row.name.toLowerCase(), row]))
+    const raidByName = new Map(raidTeam.data.map(row => [row.name.toLowerCase(), row]))
+
+    return liveRoster.data.map(row => {
+      const key = row.name.toLowerCase()
+      const guild = guildByName.get(key)
+      const raid = raidByName.get(key)
+
+      return {
+        name: row.name,
+        player_class: raid?.player_class || guild?.player_class || row.player_class || 'Unknown',
+        realm: raid?.realm || guild?.realm || '',
+        rank_label: row.roster_rank || raid?.rank_label || guild?.rank_label || 'Unknown',
+        rank_category: row.roster_rank || raid?.rank_category || guild?.rank_category || 'Unknown',
+        is_active: raid?.is_active ?? guild?.is_active ?? true,
+        total_raids_tracked: raid?.total_raids_tracked ?? guild?.total_raids_tracked ?? 0,
+        raids_present: raid?.raids_present ?? guild?.raids_present ?? 0,
+        attendance_rate_pct: raid?.attendance_rate_pct ?? guild?.attendance_rate_pct ?? 0,
+        last_raid_date: raid?.last_raid_date ?? guild?.last_raid_date ?? '',
+        first_raid_date: raid?.first_raid_date ?? guild?.first_raid_date ?? '',
+        possible_main: raid?.possible_main ?? '',
+        has_possible_alt_in_logs: raid?.has_possible_alt_in_logs ?? false,
+        race: row.race,
+        note: row.note,
+        source_refreshed_at: row.source_refreshed_at,
+      }
+    })
+  }, [fullRoster.data, liveRoster.data, raidTeam.data])
+
   const filteredTeam = useMemo(() => {
-    let rows = raidTeam.data
+    let rows = teamRows
     if (search.trim()) {
       const q = normaliseSearchText(search)
       rows = rows.filter(r => matchesLooseSearch(q, r.name) || matchesLooseSearch(q, r.player_class))
     }
     return [...rows].sort((a, b) => Number(b.attendance_rate_pct) - Number(a.attendance_rate_pct))
-  }, [raidTeam.data, search])
+  }, [teamRows, search])
 
   const stats = useMemo(() => {
     const active   = fullRoster.data.filter(r => r.is_active === 'True' || r.is_active === true as unknown as string)
-    const teamSize = raidTeam.data.length
+    const teamSize = teamRows.length
     const classes  = new Set(fullRoster.data.map(r => r.player_class)).size
     return { total: fullRoster.data.length, active: active.length, teamSize, classes }
-  }, [fullRoster.data, raidTeam.data])
+  }, [fullRoster.data, teamRows])
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDesc(!sortDesc)
@@ -74,11 +126,13 @@ export function Roster() {
 
   function SortIcon({ k }: { k: SortKey }) {
     if (sortKey !== k) return <span className="text-ctp-overlay0 ml-1">↕</span>
-    return <span className="text-ctp-mauve ml-1">{sortDesc ? '↓' : '↑'}</span>
+    return <span className="text-ctp-blue ml-1">{sortDesc ? '↓' : '↑'}</span>
   }
 
-  const loading = tab === 'full' ? fullRoster.loading : raidTeam.loading
-  const error   = tab === 'full' ? fullRoster.error   : raidTeam.error
+  const loading = tab === 'full' ? fullRoster.loading : (raidTeam.loading || liveRoster.loading)
+  const error   = tab === 'full' ? fullRoster.error   : (raidTeam.error || liveRoster.error)
+  const liveRosterActive = liveRoster.data.length > 0
+  const liveRosterRefreshedAt = liveRoster.data[0]?.source_refreshed_at ?? ''
 
   return (
     <AppLayout title="Roster" subtitle="guild members">
@@ -96,8 +150,8 @@ export function Roster() {
           <button
             onClick={() => setTab('full')}
             className={clsx(
-              'px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
-              tab === 'full' ? 'bg-ctp-mauve/20 text-ctp-mauve' : 'text-ctp-overlay1 hover:text-ctp-text'
+              'px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
+              tab === 'full' ? 'bg-ctp-blue/20 text-ctp-blue' : 'text-ctp-overlay1 hover:text-ctp-text'
             )}
           >
             Full Roster
@@ -105,8 +159,8 @@ export function Roster() {
           <button
             onClick={() => setTab('team')}
             className={clsx(
-              'px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
-              tab === 'team' ? 'bg-ctp-mauve/20 text-ctp-mauve' : 'text-ctp-overlay1 hover:text-ctp-text'
+              'px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
+              tab === 'team' ? 'bg-ctp-blue/20 text-ctp-blue' : 'text-ctp-overlay1 hover:text-ctp-text'
             )}
           >
             Raid Team
@@ -221,8 +275,21 @@ export function Roster() {
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>Raid Team</CardTitle>
-            <p className="text-xs text-ctp-overlay0 mt-0.5">Rank categories: GM, Officer, Raider, Trial</p>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle>{liveRosterActive ? 'Raid Team' : 'Raid Team'}</CardTitle>
+                <p className="text-xs text-ctp-overlay0 mt-0.5">
+                  {liveRosterActive
+                    ? `Live membership from Google Sheets${liveRosterRefreshedAt ? `, refreshed ${liveRosterRefreshedAt}` : ''}. Attendance still comes from logs.`
+                    : 'Rank categories: GM, Officer, Raider, Trial'}
+                </p>
+              </div>
+              {liveRosterActive && (
+                <span className="text-[10px] font-mono text-ctp-blue border border-ctp-blue/30 bg-ctp-blue/10 rounded px-2 py-1">
+                  LIVE SHEET
+                </span>
+              )}
+            </div>
           </CardHeader>
           {loading ? (
             <CardBody><LoadingState rows={12} /></CardBody>
@@ -235,10 +302,12 @@ export function Roster() {
                   <Th>Name</Th>
                   <Th>Class</Th>
                   <Th>Rank</Th>
+                  {liveRosterActive && <Th>Race</Th>}
                   <Th>Status</Th>
                   <Th right>Raids Present</Th>
                   <Th right>Attendance</Th>
                   <Th>Alt detected</Th>
+                  {liveRosterActive && <Th>Note</Th>}
                   <Th>First Raid</Th>
                   <Th>Last Raid</Th>
                 </tr>
@@ -262,6 +331,7 @@ export function Roster() {
                           {m.rank_label}
                         </span>
                       </Td>
+                      {liveRosterActive && <Td className="text-xs text-ctp-overlay0">{m.race || '—'}</Td>}
                       <Td>
                         <span className={clsx('inline-flex items-center gap-1 text-[10px] font-mono', !isActive && 'text-ctp-surface2')} style={{ color: isActive ? killColor : undefined }}>
                           <span className={clsx('w-1.5 h-1.5 rounded-full', !isActive && 'bg-ctp-surface2')} style={{ backgroundColor: isActive ? killColor : undefined }} />
@@ -293,6 +363,7 @@ export function Roster() {
                           <span className="text-xs text-ctp-surface2">—</span>
                         )}
                       </Td>
+                      {liveRosterActive && <Td className="text-xs text-ctp-overlay0">{m.note || '—'}</Td>}
                       <Td className="text-xs text-ctp-overlay0">{formatDate(m.first_raid_date)}</Td>
                       <Td className="text-xs text-ctp-overlay0">{formatDate(m.last_raid_date)}</Td>
                     </Tr>

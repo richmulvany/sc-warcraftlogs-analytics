@@ -22,7 +22,7 @@ export function Raids() {
   }
 
   const [search,   setSearch]   = useState('')
-  const [diff,     setDiff]     = useState('All')
+  const [diff,     setDiff]     = useState('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
   const [sortDesc, setSortDesc] = useState(true)
@@ -41,25 +41,20 @@ export function Raids() {
     [raids.data]
   )
 
-
-  const currentTier = useMemo(() =>
-    [...validRaidRows]
-      .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))[0]?.zone_name ?? '',
-    [validRaidRows]
-  )
-
-  useEffect(() => {
-    if (!selectedTier && currentTier) setSelectedTier(currentTier)
-  }, [selectedTier, currentTier])
-
   const tierOptions = useMemo(() => {
-    const tiers = [...new Set(
+    const tiers = ['All', ...new Set(
       [...validRaidRows]
         .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
         .map(r => r.zone_name)
     )]
     return tiers
   }, [validRaidRows])
+
+  const currentTier = useMemo(() => tierOptions[1] ?? '', [tierOptions])
+
+  useEffect(() => {
+    if (!selectedTier && currentTier) setSelectedTier(currentTier)
+  }, [selectedTier, currentTier])
 
   const diffs = useMemo(() => {
     const ds = [...new Set(validRaidRows.map(r => r.primary_difficulty))].sort()
@@ -69,7 +64,7 @@ export function Raids() {
   const bossOptions = useMemo(() => {
     const bosses = [...new Set(
       killRoster.data
-        .filter(row => row.zone_name === selectedTier)
+        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
         .map(row => row.boss_name)
         .filter(hasRealText)
     )].sort()
@@ -82,12 +77,12 @@ export function Raids() {
 
   const filtered = useMemo(() => {
     let rows = validRaidRows
-    if (selectedTier) rows = rows.filter(r => r.zone_name === selectedTier)
+    if (selectedTier && selectedTier !== 'All') rows = rows.filter(r => r.zone_name === selectedTier)
     if (diff !== 'All') rows = rows.filter(r => r.primary_difficulty === diff)
     if (selectedBoss !== 'All') {
       const matchingReports = new Set(
         killRoster.data
-          .filter(row => row.zone_name === selectedTier)
+          .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
           .filter(row => diff === 'All' || row.difficulty_label === diff)
           .filter(row => row.boss_name === selectedBoss)
           .map(row => row.report_code)
@@ -174,7 +169,7 @@ export function Raids() {
               key={d}
               onClick={() => setDiff(d)}
               className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                 diff === d
                   ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
                   : 'text-ctp-overlay1 hover:text-ctp-subtext1'
@@ -229,7 +224,7 @@ export function Raids() {
       ) : raids.error ? (
         <ErrorState message={raids.error} />
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-8 max-h-[42rem] overflow-y-auto pr-2">
           {Object.entries(byZone).map(([zoneName, zoneRaids]) => (
             <div key={zoneName}>
               <h2 className="section-label mb-3">{zoneName}</h2>
@@ -298,7 +293,8 @@ export function Raids() {
         ) : raids.error ? (
           <CardBody><ErrorState message={raids.error} /></CardBody>
         ) : (
-          <Table>
+          <div className="max-h-[36rem] overflow-auto">
+            <Table>
             <THead>
               <tr>
                 <Th>Date</Th>
@@ -340,7 +336,8 @@ export function Raids() {
                 </Tr>
               ))}
             </TBody>
-          </Table>
+            </Table>
+          </div>
         )}
       </Card>
     </AppLayout>

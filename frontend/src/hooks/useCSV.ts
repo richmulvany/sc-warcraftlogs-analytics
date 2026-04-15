@@ -7,6 +7,10 @@ export interface CSVResult<T> {
   error: string | null
 }
 
+interface UseCSVOptions {
+  optional?: boolean
+}
+
 const BASE = import.meta.env.VITE_DATA_BASE_URL ?? '/data'
 
 function normaliseCSVValue(value: unknown): unknown {
@@ -21,10 +25,11 @@ function normaliseCSVValue(value: unknown): unknown {
   return trimmed
 }
 
-export function useCSV<T extends object>(filename: string): CSVResult<T> {
+export function useCSV<T extends object>(filename: string, options: UseCSVOptions = {}): CSVResult<T> {
   const [data, setData] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { optional = false } = options
 
   useEffect(() => {
     let cancelled = false
@@ -33,10 +38,19 @@ export function useCSV<T extends object>(filename: string): CSVResult<T> {
 
     fetch(`${BASE}/${filename}`)
       .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status} loading ${filename}`)
+        if (!res.ok) {
+          if (optional && res.status === 404) return ''
+          throw new Error(`HTTP ${res.status} loading ${filename}`)
+        }
         return res.text()
       })
       .then(text => {
+        if (optional && text.trim() === '') {
+          setData([])
+          setLoading(false)
+          return
+        }
+
         const result = Papa.parse<T>(text, {
           header: true,
           skipEmptyLines: true,
@@ -63,7 +77,7 @@ export function useCSV<T extends object>(filename: string): CSVResult<T> {
       })
 
     return () => { cancelled = true }
-  }, [filename])
+  }, [filename, optional])
 
   return { data, loading, error }
 }

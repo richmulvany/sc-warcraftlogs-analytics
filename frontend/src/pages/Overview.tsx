@@ -41,7 +41,7 @@ export function Overview() {
   const bosses = useBossProgression()
   const killRoster = useBossKillRoster()
   const navigate = useNavigate()
-  const [difficulty, setDifficulty] = useState<DifficultyFilter>('All')
+  const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
 
   function num(value: unknown): number {
     const parsed = Number(value)
@@ -169,7 +169,7 @@ export function Overview() {
               key={option}
               onClick={() => setDifficulty(option)}
               className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                 difficulty === option
                   ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
                   : 'text-ctp-overlay1 hover:text-ctp-subtext1'

@@ -42,7 +42,7 @@ export function PlayerDetail() {
   const roster = useBossKillRoster()
   const bossPf = usePlayerBossPerformance()
 
-  const [difficulty, setDifficulty] = useState<DifficultyFilter>('All')
+  const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
 
@@ -73,7 +73,7 @@ export function PlayerDetail() {
   )
 
   const tierOptions = useMemo(() =>
-    [...new Set(
+    ['All', ...new Set(
       [...playerRosterRows]
         .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
         .map(r => r.zone_name)
@@ -82,7 +82,7 @@ export function PlayerDetail() {
     [playerRosterRows]
   )
 
-  const currentTier = tierOptions[0] ?? ''
+  const currentTier = tierOptions[1] ?? ''
 
   useEffect(() => {
     if (!selectedTier && currentTier) setSelectedTier(currentTier)
@@ -91,7 +91,7 @@ export function PlayerDetail() {
   const bossOptions = useMemo(() => {
     const bosses = [...new Set(
       playerRosterRows
-        .filter(r => !selectedTier || r.zone_name === selectedTier)
+        .filter(r => selectedTier === 'All' || !selectedTier || r.zone_name === selectedTier)
         .filter(r => difficulty === 'All' || r.difficulty_label === difficulty)
         .map(r => r.boss_name)
         .filter(hasRealText)
@@ -105,7 +105,7 @@ export function PlayerDetail() {
 
   const scopedRosterRows = useMemo(() =>
     playerRosterRows.filter(r =>
-      (!selectedTier || r.zone_name === selectedTier) &&
+      (selectedTier === 'All' || !selectedTier || r.zone_name === selectedTier) &&
       (difficulty === 'All' || r.difficulty_label === difficulty) &&
       (selectedBoss === 'All' || r.boss_name === selectedBoss)
     ),
@@ -125,7 +125,7 @@ export function PlayerDetail() {
   const scopedBossPerformance = useMemo(
     () => bossPf.data.filter(b =>
       b.player_name === name &&
-      (!selectedTier || b.zone_name === selectedTier) &&
+      (selectedTier === 'All' || !selectedTier || b.zone_name === selectedTier) &&
       (difficulty === 'All' || b.difficulty_label === difficulty) &&
       (selectedBoss === 'All' || b.boss_name === selectedBoss)
     ),
@@ -216,13 +216,13 @@ export function PlayerDetail() {
 
   const filteredSessions = useMemo(() => {
     let rows = validRaidRows
-    if (selectedTier) rows = rows.filter(r => r.zone_name === selectedTier)
+    if (selectedTier && selectedTier !== 'All') rows = rows.filter(r => r.zone_name === selectedTier)
     if (difficulty !== 'All') rows = rows.filter(r => r.primary_difficulty === difficulty)
     if (selectedBoss !== 'All') {
       const matchingReports = new Set(
         roster.data
           .filter(row => row.player_name === name)
-          .filter(row => !selectedTier || row.zone_name === selectedTier)
+          .filter(row => selectedTier === 'All' || !selectedTier || row.zone_name === selectedTier)
           .filter(row => difficulty === 'All' || row.difficulty_label === difficulty)
           .filter(row => row.boss_name === selectedBoss)
           .map(row => row.report_code)
@@ -356,7 +356,7 @@ export function PlayerDetail() {
               key={option}
               onClick={() => setDifficulty(option)}
               className={clsx(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
                 difficulty === option
                   ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
                   : 'text-ctp-overlay1 hover:text-ctp-subtext1'
