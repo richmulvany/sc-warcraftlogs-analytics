@@ -21,6 +21,7 @@ from typing import Any
 import httpx
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service import sql
+from dotenv import load_dotenv
 
 from ingestion.src.adapters.wcl.client import WarcraftLogsAdapter, WarcraftLogsConfig
 
@@ -28,6 +29,8 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(REPO_ROOT / ".env")
+
 CATALOG = os.environ.get("DATABRICKS_CATALOG", "04_sdp")
 SCHEMA = os.environ.get("DATABRICKS_SCHEMA", "warcraftlogs")
 _output_dir = Path(os.environ.get("EXPORT_OUTPUT_DIR", "frontend/public/data"))
