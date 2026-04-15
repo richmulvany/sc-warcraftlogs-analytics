@@ -153,6 +153,25 @@ export interface BossProgressHistoryRow {
   longest_pull_seconds: number
 }
 
+export interface BossPullHistoryRow {
+  encounter_id: string
+  boss_name: string
+  zone_name: string
+  difficulty: string
+  difficulty_label: string
+  raid_night_date: string
+  report_code: string
+  report_title: string
+  start_time_utc: string
+  end_time_utc: string
+  fight_id: string
+  is_kill: string | boolean
+  boss_percentage: number
+  boss_hp_remaining: number
+  duration_seconds: number
+  last_phase: number
+}
+
 export interface PlayerSurvivability {
   player_name: string
   player_class: string

@@ -295,6 +295,61 @@ def gold_boss_progress_history():
     )
 
 
+@dlt.table(
+    name="gold_boss_pull_history",
+    comment=(
+        "Per-pull boss progression history with boss HP remaining for every tracked attempt. "
+        "Used for pull-by-pull progression charts."
+    ),
+    table_properties={
+        "quality": "gold",
+        "pipelines.autoOptimize.zOrderCols": "encounter_id,report_code",
+    },
+)
+def gold_boss_pull_history():
+    fights = dlt.read("silver_fight_events")
+    reports = dlt.read("silver_guild_reports")
+
+    report_context = (
+        reports
+        .select(
+            F.col("code").alias("_report_code"),
+            F.col("title").alias("report_title"),
+            F.col("start_time_utc"),
+            F.col("end_time_utc"),
+        )
+    )
+
+    return (
+        fights
+        .withColumn(
+            "boss_hp_remaining",
+            F.when(F.col("is_kill"), F.lit(0.0)).otherwise(F.col("boss_percentage").cast("double")),
+        )
+        .join(report_context, F.col("report_code") == F.col("_report_code"), "left")
+        .drop("_report_code")
+        .select(
+            "encounter_id",
+            "boss_name",
+            "zone_name",
+            "difficulty",
+            "difficulty_label",
+            "raid_night_date",
+            "report_code",
+            "report_title",
+            "start_time_utc",
+            "end_time_utc",
+            "fight_id",
+            "is_kill",
+            "boss_percentage",
+            "boss_hp_remaining",
+            "duration_seconds",
+            "last_phase",
+        )
+        .orderBy("raid_night_date", "start_time_utc", "report_code", "fight_id")
+    )
+
+
 # ── Encounter Catalog ──────────────────────────────────────────────────────────
 # "What encounters and zones exist?" (reference table for frontend filters)
 

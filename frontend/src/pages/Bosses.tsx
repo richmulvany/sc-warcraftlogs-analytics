@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Swords } from 'lucide-react'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
@@ -9,7 +10,7 @@ import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { BossProgressHistoryChart } from '../components/charts/BossProgressHistoryChart'
-import { useBossProgression, useBestKills, useRaidSummary, useBossWipeAnalysis, useBossProgressHistory } from '../hooks/useGoldData'
+import { useBossProgression, useBestKills, useRaidSummary, useBossWipeAnalysis, useBossPullHistory } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -23,7 +24,7 @@ export function Bosses() {
   const best = useBestKills()
   const raids = useRaidSummary()
   const wipeAnalysis = useBossWipeAnalysis()
-  const history = useBossProgressHistory()
+  const history = useBossPullHistory()
 
   const [diff, setDiff] = useState('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
@@ -60,7 +61,29 @@ export function Bosses() {
   )
 
   const bossOptions = useMemo(() => {
-    const values = [...new Set(tierBosses.map(b => b.boss_name).filter(hasRealText))].sort()
+    const bossMeta = new Map<string, { mythic: string; heroic: string; normal: string }>()
+
+    tierBosses.forEach(row => {
+      if (!hasRealText(row.boss_name)) return
+      if (!bossMeta.has(row.boss_name)) {
+        bossMeta.set(row.boss_name, { mythic: '9999-99-99', heroic: '9999-99-99', normal: '9999-99-99' })
+      }
+      const meta = bossMeta.get(row.boss_name)!
+      const killDate = hasRealText(row.first_kill_date) ? row.first_kill_date : '9999-99-99'
+      if (row.difficulty_label === 'Mythic') meta.mythic = killDate
+      else if (row.difficulty_label === 'Heroic') meta.heroic = killDate
+      else if (row.difficulty_label === 'Normal') meta.normal = killDate
+    })
+
+    const values = [...bossMeta.entries()]
+      .sort((a, b) =>
+        a[1].mythic.localeCompare(b[1].mythic) ||
+        a[1].heroic.localeCompare(b[1].heroic) ||
+        a[1].normal.localeCompare(b[1].normal) ||
+        a[0].localeCompare(b[0])
+      )
+      .map(([bossName]) => bossName)
+
     return ['All', ...values]
   }, [tierBosses])
 
@@ -192,8 +215,8 @@ export function Bosses() {
           <p className="text-xs text-ctp-overlay1 mt-0.5">
             {focusBoss
               ? (focusBoss.is_killed === 'True' || focusBoss.is_killed === (true as unknown as string))
-                ? 'Most recently first-killed boss in the current scope, showing best boss HP remaining by raid night'
-                : 'Most recently progressed unkilled boss in the current scope, showing best boss HP remaining by raid night'
+                ? 'Most recently first-killed boss in the current scope, showing pull HP with best-so-far overlay'
+                : 'Most recently progressed unkilled boss in the current scope, showing pull HP with best-so-far overlay'
               : 'No boss selected in the current scope'}
           </p>
         </CardHeader>
@@ -208,9 +231,9 @@ export function Bosses() {
                   >
                     {focusBoss.boss_name}
                   </Link>
-                  <p className="text-[10px] font-mono text-ctp-overlay0 mt-0.5">
-                    {focusBoss.zone_name} · {focusBoss.difficulty_label}
-                  </p>
+                <p className="text-[10px] font-mono text-ctp-overlay0 mt-0.5">
+                  {focusBoss.zone_name} · {focusBoss.difficulty_label}
+                </p>
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-mono text-ctp-overlay0">Current best</p>
@@ -259,7 +282,10 @@ export function Bosses() {
                 </div>
                 <p className="text-[10px] font-mono text-ctp-overlay0 mb-3 truncate">{b.zone_name}</p>
                 <div className="flex items-center justify-between text-[11px] font-mono mb-2.5">
-                  <span style={{ color: killColor }}>{b.total_kills}↓</span>
+                  <span className="inline-flex items-center gap-1" style={{ color: killColor }}>
+                    <Swords className="w-3 h-3" />
+                    {b.total_kills}
+                  </span>
                   <span style={{ color: wipeColor }}>{b.total_wipes}✗</span>
                   {killed && bk ? (
                     <span style={{ color: topTierColor }}>{bk.best_kill_mm_ss || formatDuration(Number(b.best_kill_seconds))}</span>

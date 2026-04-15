@@ -9,6 +9,7 @@ import type {
   WeeklyActivity,
   BossWipeAnalysis,
   BossProgressHistoryRow,
+  BossPullHistoryRow,
   PlayerSurvivability,
   ProgressionTimeline,
   RaidTeamMember,
@@ -27,6 +28,7 @@ export const useGuildRoster        = () => useCSV<GuildRoster>('gold_guild_roste
 export const useWeeklyActivity     = () => useCSV<WeeklyActivity>('gold_weekly_activity.csv')
 export const useBossWipeAnalysis   = () => useCSV<BossWipeAnalysis>('gold_boss_wipe_analysis.csv')
 export const useBossProgressHistory = () => useCSV<BossProgressHistoryRow>('gold_boss_progress_history.csv', { optional: true })
+export const useBossPullHistory    = () => useCSV<BossPullHistoryRow>('gold_boss_pull_history.csv', { optional: true })
 export const usePlayerSurvivability = () => useCSV<PlayerSurvivability>('gold_player_survivability.csv')
 export const useProgressionTimeline = () => useCSV<ProgressionTimeline>('gold_progression_timeline.csv')
 export const useRaidTeam           = () => useCSV<RaidTeamMember>('gold_raid_team.csv')

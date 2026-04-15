@@ -30,8 +30,11 @@ export function RaidDetail() {
 
   // All kill-roster rows for this report, grouped by encounter
   const bossRows = useMemo(
-    () => killRoster.data.filter(r => r.report_code === reportCode),
-    [killRoster.data, reportCode]
+    () => killRoster.data.filter(r =>
+      r.report_code === reportCode &&
+      (!raid?.zone_name || r.zone_name === raid.zone_name)
+    ),
+    [killRoster.data, reportCode, raid?.zone_name]
   )
 
   const bosses = useMemo(() => {

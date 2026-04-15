@@ -71,6 +71,34 @@ export function Raids() {
     return ['All', ...bosses]
   }, [killRoster.data, selectedTier])
 
+  const scopedReportBossStats = useMemo(() => {
+    const stats = new Map<string, { bossKills: number; uniqueBossesKilled: number }>()
+    const byReport = new Map<string, Set<string>>()
+
+    killRoster.data.forEach(row => {
+      if (!hasRealText(row.report_code) || !hasRealText(row.zone_name)) return
+      const raid = validRaidRows.find(r => r.report_code === row.report_code)
+      if (!raid || row.zone_name !== raid.zone_name) return
+
+      const fightKey = `${row.encounter_id}-${row.fight_id}`
+      const reportFightKey = `${row.report_code}:${fightKey}`
+      if (!byReport.has(row.report_code)) byReport.set(row.report_code, new Set())
+      const fights = byReport.get(row.report_code)!
+      fights.add(reportFightKey)
+
+      const current = stats.get(row.report_code) ?? { bossKills: 0, uniqueBossesKilled: 0 }
+      current.bossKills = fights.size
+      current.uniqueBossesKilled = new Set(
+        killRoster.data
+          .filter(r => r.report_code === row.report_code && r.zone_name === raid.zone_name)
+          .map(r => r.encounter_id)
+      ).size
+      stats.set(row.report_code, current)
+    })
+
+    return stats
+  }, [killRoster.data, validRaidRows])
+
   useEffect(() => {
     if (!bossOptions.includes(selectedBoss)) setSelectedBoss('All')
   }, [bossOptions, selectedBoss])
@@ -230,7 +258,7 @@ export function Raids() {
               <h2 className="section-label mb-3">{zoneName}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {zoneRaids.map(r => {
-
+                  const scopedBossStats = scopedReportBossStats.get(r.report_code)
 
                   return (
                     <a
@@ -256,7 +284,7 @@ export function Raids() {
                       {/* Stats grid */}
                       <div className="grid grid-cols-3 gap-2 mb-3">
                         <div className="text-center bg-ctp-mauve/10 rounded-xl py-1.5">
-                          <p className="text-base font-semibold leading-none" style={{ color: killColor }}>{r.boss_kills}</p>
+                          <p className="text-base font-semibold leading-none" style={{ color: killColor }}>{scopedBossStats?.bossKills ?? r.boss_kills}</p>
                           <p className="text-[9px] font-mono text-ctp-overlay0 mt-0.5">kills</p>
                         </div>
                         <div className="text-center bg-ctp-mauve/10 rounded-xl py-1.5">
@@ -272,7 +300,7 @@ export function Raids() {
                       {/* Duration + bosses */}
                       <div className="flex items-center justify-between text-[10px] font-mono text-ctp-overlay1">
                         <span>{formatDuration(Number(r.total_fight_seconds))} fight time</span>
-                        <span>{r.unique_bosses_killed}/{r.unique_bosses_engaged} bosses</span>
+                        <span>{scopedBossStats?.uniqueBossesKilled ?? r.unique_bosses_killed}/{r.unique_bosses_engaged} bosses</span>
                       </div>
                     </a>
                   )
@@ -309,16 +337,18 @@ export function Raids() {
               </tr>
             </THead>
             <TBody>
-              {filtered.map(r => (
+              {filtered.map(r => {
+                const scopedBossStats = scopedReportBossStats.get(r.report_code)
+                return (
                 <Tr key={r.report_code}>
                   <Td className="font-medium text-ctp-text">{formatDate(r.raid_night_date)}</Td>
                   <Td className="text-ctp-overlay1 text-xs">{r.zone_name}</Td>
                   <Td><DiffBadge label={r.primary_difficulty} /></Td>
-                  <Td right mono style={{ color: killColor }}>{r.boss_kills}</Td>
+                  <Td right mono style={{ color: killColor }}>{scopedBossStats?.bossKills ?? r.boss_kills}</Td>
                   <Td right mono style={{ color: wipeColor }}>{r.total_wipes}</Td>
                   <Td right mono className="text-ctp-overlay1">{r.total_pulls}</Td>
                   <Td right mono className="text-ctp-overlay1">
-                    {r.unique_bosses_killed}/{r.unique_bosses_engaged}
+                    {scopedBossStats?.uniqueBossesKilled ?? r.unique_bosses_killed}/{r.unique_bosses_engaged}
                   </Td>
                   <Td right mono className="text-ctp-overlay1">
                     {formatDuration(Number(r.total_fight_seconds))}
@@ -334,7 +364,7 @@ export function Raids() {
                     </a>
                   </Td>
                 </Tr>
-              ))}
+              )})}
             </TBody>
             </Table>
           </div>

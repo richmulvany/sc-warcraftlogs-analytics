@@ -9,7 +9,7 @@ import { Table, TBody, Td, Th, THead, Tr } from '../components/ui/Table'
 import { ErrorState } from '../components/ui/ErrorState'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { BossProgressHistoryChart } from '../components/charts/BossProgressHistoryChart'
-import { useBestKills, useBossProgressHistory, useBossProgression, useBossWipeAnalysis } from '../hooks/useGoldData'
+import { useBestKills, useBossPullHistory, useBossProgression, useBossWipeAnalysis } from '../hooks/useGoldData'
 import { formatDate, formatNumber } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -24,7 +24,7 @@ export function BossDetail() {
   const { getDifficultyColor, killColor, wipeColor, topTierColor } = useColourBlind()
 
   const progression = useBossProgression()
-  const history = useBossProgressHistory()
+  const history = useBossPullHistory()
   const bestKills = useBestKills()
   const wipes = useBossWipeAnalysis()
 
@@ -43,6 +43,50 @@ export function BossDetail() {
       }),
     [history.data, encounterId, difficulty]
   )
+
+  const progressionLog = useMemo(() => {
+    const map = new Map<string, {
+      report_code: string
+      report_title: string
+      raid_night_date: string
+      difficulty_label: string
+      pulls: number
+      wipes: number
+      best_hp: number
+      kill_time: number | null
+      is_kill: boolean
+    }>()
+
+    bossHistory.forEach(row => {
+      const current = map.get(row.report_code) ?? {
+        report_code: row.report_code,
+        report_title: row.report_title,
+        raid_night_date: row.raid_night_date,
+        difficulty_label: row.difficulty_label,
+        pulls: 0,
+        wipes: 0,
+        best_hp: 100,
+        kill_time: null,
+        is_kill: false,
+      }
+
+      current.pulls += 1
+      if (isKilled(row.is_kill)) {
+        current.is_kill = true
+        current.kill_time = current.kill_time == null ? Number(row.duration_seconds) : Math.min(current.kill_time, Number(row.duration_seconds))
+        current.best_hp = 0
+      } else {
+        current.wipes += 1
+        current.best_hp = Math.min(current.best_hp, Number(row.boss_hp_remaining) || 100)
+      }
+
+      map.set(row.report_code, current)
+    })
+
+    return [...map.values()].sort((a, b) =>
+      String(b.raid_night_date).localeCompare(String(a.raid_night_date))
+    )
+  }, [bossHistory])
 
   const wipe = useMemo(() =>
     wipes.data.find(row => row.encounter_id === encounterId && row.difficulty === difficulty),
@@ -116,7 +160,7 @@ export function BossDetail() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle>Progress Curve</CardTitle>
-              <p className="text-xs text-ctp-overlay1 mt-0.5">Best boss HP remaining by raid night</p>
+              <p className="text-xs text-ctp-overlay1 mt-0.5">Pull HP over time with best-so-far overlay</p>
             </div>
             {boss && <DiffBadge label={boss.difficulty_label} />}
           </div>
@@ -135,7 +179,7 @@ export function BossDetail() {
           <CardBody><LoadingState rows={8} /></CardBody>
         ) : error ? (
           <CardBody><ErrorState message={error} /></CardBody>
-        ) : bossHistory.length === 0 ? (
+        ) : progressionLog.length === 0 ? (
           <CardBody>
             <div className="h-40 flex items-center justify-center text-ctp-overlay0 text-sm font-mono">
               No boss progress history exported yet
@@ -155,8 +199,8 @@ export function BossDetail() {
               </tr>
             </THead>
             <TBody>
-              {[...bossHistory].reverse().map(row => {
-                const rowKilled = isKilled(row.is_kill_on_night)
+              {progressionLog.map(row => {
+                const rowKilled = row.is_kill
                 return (
                   <Tr key={`${row.report_code}-${row.raid_night_date}`}>
                     <Td className="text-xs text-ctp-overlay1">{formatDate(row.raid_night_date)}</Td>
@@ -171,13 +215,13 @@ export function BossDetail() {
                         <ExternalLink className="w-3 h-3 flex-shrink-0" />
                       </a>
                     </Td>
-                    <Td right mono>{formatNumber(row.pulls_on_night)}</Td>
-                    <Td right mono style={{ color: wipeColor }}>{formatNumber(row.wipes_on_night)}</Td>
+                    <Td right mono>{formatNumber(row.pulls)}</Td>
+                    <Td right mono style={{ color: wipeColor }}>{formatNumber(row.wipes)}</Td>
                     <Td right mono style={{ color: getDifficultyColor(String(row.difficulty_label)) }}>
-                      {rowKilled ? '0.0%' : `${Number(row.best_boss_hp_remaining).toFixed(1)}%`}
+                      {rowKilled ? '0.0%' : `${Number(row.best_hp).toFixed(1)}%`}
                     </Td>
                     <Td right mono style={{ color: rowKilled ? topTierColor : undefined }}>
-                      {rowKilled && Number(row.kill_duration_seconds) > 0 ? formatDuration(Number(row.kill_duration_seconds)) : '—'}
+                      {rowKilled && row.kill_time != null && Number(row.kill_time) > 0 ? formatDuration(Number(row.kill_time)) : '—'}
                     </Td>
                     <Td>
                       <span className="text-xs font-mono" style={{ color: rowKilled ? killColor : wipeColor }}>
