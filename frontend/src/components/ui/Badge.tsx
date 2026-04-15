@@ -1,5 +1,6 @@
 import clsx from 'clsx'
 import { useColourBlind } from '../../context/ColourBlindContext'
+import { normaliseRole } from '../../constants/wow'
 
 export type BadgeVariant = 'default' | 'mauve' | 'blue' | 'green' | 'yellow' | 'peach' | 'red' | 'teal' | 'ghost'
 
@@ -74,6 +75,7 @@ export function DiffBadge({ label }: { label: string }) {
 
 export function RoleBadge({ role }: { role: string }) {
   const { getRoleColor } = useColourBlind()
-  const label = role === 'dps' ? 'DPS' : role === 'healer' ? 'Healer' : role === 'tank' ? 'Tank' : role
-  return <ColourBadge label={label} color={getRoleColor(role)} />
+  const value = normaliseRole(role)
+  const label = value === 'dps' ? 'DPS' : value === 'healer' ? 'Healer' : value === 'tank' ? 'Tank' : role
+  return <ColourBadge label={label} color={getRoleColor(value)} />
 }

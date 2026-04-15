@@ -10,12 +10,28 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { usePlayerPerformance, usePlayerSurvivability } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
-import { formatThroughput } from '../constants/wow'
+import { formatThroughput, getThroughputColor, normaliseRole } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import clsx from 'clsx'
 
 type SortKey = 'avg_rank_percent' | 'best_rank_percent' | 'avg_throughput_per_second' | 'kills_tracked' | 'avg_item_level'
 type RoleFilter = 'all' | 'dps' | 'healer' | 'tank'
+
+function normaliseSearchText(value: unknown): string {
+  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function fuzzyMatch(query: string, value: string): boolean {
+  if (!query) return true
+  if (value.includes(query)) return true
+
+  let index = 0
+  for (const char of value) {
+    if (char === query[index]) index += 1
+    if (index === query.length) return true
+  }
+  return false
+}
 
 export function Performance() {
   const { getParseColor, topTierColor, wipeColor, getDeathRateColor } = useColourBlind()
@@ -29,13 +45,12 @@ export function Performance() {
 
   const sorted = useMemo(() => {
     let rows = perf.data
-    if (roleFilter !== 'all') rows = rows.filter(r => r.role === roleFilter)
+    if (roleFilter !== 'all') rows = rows.filter(r => normaliseRole(r.role) === roleFilter)
     if (search.trim()) {
-      const q = search.toLowerCase()
+      const q = normaliseSearchText(search)
       rows = rows.filter(r =>
-        r.player_name.toLowerCase().includes(q) ||
-        r.player_class.toLowerCase().includes(q) ||
-        r.primary_spec.toLowerCase().includes(q)
+        fuzzyMatch(q, normaliseSearchText(r.player_name)) ||
+        fuzzyMatch(q, normaliseSearchText(r.player_class))
       )
     }
     return [...rows].sort((a, b) => {
@@ -112,7 +127,7 @@ export function Performance() {
         {/* Search */}
         <input
           type="text"
-          placeholder="Search player / class / spec…"
+          placeholder="Search player or class…"
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 w-56"
@@ -206,8 +221,8 @@ export function Performance() {
                         {p.best_rank_percent ? `${p.best_rank_percent.toFixed(0)}%` : '—'}
                       </span>
                     </Td>
-                    <Td right mono className="text-ctp-subtext1">
-                      {formatThroughput(p.avg_throughput_per_second)}
+                    <Td right mono style={{ color: getThroughputColor(p.role) }}>
+                      {formatThroughput(Number(p.avg_throughput_per_second))}
                     </Td>
                     <Td right mono className="text-ctp-overlay1">
                       {p.avg_item_level ? p.avg_item_level.toFixed(0) : '—'}

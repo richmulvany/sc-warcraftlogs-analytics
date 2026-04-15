@@ -9,6 +9,18 @@ export interface CSVResult<T> {
 
 const BASE = import.meta.env.VITE_DATA_BASE_URL ?? '/data'
 
+function normaliseCSVValue(value: unknown): unknown {
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value !== 'string') return value
+
+  const trimmed = value.trim()
+  if (trimmed === '') return ''
+  if (/^-?\d+(\.\d+)?$/.test(trimmed)) return Number(trimmed)
+  if (trimmed === 'true') return true
+  if (trimmed === 'false') return false
+  return trimmed
+}
+
 export function useCSV<T extends object>(filename: string): CSVResult<T> {
   const [data, setData] = useState<T[]>([])
   const [loading, setLoading] = useState(true)
@@ -30,9 +42,16 @@ export function useCSV<T extends object>(filename: string): CSVResult<T> {
           skipEmptyLines: true,
           dynamicTyping: true,
           transformHeader: h => h.trim(),
+          transform: value => typeof value === 'string' ? value.trim() : value,
         })
         if (!cancelled) {
-          setData(result.data)
+          setData(
+            result.data.map(row =>
+              Object.fromEntries(
+                Object.entries(row).map(([key, value]) => [key, normaliseCSVValue(value)])
+              ) as T
+            )
+          )
           setLoading(false)
         }
       })

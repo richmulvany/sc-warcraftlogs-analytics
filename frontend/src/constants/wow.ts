@@ -38,6 +38,14 @@ export const ROLE_LABELS: Record<string, string> = {
   tank:   'Tank',
 }
 
+export function normaliseRole(role: string | null | undefined): string {
+  const value = String(role ?? '').trim().toLowerCase()
+  if (value.startsWith('heal')) return 'healer'
+  if (value.startsWith('tank')) return 'tank'
+  if (value.startsWith('dps')) return 'dps'
+  return value
+}
+
 export const DIFFICULTY_ORDER: Record<string, number> = {
   'LFR':    0,
   'Normal': 1,
@@ -70,4 +78,8 @@ export function formatThroughput(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(2)}M`
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`
   return String(Math.round(value))
+}
+
+export function getThroughputColor(role: string | null | undefined): string {
+  return normaliseRole(role) === 'healer' ? '#a6e3a1' : '#f38ba8'
 }

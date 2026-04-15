@@ -20,14 +20,28 @@ export function Raids() {
   const [diff,     setDiff]     = useState('All')
   const [sortDesc, setSortDesc] = useState(true)
 
+  function hasRealText(value: unknown): value is string {
+    return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
+  }
+
+  const validRaidRows = useMemo(() =>
+    raids.data.filter(r =>
+      hasRealText(r.report_code) &&
+      hasRealText(r.zone_name) &&
+      hasRealText(r.raid_night_date) &&
+      hasRealText(r.primary_difficulty)
+    ),
+    [raids.data]
+  )
+
 
   const diffs = useMemo(() => {
-    const ds = [...new Set(raids.data.map(r => r.primary_difficulty))].sort()
+    const ds = [...new Set(validRaidRows.map(r => r.primary_difficulty))].sort()
     return ['All', ...ds]
-  }, [raids.data])
+  }, [validRaidRows])
 
   const filtered = useMemo(() => {
-    let rows = raids.data
+    let rows = validRaidRows
     if (diff !== 'All') rows = rows.filter(r => r.primary_difficulty === diff)
     if (search.trim()) {
       const q = search.toLowerCase()
@@ -42,16 +56,16 @@ export function Raids() {
         ? b.raid_night_date.localeCompare(a.raid_night_date)
         : a.raid_night_date.localeCompare(b.raid_night_date)
     )
-  }, [raids.data, diff, search, sortDesc])
+  }, [validRaidRows, diff, search, sortDesc])
 
   const stats = useMemo(() => {
-    if (!raids.data.length) return null
-    const totalKills  = raids.data.reduce((s, r) => s + Number(r.boss_kills), 0)
-    const totalWipes  = raids.data.reduce((s, r) => s + Number(r.total_wipes), 0)
-    const totalSecs   = raids.data.reduce((s, r) => s + Number(r.total_fight_seconds), 0)
-    const avgKills    = totalKills / raids.data.length
-    return { totalKills, totalWipes, totalSecs, avgKills, count: raids.data.length }
-  }, [raids.data])
+    if (!validRaidRows.length) return null
+    const totalKills  = validRaidRows.reduce((s, r) => s + Number(r.boss_kills), 0)
+    const totalWipes  = validRaidRows.reduce((s, r) => s + Number(r.total_wipes), 0)
+    const totalSecs   = validRaidRows.reduce((s, r) => s + Number(r.total_fight_seconds), 0)
+    const avgKills    = totalKills / validRaidRows.length
+    return { totalKills, totalWipes, totalSecs, avgKills, count: validRaidRows.length }
+  }, [validRaidRows])
 
   // Calendar-like view: group by zone
   const byZone = useMemo(() => {

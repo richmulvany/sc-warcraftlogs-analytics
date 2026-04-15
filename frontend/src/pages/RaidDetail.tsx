@@ -12,7 +12,7 @@ import { ClassDot } from '../components/ui/ClassLabel'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { useRaidSummary, useBossKillRoster } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
-import { formatDuration, formatThroughput } from '../constants/wow'
+import { formatDuration, formatThroughput, getThroughputColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
 export function RaidDetail() {
@@ -187,7 +187,7 @@ export function RaidDetail() {
                 <div className="mt-0.5 ml-10 flex items-center gap-3">
                   <span className="text-[10px] font-mono text-ctp-overlay0">{p.boss_name}</span>
                   <RoleBadge role={p.role} />
-                  <span className="text-[10px] font-mono text-ctp-overlay0">
+                  <span className="text-[10px] font-mono" style={{ color: getThroughputColor(p.role) }}>
                     {formatThroughput(Number(p.throughput_per_second))}
                   </span>
                 </div>
@@ -234,7 +234,9 @@ export function RaidDetail() {
                     <Td><RoleBadge role={row.role} /></Td>
                     <Td className="text-ctp-overlay1 text-xs">{row.spec}</Td>
                     <Td right mono className="text-ctp-overlay1">{Number(row.avg_item_level).toFixed(0)}</Td>
-                    <Td right mono className="text-ctp-subtext1">{formatThroughput(Number(row.throughput_per_second))}</Td>
+                    <Td right mono style={{ color: getThroughputColor(row.role) }}>
+                      {formatThroughput(Number(row.throughput_per_second))}
+                    </Td>
                     <Td right mono>
                       <span style={{ color: getParseColor(Number(row.rank_percent)) }}>
                         {Number(row.rank_percent).toFixed(0)}%

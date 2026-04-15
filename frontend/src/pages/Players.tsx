@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import clsx from 'clsx'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
@@ -9,49 +10,183 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
-import { usePlayerPerformance } from '../hooks/useGoldData'
+import { useBossKillRoster, useRaidSummary } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
-import { formatThroughput } from '../constants/wow'
+import { formatThroughput, getThroughputColor, normaliseRole } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
-import clsx from 'clsx'
 
 type SortKey = 'avg_rank_percent' | 'best_rank_percent' | 'avg_throughput_per_second' | 'kills_tracked' | 'avg_item_level'
 type RoleFilter = 'all' | 'dps' | 'healer' | 'tank'
+type DifficultyFilter = 'All' | 'Mythic' | 'Heroic' | 'Normal'
+
+interface AggregatedPlayerRow {
+  player_name: string
+  player_class: string
+  role: string
+  primary_spec: string
+  kills_tracked: number
+  avg_throughput_per_second: number
+  best_throughput_per_second: number
+  avg_rank_percent: number
+  best_rank_percent: number
+  avg_item_level: number
+  last_seen_date: string
+}
 
 const ROLES: { key: RoleFilter; label: string }[] = [
-  { key: 'all',    label: 'All'    },
-  { key: 'dps',    label: 'DPS'    },
+  { key: 'all', label: 'All' },
+  { key: 'dps', label: 'DPS' },
   { key: 'healer', label: 'Healer' },
-  { key: 'tank',   label: 'Tank'   },
+  { key: 'tank', label: 'Tank' },
 ]
+
+const DIFFICULTIES: DifficultyFilter[] = ['All', 'Mythic', 'Heroic', 'Normal']
+
+function normaliseSearchText(value: unknown): string {
+  return String(value ?? '').toLowerCase().replace(/[^a-z0-9]/g, '')
+}
+
+function fuzzyMatch(query: string, value: string): boolean {
+  if (!query) return true
+  if (value.includes(query)) return true
+
+  let index = 0
+  for (const char of value) {
+    if (char === query[index]) index += 1
+    if (index === query.length) return true
+  }
+  return false
+}
 
 export function Players() {
   const { getParseColor, topTierColor } = useColourBlind()
-  const perf     = usePlayerPerformance()
+  const raids = useRaidSummary()
+  const killRoster = useBossKillRoster()
   const navigate = useNavigate()
 
-  const [role,     setRole]     = useState<RoleFilter>('all')
-  const [sortKey,  setSortKey]  = useState<SortKey>('avg_rank_percent')
+  const [role, setRole] = useState<RoleFilter>('all')
+  const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
+  const [selectedTier, setSelectedTier] = useState('')
+  const [selectedBoss, setSelectedBoss] = useState('All')
+  const [sortKey, setSortKey] = useState<SortKey>('avg_rank_percent')
   const [sortDesc, setSortDesc] = useState(true)
-  const [search,   setSearch]   = useState('')
+  const [search, setSearch] = useState('')
+
+  function hasRealText(value: unknown): value is string {
+    return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
+  }
+
+  const validRaidRows = useMemo(() =>
+    raids.data.filter(r =>
+      hasRealText(r.zone_name) &&
+      hasRealText(r.raid_night_date) &&
+      hasRealText(r.primary_difficulty)
+    ),
+    [raids.data]
+  )
+
+  const tierOptions = useMemo(() =>
+    [...new Set(
+      [...validRaidRows]
+        .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
+        .map(r => r.zone_name)
+    )],
+    [validRaidRows]
+  )
+
+  const currentTier = tierOptions[0] ?? ''
+
+  useEffect(() => {
+    if (!selectedTier && currentTier) {
+      setSelectedTier(currentTier)
+    }
+  }, [selectedTier, currentTier])
+
+  const tierBossRows = useMemo(() =>
+    killRoster.data.filter(row => row.zone_name === selectedTier),
+    [killRoster.data, selectedTier]
+  )
+
+  const bossOptions = useMemo(() => {
+    const bosses = [...new Set(tierBossRows.map(row => row.boss_name).filter(hasRealText))].sort()
+    return ['All', ...bosses]
+  }, [tierBossRows])
+
+  useEffect(() => {
+    if (!bossOptions.includes(selectedBoss)) {
+      setSelectedBoss('All')
+    }
+  }, [bossOptions, selectedBoss])
+
+  const filteredRosterRows = useMemo(() =>
+    tierBossRows.filter(row =>
+      (difficulty === 'All' || row.difficulty_label === difficulty) &&
+      (selectedBoss === 'All' || row.boss_name === selectedBoss)
+    ),
+    [tierBossRows, difficulty, selectedBoss]
+  )
+
+  const aggregatedRows = useMemo(() => {
+    const grouped = new Map<string, AggregatedPlayerRow>()
+
+    for (const row of filteredRosterRows) {
+      const playerName = row.player_name
+      const rankPercent = Number(row.rank_percent) || 0
+      const throughput = Number(row.throughput_per_second) || 0
+      const itemLevel = Number(row.avg_item_level) || 0
+      const existing = grouped.get(playerName)
+
+      if (!existing) {
+        grouped.set(playerName, {
+          player_name: playerName,
+          player_class: row.player_class,
+          role: row.role,
+          primary_spec: row.spec,
+          kills_tracked: 1,
+          avg_throughput_per_second: throughput,
+          best_throughput_per_second: throughput,
+          avg_rank_percent: rankPercent,
+          best_rank_percent: rankPercent,
+          avg_item_level: itemLevel,
+          last_seen_date: row.raid_night_date,
+        })
+        continue
+      }
+
+      const nextKills = existing.kills_tracked + 1
+      existing.avg_throughput_per_second = ((existing.avg_throughput_per_second * existing.kills_tracked) + throughput) / nextKills
+      existing.best_throughput_per_second = Math.max(existing.best_throughput_per_second, throughput)
+      existing.avg_rank_percent = ((existing.avg_rank_percent * existing.kills_tracked) + rankPercent) / nextKills
+      existing.best_rank_percent = Math.max(existing.best_rank_percent, rankPercent)
+      existing.avg_item_level = ((existing.avg_item_level * existing.kills_tracked) + itemLevel) / nextKills
+      existing.kills_tracked = nextKills
+      if (String(row.raid_night_date).localeCompare(existing.last_seen_date) > 0) {
+        existing.last_seen_date = row.raid_night_date
+        existing.primary_spec = row.spec
+        existing.player_class = row.player_class
+        existing.role = row.role
+      }
+    }
+
+    return [...grouped.values()]
+  }, [filteredRosterRows])
 
   const stats = useMemo(() => {
-    const withData = perf.data.filter(p => p.avg_rank_percent > 0)
+    const withData = aggregatedRows.filter(p => p.avg_rank_percent > 0)
     if (!withData.length) return null
-    const avg = withData.reduce((s, p) => s + p.avg_rank_percent, 0) / withData.length
-    const top = Math.max(...withData.map(p => p.best_rank_percent))
-    return { count: withData.length, avg, top, total: perf.data.length }
-  }, [perf.data])
+    const avg = withData.reduce((sum, p) => sum + p.avg_rank_percent, 0) / withData.length
+    const top = Math.max(...withData.map(p => p.best_rank_percent || 0))
+    return { count: withData.length, avg, top, total: aggregatedRows.length }
+  }, [aggregatedRows])
 
   const rows = useMemo(() => {
-    let r = perf.data
-    if (role !== 'all') r = r.filter(p => p.role === role)
+    let r = aggregatedRows
+    if (role !== 'all') r = r.filter(p => normaliseRole(p.role) === role)
     if (search.trim()) {
-      const q = search.toLowerCase()
+      const q = normaliseSearchText(search)
       r = r.filter(p =>
-        p.player_name.toLowerCase().includes(q) ||
-        p.player_class.toLowerCase().includes(q) ||
-        p.primary_spec.toLowerCase().includes(q)
+        fuzzyMatch(q, normaliseSearchText(p.player_name)) ||
+        fuzzyMatch(q, normaliseSearchText(p.player_class))
       )
     }
     return [...r].sort((a, b) => {
@@ -59,11 +194,17 @@ export function Players() {
       const bv = Number(b[sortKey]) || 0
       return sortDesc ? bv - av : av - bv
     })
-  }, [perf.data, role, sortKey, sortDesc, search])
+  }, [aggregatedRows, role, sortKey, sortDesc, search])
+
+  const loading = raids.loading || killRoster.loading
+  const error = raids.error || killRoster.error
 
   function toggleSort(k: SortKey) {
     if (sortKey === k) setSortDesc(!sortDesc)
-    else { setSortKey(k); setSortDesc(true) }
+    else {
+      setSortKey(k)
+      setSortDesc(true)
+    }
   }
 
   function SortBtn({ k, children }: { k: SortKey; children: React.ReactNode }) {
@@ -82,23 +223,20 @@ export function Players() {
 
   return (
     <AppLayout title="Players" subtitle="performance rankings">
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {perf.loading ? (
+        {loading ? (
           Array(4).fill(null).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <>
-            <StatCard label="Players Tracked" value={stats?.total ?? 0}            subValue="in logs"          icon="◉" accent="blue" />
-            <StatCard label="With Parse Data"  value={stats?.count ?? 0}            subValue="min 1 kill"       icon="◈" accent="mauve" />
-            <StatCard label="Guild Avg Parse"  value={`${stats?.avg?.toFixed(1) ?? '—'}%`} subValue="WCL rank %" icon="◷" valueColor={stats ? getParseColor(stats.avg) : undefined} accent="none" />
-            <StatCard label="Best Parse"       value={`${stats?.top?.toFixed(0) ?? '—'}%`} subValue="guild record" valueColor={stats ? topTierColor : undefined} accent="none" />
+            <StatCard label="Players Tracked" value={stats?.total ?? 0} subValue="in current filter scope" icon="◉" accent="blue" />
+            <StatCard label="With Parse Data" value={stats?.count ?? 0} subValue="min 1 kill" icon="◈" accent="mauve" />
+            <StatCard label="Guild Avg Parse" value={`${stats?.avg?.toFixed(1) ?? '—'}%`} subValue="WCL rank %" icon="◷" valueColor={stats ? getParseColor(stats.avg) : undefined} accent="none" />
+            <StatCard label="Best Parse" value={`${stats?.top?.toFixed(0) ?? '—'}%`} subValue="filter-scope record" valueColor={stats ? topTierColor : undefined} accent="none" />
           </>
         )}
       </div>
 
-      {/* Filter bar */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Role tabs */}
         <div className="flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
           {ROLES.map(r => (
             <button
@@ -115,26 +253,68 @@ export function Players() {
             </button>
           ))}
         </div>
+
+        <div className="flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
+          {DIFFICULTIES.map(option => (
+            <button
+              key={option}
+              onClick={() => setDifficulty(option)}
+              className={clsx(
+                'px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150',
+                difficulty === option
+                  ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
+                  : 'text-ctp-overlay1 hover:text-ctp-subtext1'
+              )}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+
+        <select
+          value={selectedTier}
+          onChange={e => setSelectedTier(e.target.value)}
+          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
+        >
+          {tierOptions.map(tier => (
+            <option key={tier} value={tier}>{tier}</option>
+          ))}
+        </select>
+
+        <select
+          value={selectedBoss}
+          onChange={e => setSelectedBoss(e.target.value)}
+          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
+        >
+          {bossOptions.map(boss => (
+            <option key={boss} value={boss}>{boss}</option>
+          ))}
+        </select>
+
         <input
           type="text"
-          placeholder="Search player, class, spec…"
+          placeholder="Search player or class…"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52"
+          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52"
         />
+
         <span className="ml-auto text-xs font-mono text-ctp-overlay0">{rows.length} players</span>
       </div>
 
-      {/* Table */}
       <Card>
         <CardHeader>
           <CardTitle>All Players</CardTitle>
-          <p className="text-xs text-ctp-overlay1 mt-0.5">Click a row to see the full player profile</p>
+          <p className="text-xs text-ctp-overlay1 mt-0.5">
+            {selectedTier || currentTier || 'No tier'} · {difficulty} · {selectedBoss}
+          </p>
         </CardHeader>
-        {perf.loading ? (
+        {loading ? (
           <div className="p-5"><LoadingState rows={10} /></div>
-        ) : perf.error ? (
-          <div className="p-5"><ErrorState message={perf.error} /></div>
+        ) : error ? (
+          <div className="p-5"><ErrorState message={error} /></div>
+        ) : rows.length === 0 ? (
+          <div className="p-5 text-xs font-mono text-ctp-overlay0">No players match the current filters.</div>
         ) : (
           <Table>
             <THead>
@@ -176,11 +356,13 @@ export function Players() {
                   </Td>
                   <Td right>
                     <span className="text-xs font-mono font-semibold" style={{ color: getParseColor(p.best_rank_percent) }}>
-                      {p.best_rank_percent ? `${p.best_rank_percent.toFixed(0)}%` : '—'}
+                      {p.best_rank_percent > 0 ? `${p.best_rank_percent.toFixed(0)}%` : '—'}
                     </span>
                   </Td>
-                  <Td right mono className="text-ctp-subtext1">{formatThroughput(p.avg_throughput_per_second)}</Td>
-                  <Td right mono className="text-ctp-overlay1">{p.avg_item_level ? p.avg_item_level.toFixed(0) : '—'}</Td>
+                  <Td right mono style={{ color: getThroughputColor(p.role) }}>
+                    {formatThroughput(p.avg_throughput_per_second)}
+                  </Td>
+                  <Td right mono className="text-ctp-overlay1">{p.avg_item_level > 0 ? p.avg_item_level.toFixed(0) : '—'}</Td>
                   <Td right mono className="text-ctp-overlay1">{formatNumber(p.kills_tracked)}</Td>
                   <Td className="text-xs text-ctp-overlay0">{formatDate(p.last_seen_date)}</Td>
                 </Tr>
