@@ -232,9 +232,9 @@ def gold_boss_progress_history():
         reports
         .select(
             F.col("code").alias("_report_code"),
-            F.col("title").alias("report_title"),
-            F.col("start_time_utc"),
-            F.col("end_time_utc"),
+            F.col("title").alias("_report_title"),
+            F.col("start_time_utc").alias("_report_start_time_utc"),
+            F.col("end_time_utc").alias("_report_end_time_utc"),
         )
     )
 
@@ -278,9 +278,9 @@ def gold_boss_progress_history():
             "difficulty_label",
             "raid_night_date",
             "report_code",
-            "report_title",
-            "start_time_utc",
-            "end_time_utc",
+            F.coalesce(F.col("_report_title"), F.col("report_title")).alias("report_title"),
+            F.col("_report_start_time_utc").alias("start_time_utc"),
+            F.col("_report_end_time_utc").alias("end_time_utc"),
             "pulls_on_night",
             "kills_on_night",
             "wipes_on_night",
@@ -314,9 +314,9 @@ def gold_boss_pull_history():
         reports
         .select(
             F.col("code").alias("_report_code"),
-            F.col("title").alias("report_title"),
-            F.col("start_time_utc"),
-            F.col("end_time_utc"),
+            F.col("title").alias("_report_title"),
+            F.col("start_time_utc").alias("_report_start_time_utc"),
+            F.col("end_time_utc").alias("_report_end_time_utc"),
         )
     )
 
@@ -336,9 +336,9 @@ def gold_boss_pull_history():
             "difficulty_label",
             "raid_night_date",
             "report_code",
-            "report_title",
-            "start_time_utc",
-            "end_time_utc",
+            F.coalesce(F.col("_report_title"), F.col("report_title")).alias("report_title"),
+            F.col("_report_start_time_utc").alias("start_time_utc"),
+            F.col("_report_end_time_utc").alias("end_time_utc"),
             "fight_id",
             "is_kill",
             "boss_percentage",
