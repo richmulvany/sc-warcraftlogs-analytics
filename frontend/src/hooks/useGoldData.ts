@@ -7,6 +7,7 @@ import type {
   PlayerAttendance,
   GuildRoster,
   WeeklyActivity,
+  GuildZoneRank,
   BossWipeAnalysis,
   BossProgressHistoryRow,
   BossPullHistoryRow,
@@ -26,6 +27,7 @@ export const useBossKillRoster     = () => useCSV<BossKillRosterRow>('gold_boss_
 export const usePlayerAttendance   = () => useCSV<PlayerAttendance>('gold_player_attendance.csv')
 export const useGuildRoster        = () => useCSV<GuildRoster>('gold_guild_roster.csv')
 export const useWeeklyActivity     = () => useCSV<WeeklyActivity>('gold_weekly_activity.csv')
+export const useGuildZoneRanks     = () => useCSV<GuildZoneRank>('guild_zone_ranks.csv', { optional: true })
 export const useBossWipeAnalysis   = () => useCSV<BossWipeAnalysis>('gold_boss_wipe_analysis.csv')
 export const useBossProgressHistory = () => useCSV<BossProgressHistoryRow>('gold_boss_progress_history.csv', { optional: true })
 export const useBossPullHistory    = () => useCSV<BossPullHistoryRow>('gold_boss_pull_history.csv', { optional: true })

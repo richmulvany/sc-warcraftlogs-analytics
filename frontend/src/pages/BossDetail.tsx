@@ -18,6 +18,14 @@ function isKilled(value: string | boolean) {
   return value === true || value === 'true' || value === 'True'
 }
 
+function hasRealText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
+}
+
+function hasValue(value: unknown): boolean {
+  return value !== null && value !== undefined && String(value).trim() !== '' && String(value).trim().toLowerCase() !== 'null'
+}
+
 export function BossDetail() {
   const { encounterId, difficulty } = useParams<{ encounterId: string; difficulty: string }>()
   const navigate = useNavigate()
@@ -28,20 +36,46 @@ export function BossDetail() {
   const bestKills = useBestKills()
   const wipes = useBossWipeAnalysis()
 
+  const canonicalZoneByEncounter = useMemo(() => {
+    const counts = new Map<string, Map<string, number>>()
+    progression.data.forEach(row => {
+      if (!hasValue(row.encounter_id) || !hasRealText(row.zone_name)) return
+      const encounterKey = String(row.encounter_id)
+      if (!counts.has(encounterKey)) counts.set(encounterKey, new Map())
+      const zoneCounts = counts.get(encounterKey)!
+      zoneCounts.set(row.zone_name, (zoneCounts.get(row.zone_name) ?? 0) + 1)
+    })
+
+    const canonical = new Map<string, string>()
+    counts.forEach((zoneCounts, encounterId) => {
+      const winner = [...zoneCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]
+      if (winner) canonical.set(encounterId, winner[0])
+    })
+    return canonical
+  }, [progression.data])
+
   const boss = useMemo(() =>
-    progression.data.find(row => row.encounter_id === encounterId && row.difficulty === difficulty),
-    [progression.data, encounterId, difficulty]
+    progression.data.find(row =>
+      String(row.encounter_id) === String(encounterId) &&
+      String(row.difficulty) === String(difficulty) &&
+      canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name
+    ),
+    [progression.data, encounterId, difficulty, canonicalZoneByEncounter]
   )
 
   const bossHistory = useMemo(() =>
     [...history.data]
-      .filter(row => row.encounter_id === encounterId && row.difficulty === difficulty)
+      .filter(row =>
+        String(row.encounter_id) === String(encounterId) &&
+        String(row.difficulty) === String(difficulty) &&
+        canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name
+      )
       .sort((a, b) => {
         const byDate = String(a.raid_night_date).localeCompare(String(b.raid_night_date))
         if (byDate !== 0) return byDate
         return String(a.start_time_utc ?? '').localeCompare(String(b.start_time_utc ?? ''))
       }),
-    [history.data, encounterId, difficulty]
+    [history.data, encounterId, difficulty, canonicalZoneByEncounter]
   )
 
   const progressionLog = useMemo(() => {
@@ -89,13 +123,21 @@ export function BossDetail() {
   }, [bossHistory])
 
   const wipe = useMemo(() =>
-    wipes.data.find(row => row.encounter_id === encounterId && row.difficulty === difficulty),
-    [wipes.data, encounterId, difficulty]
+    wipes.data.find(row =>
+      String(row.encounter_id) === String(encounterId) &&
+      String(row.difficulty) === String(difficulty) &&
+      canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name
+    ),
+    [wipes.data, encounterId, difficulty, canonicalZoneByEncounter]
   )
 
   const bestKill = useMemo(() =>
-    bestKills.data.find(row => row.encounter_id === encounterId && row.difficulty === difficulty),
-    [bestKills.data, encounterId, difficulty]
+    bestKills.data.find(row =>
+      String(row.encounter_id) === String(encounterId) &&
+      String(row.difficulty) === String(difficulty) &&
+      canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name
+    ),
+    [bestKills.data, encounterId, difficulty, canonicalZoneByEncounter]
   )
 
   const loading = progression.loading || history.loading || bestKills.loading || wipes.loading

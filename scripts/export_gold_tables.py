@@ -22,6 +22,8 @@ import httpx
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service import sql
 
+from ingestion.src.adapters.wcl.client import WarcraftLogsAdapter, WarcraftLogsConfig
+
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,22 @@ LIVE_ROSTER_SHEET_ID = (
 )
 LIVE_ROSTER_SHEET_GID = os.environ.get("LIVE_ROSTER_SHEET_GID") or "0"
 LIVE_ROSTER_FILENAME = os.environ.get("LIVE_ROSTER_FILENAME") or "live_raid_roster.csv"
+WCL_CLIENT_ID = os.environ.get("WCL_CLIENT_ID") or os.environ.get("WARCRAFTLOGS_CLIENT_ID") or ""
+WCL_CLIENT_SECRET = (
+    os.environ.get("WCL_CLIENT_SECRET") or os.environ.get("WARCRAFTLOGS_CLIENT_SECRET") or ""
+)
+WCL_GUILD_NAME = (
+    os.environ.get("WCL_GUILD_NAME") or os.environ.get("GUILD_NAME") or "Student Council"
+)
+WCL_GUILD_SERVER_SLUG = (
+    os.environ.get("WCL_GUILD_SERVER_SLUG")
+    or os.environ.get("GUILD_SERVER_SLUG")
+    or "twisting-nether"
+)
+WCL_GUILD_SERVER_REGION = (
+    os.environ.get("WCL_GUILD_SERVER_REGION") or os.environ.get("GUILD_SERVER_REGION") or "EU"
+)
+GUILD_ZONE_RANKS_FILENAME = os.environ.get("GUILD_ZONE_RANKS_FILENAME") or "guild_zone_ranks.csv"
 
 FRONTEND_TABLES: dict[str, str] = {
     "gold_raid_summary.csv": "gold_raid_summary",
@@ -207,6 +225,101 @@ def export_live_raid_roster(output_dir: Path) -> int:
     return len(normalised_rows)
 
 
+def export_guild_zone_ranks(client: WorkspaceClient, warehouse_id: str, output_dir: Path) -> int:
+    if not WCL_CLIENT_ID or not WCL_CLIENT_SECRET:
+        logger.info("Skipping guild zone ranks export: WCL client credentials not configured.")
+        return 0
+
+    logger.info("Exporting guild zone ranks -> %s", GUILD_ZONE_RANKS_FILENAME)
+    zone_response = client.statement_execution.execute_statement(
+        warehouse_id=warehouse_id,
+        statement=(
+            f"SELECT DISTINCT CAST(zone_id AS STRING) AS zone_id, zone_name "
+            f"FROM {CATALOG}.{SCHEMA}.gold_boss_progression "
+            "WHERE zone_id IS NOT NULL AND zone_name IS NOT NULL"
+        ),
+        disposition=sql.Disposition.INLINE,
+        format=sql.Format.JSON_ARRAY,
+        wait_timeout="30s",
+    )
+    zone_response = _wait_for_success(client, zone_response)
+    zone_rows = getattr(getattr(zone_response, "result", None), "data_array", None) or []
+
+    adapter = WarcraftLogsAdapter(
+        WarcraftLogsConfig(
+            client_id=WCL_CLIENT_ID,
+            client_secret=WCL_CLIENT_SECRET,
+        )
+    )
+    adapter.authenticate()
+
+    query = """
+    query GuildZoneRanks(
+      $guildName: String!
+      $serverSlug: String!
+      $serverRegion: String!
+      $zoneId: Int!
+    ) {
+      guildData {
+        guild(name: $guildName, serverSlug: $serverSlug, serverRegion: $serverRegion) {
+          zoneRanking(zoneId: $zoneId) {
+            progress(size: 20) {
+              world { number }
+              region { number }
+              server { number }
+            }
+          }
+        }
+      }
+    }
+    """
+
+    rows_out: list[dict[str, str | int]] = []
+    try:
+        for row in zone_rows:
+            zone_id = int(row[0])
+            zone_name = str(row[1])
+            data = adapter._graphql_query(  # noqa: SLF001 - reuse existing adapter request path
+                query,
+                {
+                    "guildName": WCL_GUILD_NAME,
+                    "serverSlug": WCL_GUILD_SERVER_SLUG,
+                    "serverRegion": WCL_GUILD_SERVER_REGION,
+                    "zoneId": zone_id,
+                },
+            )
+            progress = (
+                data.get("guildData", {})
+                .get("guild", {})
+                .get("zoneRanking", {})
+                .get("progress", {})
+            )
+            rows_out.append(
+                {
+                    "zone_id": zone_id,
+                    "zone_name": zone_name,
+                    "world_rank": ((progress.get("world") or {}).get("number")) or "",
+                    "region_rank": ((progress.get("region") or {}).get("number")) or "",
+                    "server_rank": ((progress.get("server") or {}).get("number")) or "",
+                }
+            )
+    finally:
+        adapter.close()
+
+    output_path = output_dir / GUILD_ZONE_RANKS_FILENAME
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(
+            fh,
+            fieldnames=["zone_id", "zone_name", "world_rank", "region_rank", "server_rank"],
+        )
+        writer.writeheader()
+        writer.writerows(rows_out)
+
+    logger.info("  wrote %s guild zone rank rows to %s", len(rows_out), output_path)
+    return len(rows_out)
+
+
 def _write_csv_from_statement(
     client: WorkspaceClient, statement_response: Any, output_path: Path
 ) -> int:
@@ -281,6 +394,11 @@ def main() -> None:
         total_rows += export_live_raid_roster(OUTPUT_DIR)
     except Exception as exc:
         logger.warning("Skipping live raid roster export: %s", exc)
+
+    try:
+        total_rows += export_guild_zone_ranks(client, warehouse_id, OUTPUT_DIR)
+    except Exception as exc:
+        logger.warning("Skipping guild zone ranks export: %s", exc)
 
     logger.info(
         "Export complete. %s total rows across %s files.",

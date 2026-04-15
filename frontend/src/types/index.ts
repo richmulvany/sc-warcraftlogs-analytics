@@ -112,6 +112,14 @@ export interface WeeklyActivity {
   zones_raided: string
 }
 
+export interface GuildZoneRank {
+  zone_id: string
+  zone_name: string
+  world_rank: number
+  region_rank: number
+  server_rank: number
+}
+
 export interface BossWipeAnalysis {
   encounter_id: string
   boss_name: string

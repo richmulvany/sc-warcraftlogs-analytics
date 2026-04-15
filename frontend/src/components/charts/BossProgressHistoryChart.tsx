@@ -3,6 +3,8 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceArea,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -19,6 +21,13 @@ interface Props {
 interface ChartPoint extends BossPullHistoryRow {
   pull_index: number
   best_so_far_hp: number
+  max_phase_so_far: number
+}
+
+interface PhaseSegment {
+  phase: number
+  start: number
+  end: number
 }
 
 function parseDate(value: string) {
@@ -36,8 +45,9 @@ function isKill(value: string | boolean) {
 
 function buildChartData(rows: BossPullHistoryRow[]): ChartPoint[] {
   let bestSoFar = 100
+  let maxPhaseSoFar = 0
 
-  return [...rows]
+  const sortedRows = [...rows]
     .sort((a, b) => {
       const byDate = String(a.raid_night_date).localeCompare(String(b.raid_night_date))
       if (byDate !== 0) return byDate
@@ -47,15 +57,62 @@ function buildChartData(rows: BossPullHistoryRow[]): ChartPoint[] {
       if (byReport !== 0) return byReport
       return Number(a.fight_id) - Number(b.fight_id)
     })
+
+  const firstKillIndex = sortedRows.findIndex(row => isKill(row.is_kill))
+  const truncatedRows = firstKillIndex >= 0 ? sortedRows.slice(0, firstKillIndex + 1) : sortedRows
+
+  const points = truncatedRows
     .map((row, index) => {
       const hp = Number(row.boss_hp_remaining)
       if (Number.isFinite(hp)) bestSoFar = Math.min(bestSoFar, hp)
+      maxPhaseSoFar = Math.max(maxPhaseSoFar, Number(row.last_phase) || 0)
       return {
         ...row,
         pull_index: index + 1,
         best_so_far_hp: bestSoFar,
+        max_phase_so_far: maxPhaseSoFar,
       }
     })
+
+  const first = points[0]
+  if (!first) return []
+
+  return [
+    {
+      ...first,
+      pull_index: 0,
+      boss_hp_remaining: 100,
+      boss_percentage: 100,
+      best_so_far_hp: 100,
+      max_phase_so_far: 0,
+      is_kill: false,
+    },
+    ...points,
+  ]
+}
+
+function buildPhaseSegments(points: ChartPoint[]): PhaseSegment[] {
+  const realPoints = points.slice(1)
+  if (realPoints.length === 0) return []
+
+  const highestPhase = Math.max(...realPoints.map(point => Number(point.max_phase_so_far) || 0))
+  if (highestPhase <= 1) return []
+
+  const segments: PhaseSegment[] = []
+  let currentPhase = Math.max(1, Number(realPoints[0].max_phase_so_far) || 1)
+  let start = 0
+
+  for (let i = 1; i < realPoints.length; i++) {
+    const phase = Math.max(1, Number(realPoints[i].max_phase_so_far) || 1)
+    if (phase !== currentPhase) {
+      segments.push({ phase: currentPhase, start, end: realPoints[i - 1].pull_index })
+      start = realPoints[i - 1].pull_index
+      currentPhase = phase
+    }
+  }
+
+  segments.push({ phase: currentPhase, start, end: realPoints[realPoints.length - 1].pull_index })
+  return segments
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,10 +130,13 @@ function Tip({ active, payload }: any) {
           Pull HP: <span className="font-semibold">{killed ? 'Kill (0.0%)' : `${Number(row.boss_hp_remaining).toFixed(1)}%`}</span>
         </p>
         <p className="text-ctp-subtext1">
-          Best so far: <span className="font-semibold">{Number(row.best_so_far_hp).toFixed(1)}%</span>
+          Best pull: <span className="font-semibold">{Number(row.best_so_far_hp).toFixed(1)}%</span>
         </p>
         <p className="text-ctp-subtext1">
           Duration: <span className="font-semibold">{formatDuration(Number(row.duration_seconds))}</span>
+        </p>
+        <p className="text-ctp-subtext1">
+          Phase reached: <span className="font-semibold">P{Math.max(1, Number(row.last_phase) || 1)}</span>
         </p>
         <p className="text-ctp-subtext1">
           Result: <span className="font-semibold">{killed ? 'Kill' : 'Wipe'}</span>
@@ -87,7 +147,7 @@ function Tip({ active, payload }: any) {
 }
 
 export function BossProgressHistoryChart({ data }: Props) {
-  const { chartColors } = useColourBlind()
+  const { chartColors, phaseColors } = useColourBlind()
 
   if (data.length === 0) {
     return (
@@ -98,6 +158,7 @@ export function BossProgressHistoryChart({ data }: Props) {
   }
 
   const chartData = buildChartData(data)
+  const phaseSegments = buildPhaseSegments(chartData)
 
   return (
     <ResponsiveContainer width="100%" height={280}>
@@ -111,12 +172,40 @@ export function BossProgressHistoryChart({ data }: Props) {
         />
         <YAxis
           domain={[0, 100]}
-          reversed
           tickFormatter={value => `${value}%`}
           tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
           axisLine={false}
           tickLine={false}
         />
+        {phaseSegments.map((segment, index) => (
+          <ReferenceArea
+            key={`${segment.phase}-${segment.start}-${segment.end}-${index}`}
+            x1={segment.start}
+            x2={segment.end}
+            y1={0}
+            y2={100}
+            fill={phaseColors[Math.min(Math.max(segment.phase - 1, 0), phaseColors.length - 1)]}
+            fillOpacity={0.12}
+            ifOverflow="extendDomain"
+          />
+        ))}
+        {phaseSegments.map((segment, index) => (
+          <ReferenceLine
+            key={`phase-boundary-${segment.phase}-${segment.start}-${index}`}
+            x={segment.start}
+            stroke={phaseColors[Math.min(Math.max(segment.phase - 1, 0), phaseColors.length - 1)]}
+            strokeOpacity={0.45}
+            strokeDasharray="4 4"
+            ifOverflow="extendDomain"
+            label={{
+              value: `P${segment.phase}`,
+              position: 'insideBottomLeft',
+              fill: phaseColors[Math.min(Math.max(segment.phase - 1, 0), phaseColors.length - 1)],
+              fontSize: 10,
+              fontFamily: 'IBM Plex Mono, monospace',
+            }}
+          />
+        ))}
         <Tooltip content={<Tip />} cursor={{ stroke: '#45475a', strokeWidth: 1 }} />
         <Legend
           verticalAlign="top"
@@ -137,7 +226,7 @@ export function BossProgressHistoryChart({ data }: Props) {
         <Line
           type="stepAfter"
           dataKey="best_so_far_hp"
-          name="Best So Far"
+          name="Best Pull"
           stroke={chartColors.secondary}
           strokeWidth={2.25}
           dot={false}

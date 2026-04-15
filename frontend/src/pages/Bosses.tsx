@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Swords } from 'lucide-react'
+import { Swords, Trophy } from 'lucide-react'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
@@ -10,9 +10,9 @@ import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { BossProgressHistoryChart } from '../components/charts/BossProgressHistoryChart'
-import { useBossProgression, useBestKills, useRaidSummary, useBossWipeAnalysis, useBossPullHistory } from '../hooks/useGoldData'
+import { useBossProgression, useBestKills, useBossWipeAnalysis, useBossPullHistory, useGuildZoneRanks } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
-import { formatDuration } from '../constants/wow'
+import { DIFFICULTY_ORDER, formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import clsx from 'clsx'
 
@@ -22,9 +22,9 @@ export function Bosses() {
   const { getDifficultyColor, killColor, wipeColor, topTierColor } = useColourBlind()
   const prog = useBossProgression()
   const best = useBestKills()
-  const raids = useRaidSummary()
   const wipeAnalysis = useBossWipeAnalysis()
   const history = useBossPullHistory()
+  const zoneRanks = useGuildZoneRanks()
 
   const [diff, setDiff] = useState('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
@@ -35,18 +35,41 @@ export function Bosses() {
     return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
   }
 
-  const validRaidRows = useMemo(() =>
-    raids.data.filter(r => hasRealText(r.zone_name) && hasRealText(r.raid_night_date)),
-    [raids.data]
+  function hasValue(value: unknown): boolean {
+    return value !== null && value !== undefined && String(value).trim() !== '' && String(value).trim().toLowerCase() !== 'null'
+  }
+
+  const canonicalZoneByEncounter = useMemo(() => {
+    const counts = new Map<string, Map<string, number>>()
+    prog.data.forEach(row => {
+      if (!hasValue(row.encounter_id) || !hasRealText(row.zone_name)) return
+      const encounterId = String(row.encounter_id)
+      if (!counts.has(encounterId)) counts.set(encounterId, new Map())
+      const zoneCounts = counts.get(encounterId)!
+      zoneCounts.set(row.zone_name, (zoneCounts.get(row.zone_name) ?? 0) + 1)
+    })
+
+    const canonical = new Map<string, string>()
+    counts.forEach((zoneCounts, encounterId) => {
+      const winner = [...zoneCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]
+      if (winner) canonical.set(encounterId, winner[0])
+    })
+    return canonical
+  }, [prog.data])
+
+  const canonicalBossRows = useMemo(() =>
+    prog.data.filter(row => canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name),
+    [prog.data, canonicalZoneByEncounter]
   )
 
   const tierOptions = useMemo(() =>
     ['All', ...new Set(
-      [...validRaidRows]
-        .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
-        .map(r => r.zone_name)
+      [...canonicalBossRows]
+        .filter(row => hasRealText(row.zone_name) && hasRealText(row.last_attempt_date))
+        .sort((a, b) => String(b.last_attempt_date).localeCompare(String(a.last_attempt_date)))
+        .map(row => row.zone_name)
     )],
-    [validRaidRows]
+    [canonicalBossRows]
   )
 
   const currentTier = tierOptions[1] ?? ''
@@ -56,11 +79,11 @@ export function Bosses() {
   }, [selectedTier, currentTier])
 
   const tierBosses = useMemo(() =>
-    prog.data.filter(b => selectedTier === 'All' || b.zone_name === selectedTier),
-    [prog.data, selectedTier]
+    canonicalBossRows.filter(b => selectedTier === 'All' || b.zone_name === selectedTier),
+    [canonicalBossRows, selectedTier]
   )
 
-  const bossOptions = useMemo(() => {
+  const orderedBosses = useMemo(() => {
     const bossMeta = new Map<string, { mythic: string; heroic: string; normal: string }>()
 
     tierBosses.forEach(row => {
@@ -77,15 +100,18 @@ export function Bosses() {
 
     const values = [...bossMeta.entries()]
       .sort((a, b) =>
-        a[1].mythic.localeCompare(b[1].mythic) ||
-        a[1].heroic.localeCompare(b[1].heroic) ||
-        a[1].normal.localeCompare(b[1].normal) ||
+        (b[1].mythic || '').localeCompare(a[1].mythic || '') ||
+        (b[1].heroic || '').localeCompare(a[1].heroic || '') ||
+        (b[1].normal || '').localeCompare(a[1].normal || '') ||
         a[0].localeCompare(b[0])
       )
       .map(([bossName]) => bossName)
 
-    return ['All', ...values]
+    return values
   }, [tierBosses])
+
+  const bossOptions = useMemo(() => ['All', ...orderedBosses], [orderedBosses])
+  const bossOrder = useMemo(() => new Map(orderedBosses.map((bossName, index) => [bossName, index])), [orderedBosses])
 
   useEffect(() => {
     if (!bossOptions.includes(selectedBoss)) setSelectedBoss('All')
@@ -96,31 +122,45 @@ export function Bosses() {
       .filter(b => diff === 'All' || b.difficulty_label === diff)
       .filter(b => selectedBoss === 'All' || b.boss_name === selectedBoss)
       .filter(b => !search.trim() || b.boss_name.toLowerCase().includes(search.toLowerCase()))
-      .sort((a, b) => Number(b.total_kills) - Number(a.total_kills)),
-    [tierBosses, diff, selectedBoss, search]
+      .sort((a, b) =>
+        (bossOrder.get(a.boss_name) ?? 999) - (bossOrder.get(b.boss_name) ?? 999) ||
+        (DIFFICULTY_ORDER[b.difficulty_label] ?? 0) - (DIFFICULTY_ORDER[a.difficulty_label] ?? 0) ||
+        a.boss_name.localeCompare(b.boss_name)
+      ),
+    [tierBosses, diff, selectedBoss, search, bossOrder]
   )
 
   const stats = useMemo(() => {
-    const killed = filtered.filter(b => b.is_killed === 'True' || b.is_killed === (true as unknown as string))
-    const mythic = filtered.filter(b => b.difficulty_label === 'Mythic' && (b.is_killed === 'True' || b.is_killed === (true as unknown as string)))
-    const heroic = filtered.filter(b => b.difficulty_label === 'Heroic' && (b.is_killed === 'True' || b.is_killed === (true as unknown as string)))
-    const pulls = filtered.reduce((s, b) => s + Number(b.total_pulls), 0)
-    return { killed: killed.length, mythic: mythic.length, heroic: heroic.length, pulls }
-  }, [filtered])
+    const scopeRows = tierBosses
+    const totalKillPulls = scopeRows.reduce((sum, b) => sum + Number(b.total_kills), 0)
+    const mythic = scopeRows.filter(b => b.difficulty_label === 'Mythic' && (b.is_killed === 'True' || b.is_killed === (true as unknown as string)))
+    const heroic = scopeRows.filter(b => b.difficulty_label === 'Heroic' && (b.is_killed === 'True' || b.is_killed === (true as unknown as string)))
+    const pulls = scopeRows.reduce((s, b) => s + Number(b.total_pulls), 0)
+    return { totalKillPulls, mythic: mythic.length, heroic: heroic.length, pulls }
+  }, [tierBosses])
+
+  const selectedTierRank = useMemo(() => {
+    if (!selectedTier || selectedTier === 'All') return null
+    return zoneRanks.data.find(row => row.zone_name === selectedTier) ?? null
+  }, [zoneRanks.data, selectedTier])
 
   const wipeMap = useMemo(() => {
     const m: Record<string, typeof best.data[0]> = {}
-    best.data.forEach(b => { m[`${b.encounter_id}-${b.difficulty}`] = b })
+    best.data
+      .filter(row => canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name)
+      .forEach(b => { m[`${b.encounter_id}-${b.difficulty}`] = b })
     return m
-  }, [best.data])
+  }, [best.data, canonicalZoneByEncounter])
 
   const bestHpMap = useMemo(() => {
     const m = new Map<string, number>()
-    wipeAnalysis.data.forEach(row => {
+    wipeAnalysis.data
+      .filter(row => canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name)
+      .forEach(row => {
       m.set(`${row.encounter_id}-${row.difficulty}`, Number(row.best_wipe_pct) || 100)
-    })
+      })
     return m
-  }, [wipeAnalysis.data])
+  }, [wipeAnalysis.data, canonicalZoneByEncounter])
 
   const focusBoss = useMemo(() => {
     const inProgress = [...filtered]
@@ -137,13 +177,17 @@ export function Bosses() {
   const focusHistory = useMemo(() => {
     if (!focusBoss) return []
     return [...history.data]
-      .filter(row => row.encounter_id === focusBoss.encounter_id && row.difficulty === focusBoss.difficulty)
+      .filter(row =>
+        row.encounter_id === focusBoss.encounter_id &&
+        row.difficulty === focusBoss.difficulty &&
+        canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name
+      )
       .sort((a, b) => {
         const byDate = String(a.raid_night_date).localeCompare(String(b.raid_night_date))
         if (byDate !== 0) return byDate
         return String(a.start_time_utc ?? '').localeCompare(String(b.start_time_utc ?? ''))
       })
-  }, [focusBoss, history.data])
+  }, [focusBoss, history.data, canonicalZoneByEncounter])
 
   function bossHref(encounterId: string, difficulty: string) {
     return `/bosses/${encounterId}/${difficulty}`
@@ -156,9 +200,19 @@ export function Bosses() {
           Array(4).fill(null).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <>
-            <StatCard label="Bosses Killed" value={stats.killed} subValue={selectedTier || 'selected tier'} icon="⚔" accent="mauve" />
-            <StatCard label="Mythic Kills" value={stats.mythic} subValue="within current filter" icon="◈" accent="peach" />
-            <StatCard label="Heroic Kills" value={stats.heroic} subValue="within current filter" icon="◉" accent="blue" />
+            <StatCard
+              label="World Rank"
+              value={selectedTierRank?.world_rank ? `#${formatNumber(selectedTierRank.world_rank)}` : '—'}
+              subValue={
+                selectedTierRank?.region_rank
+                  ? `Region #${formatNumber(selectedTierRank.region_rank)} · Server #${formatNumber(selectedTierRank.server_rank)}`
+                  : (zoneRanks.data.length === 0 ? 'WCL rank export not loaded' : (selectedTier || 'selected tier'))
+              }
+              icon={<Trophy className="w-3.5 h-3.5" />}
+              accent="mauve"
+            />
+            <StatCard label="Mythic Bosses Down" value={stats.mythic} subValue="within selected tier" icon="◈" accent="peach" />
+            <StatCard label="Heroic Bosses Down" value={stats.heroic} subValue="within selected tier" icon="◉" accent="blue" />
             <StatCard label="Total Pulls" value={formatNumber(stats.pulls)} subValue="filtered attempts" icon="◷" />
           </>
         )}

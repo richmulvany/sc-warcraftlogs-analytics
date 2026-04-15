@@ -27,6 +27,11 @@ jobs:
           DATABRICKS_SCHEMA: ${{ vars.DATABRICKS_SCHEMA }}
           LIVE_ROSTER_SHEET_ID: ${{ vars.LIVE_ROSTER_SHEET_ID }}
           LIVE_ROSTER_SHEET_GID: ${{ vars.LIVE_ROSTER_SHEET_GID }}
+          WCL_CLIENT_ID: ${{ secrets.WCL_CLIENT_ID }}
+          WCL_CLIENT_SECRET: ${{ secrets.WCL_CLIENT_SECRET }}
+          WCL_GUILD_NAME: ${{ vars.WCL_GUILD_NAME }}
+          WCL_GUILD_SERVER_SLUG: ${{ vars.WCL_GUILD_SERVER_SLUG }}
+          WCL_GUILD_SERVER_REGION: ${{ vars.WCL_GUILD_SERVER_REGION }}
           EXPORT_OUTPUT_DIR: frontend/public/data
         run: python scripts/export_gold_tables.py
       - name: Commit exported data
