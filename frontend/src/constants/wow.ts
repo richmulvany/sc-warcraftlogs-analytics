@@ -16,10 +16,10 @@ export const CLASS_COLORS: Record<string, string> = {
   'Monk':         '#00EE8A',
   'Paladin':      '#F48CBA',
   'Priest':       '#DCDCDC',
-  'Rogue':        '#F5E040',
+  'Rogue':        '#FFF468',
   'Shaman':       '#4B7AFF',
   'Warlock':      '#8788EE',
-  'Warrior':      '#C69B3A',
+  'Warrior':      '#C69B6D',
   // No-space variants (sometimes output by pipeline)
   'DeathKnight':  '#C41E3A',
   'DemonHunter':  '#A330C9',

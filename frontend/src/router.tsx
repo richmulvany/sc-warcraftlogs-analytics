@@ -3,6 +3,7 @@ import { Overview }      from './pages/Overview'
 import { Players }       from './pages/Players'
 import { PlayerDetail }  from './pages/PlayerDetail'
 import { Bosses }        from './pages/Bosses'
+import { BossDetail }    from './pages/BossDetail'
 import { WipeAnalysis }  from './pages/WipeAnalysis'
 import { Raids }         from './pages/Raids'
 import { RaidDetail }    from './pages/RaidDetail'
@@ -16,6 +17,7 @@ export const router = createBrowserRouter([
   { path: '/players',                element: <Players />      },
   { path: '/players/:playerName',    element: <PlayerDetail /> },
   { path: '/bosses',                 element: <Bosses />       },
+  { path: '/bosses/:encounterId/:difficulty', element: <BossDetail /> },
   { path: '/boss-wipes',             element: <Navigate to="/wipe-analysis" replace /> },
   { path: '/wipe-analysis',          element: <WipeAnalysis /> },
   { path: '/raids',                  element: <Raids />        },

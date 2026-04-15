@@ -131,6 +131,28 @@ export interface BossWipeAnalysis {
   avg_wipe_pct_rounded: number
 }
 
+export interface BossProgressHistoryRow {
+  encounter_id: string
+  boss_name: string
+  zone_name: string
+  difficulty: string
+  difficulty_label: string
+  raid_night_date: string
+  report_code: string
+  report_title: string
+  start_time_utc: string
+  end_time_utc: string
+  pulls_on_night: number
+  kills_on_night: number
+  wipes_on_night: number
+  best_wipe_pct_on_night: number
+  avg_wipe_pct_on_night: number
+  best_boss_hp_remaining: number
+  is_kill_on_night: string | boolean
+  kill_duration_seconds: number
+  longest_pull_seconds: number
+}
+
 export interface PlayerSurvivability {
   player_name: string
   player_class: string

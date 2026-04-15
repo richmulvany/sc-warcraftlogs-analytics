@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
@@ -7,7 +8,8 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
-import { useBossProgression, useBestKills, useRaidSummary, useBossWipeAnalysis } from '../hooks/useGoldData'
+import { BossProgressHistoryChart } from '../components/charts/BossProgressHistoryChart'
+import { useBossProgression, useBestKills, useRaidSummary, useBossWipeAnalysis, useBossProgressHistory } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -21,6 +23,7 @@ export function Bosses() {
   const best = useBestKills()
   const raids = useRaidSummary()
   const wipeAnalysis = useBossWipeAnalysis()
+  const history = useBossProgressHistory()
 
   const [diff, setDiff] = useState('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
@@ -96,6 +99,33 @@ export function Bosses() {
     return m
   }, [wipeAnalysis.data])
 
+  const focusBoss = useMemo(() => {
+    const inProgress = [...filtered]
+      .filter(b => !(b.is_killed === 'True' || b.is_killed === (true as unknown as string)))
+      .sort((a, b) => String(b.last_attempt_date).localeCompare(String(a.last_attempt_date)))
+    if (inProgress.length > 0) return inProgress[0]
+
+    const latestFirstKill = [...filtered]
+      .filter(b => b.is_killed === 'True' || b.is_killed === (true as unknown as string))
+      .sort((a, b) => String(b.first_kill_date).localeCompare(String(a.first_kill_date)))
+    return latestFirstKill[0] ?? null
+  }, [filtered])
+
+  const focusHistory = useMemo(() => {
+    if (!focusBoss) return []
+    return [...history.data]
+      .filter(row => row.encounter_id === focusBoss.encounter_id && row.difficulty === focusBoss.difficulty)
+      .sort((a, b) => {
+        const byDate = String(a.raid_night_date).localeCompare(String(b.raid_night_date))
+        if (byDate !== 0) return byDate
+        return String(a.start_time_utc ?? '').localeCompare(String(b.start_time_utc ?? ''))
+      })
+  }, [focusBoss, history.data])
+
+  function bossHref(encounterId: string, difficulty: string) {
+    return `/bosses/${encounterId}/${difficulty}`
+  }
+
   return (
     <AppLayout title="Boss Progression" subtitle="progression tracker">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -152,6 +182,55 @@ export function Bosses() {
         <span className="ml-auto text-xs font-mono text-ctp-overlay0">{filtered.length} boss rows</span>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            {focusBoss
+              ? `${focusBoss.boss_name} Progress Curve`
+              : 'Boss Progress Curve'}
+          </CardTitle>
+          <p className="text-xs text-ctp-overlay1 mt-0.5">
+            {focusBoss
+              ? (focusBoss.is_killed === 'True' || focusBoss.is_killed === (true as unknown as string))
+                ? 'Most recently first-killed boss in the current scope, showing best boss HP remaining by raid night'
+                : 'Most recently progressed unkilled boss in the current scope, showing best boss HP remaining by raid night'
+              : 'No boss selected in the current scope'}
+          </p>
+        </CardHeader>
+        <CardBody>
+          {focusBoss ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <Link
+                    to={bossHref(focusBoss.encounter_id, focusBoss.difficulty)}
+                    className="text-sm font-semibold text-ctp-text hover:text-ctp-mauve transition-colors"
+                  >
+                    {focusBoss.boss_name}
+                  </Link>
+                  <p className="text-[10px] font-mono text-ctp-overlay0 mt-0.5">
+                    {focusBoss.zone_name} · {focusBoss.difficulty_label}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-mono text-ctp-overlay0">Current best</p>
+                  <p className="text-sm font-semibold" style={{ color: getDifficultyColor(focusBoss.difficulty_label) }}>
+                    {(focusBoss.is_killed === 'True' || focusBoss.is_killed === (true as unknown as string))
+                      ? '0.0%'
+                      : `${(bestHpMap.get(`${focusBoss.encounter_id}-${focusBoss.difficulty}`) ?? 100).toFixed(1)}%`}
+                  </p>
+                </div>
+              </div>
+              <BossProgressHistoryChart data={focusHistory} />
+            </>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-ctp-overlay0 text-sm font-mono">
+              No boss progression data in the current scope
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
       {!prog.loading && !prog.error && !wipeAnalysis.loading && !wipeAnalysis.error && (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[36rem] overflow-y-auto pr-2">
           {filtered.map(b => {
@@ -161,10 +240,11 @@ export function Bosses() {
             const bk = wipeMap[`${b.encounter_id}-${b.difficulty}`]
 
             return (
-              <div
+              <Link
                 key={`${b.encounter_id}-${b.difficulty}`}
+                to={bossHref(b.encounter_id, b.difficulty)}
                 className={clsx(
-                  'rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover',
+                  'block rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover',
                   killed
                     ? 'bg-ctp-surface0 border-ctp-surface1'
                     : 'bg-ctp-surface0/60 border-ctp-surface1/60'
@@ -194,7 +274,7 @@ export function Bosses() {
                 {killed && b.first_kill_date && (
                   <p className="text-[10px] font-mono text-ctp-overlay0 mt-1">First: {formatDate(b.first_kill_date)}</p>
                 )}
-              </div>
+              </Link>
             )
           })}
         </div>
@@ -242,10 +322,10 @@ export function Bosses() {
                 return (
                   <Tr key={`${b.encounter_id}-${b.difficulty}`}>
                     <Td>
-                      <div className="flex items-center gap-2">
+                      <Link to={bossHref(b.encounter_id, b.difficulty)} className="flex items-center gap-2 hover:text-ctp-mauve transition-colors">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: killed ? killColor : '#6c7086' }} />
                         <span className="font-medium text-ctp-text">{b.boss_name}</span>
-                      </div>
+                      </Link>
                     </Td>
                     <Td className="text-ctp-overlay1 text-xs max-w-[140px] truncate">{b.zone_name}</Td>
                     <Td><DiffBadge label={b.difficulty_label} /></Td>
