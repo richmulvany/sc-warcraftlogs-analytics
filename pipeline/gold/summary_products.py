@@ -278,7 +278,7 @@ def gold_boss_progress_history():
             "difficulty_label",
             "raid_night_date",
             "report_code",
-            F.coalesce(F.col("_report_title"), F.col("report_title")).alias("report_title"),
+            F.col("_report_title").alias("report_title"),
             F.col("_report_start_time_utc").alias("start_time_utc"),
             F.col("_report_end_time_utc").alias("end_time_utc"),
             "pulls_on_night",
