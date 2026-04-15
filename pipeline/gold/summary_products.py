@@ -208,6 +208,93 @@ def gold_boss_wipe_analysis():
     )
 
 
+# ── Boss Progress History ─────────────────────────────────────────────────────
+# "How has the guild's best pull on each boss changed over time?"
+# One row per report / boss / difficulty, keeping the best boss HP remaining
+# reached on that night (or 0 if the boss died in that report).
+
+@dlt.table(
+    name="gold_boss_progress_history",
+    comment=(
+        "Per-report boss progression history with best boss HP remaining over time. "
+        "Used for encounter detail charts and progression log tables."
+    ),
+    table_properties={
+        "quality": "gold",
+        "pipelines.autoOptimize.zOrderCols": "encounter_id,report_code",
+    },
+)
+def gold_boss_progress_history():
+    fights = dlt.read("silver_fight_events")
+    reports = dlt.read("silver_guild_reports")
+
+    report_context = (
+        reports
+        .select(
+            F.col("code").alias("_report_code"),
+            F.col("title").alias("report_title"),
+            F.col("start_time_utc"),
+            F.col("end_time_utc"),
+        )
+    )
+
+    return (
+        fights
+        .groupBy(
+            "encounter_id",
+            "boss_name",
+            "zone_name",
+            "difficulty",
+            "difficulty_label",
+            "raid_night_date",
+            "report_code",
+        )
+        .agg(
+            F.count("*").alias("pulls_on_night"),
+            F.sum(F.col("is_kill").cast("integer")).alias("kills_on_night"),
+            F.sum((~F.col("is_kill")).cast("integer")).alias("wipes_on_night"),
+            F.min(F.when(~F.col("is_kill"), F.col("boss_percentage"))).alias("best_wipe_pct_on_night"),
+            F.avg(F.when(~F.col("is_kill"), F.col("boss_percentage"))).alias("avg_wipe_pct_on_night"),
+            F.max(F.when(F.col("is_kill"), F.lit(True)).otherwise(F.lit(False))).alias("is_kill_on_night"),
+            F.max("duration_seconds").alias("longest_pull_seconds"),
+            F.max(F.when(F.col("is_kill"), F.col("duration_seconds"))).alias("kill_duration_seconds"),
+        )
+        .withColumn(
+            "best_boss_hp_remaining",
+            F.when(F.col("is_kill_on_night"), F.lit(0.0))
+            .otherwise(F.round(F.col("best_wipe_pct_on_night"), 2)),
+        )
+        .withColumn(
+            "avg_wipe_pct_on_night",
+            F.round(F.col("avg_wipe_pct_on_night"), 2),
+        )
+        .join(report_context, F.col("report_code") == F.col("_report_code"), "left")
+        .drop("_report_code")
+        .select(
+            "encounter_id",
+            "boss_name",
+            "zone_name",
+            "difficulty",
+            "difficulty_label",
+            "raid_night_date",
+            "report_code",
+            "report_title",
+            "start_time_utc",
+            "end_time_utc",
+            "pulls_on_night",
+            "kills_on_night",
+            "wipes_on_night",
+            "best_wipe_pct_on_night",
+            "avg_wipe_pct_on_night",
+            "best_boss_hp_remaining",
+            "is_kill_on_night",
+            "kill_duration_seconds",
+            "longest_pull_seconds",
+        )
+        .orderBy("raid_night_date", "report_code")
+    )
+
+
 # ── Encounter Catalog ──────────────────────────────────────────────────────────
 # "What encounters and zones exist?" (reference table for frontend filters)
 

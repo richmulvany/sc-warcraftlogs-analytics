@@ -53,6 +53,7 @@ FRONTEND_TABLES: dict[str, str] = {
     "gold_best_kills.csv": "gold_best_kills",
     "gold_boss_mechanics.csv": "gold_boss_mechanics",
     "gold_player_boss_performance.csv": "gold_player_boss_performance",
+    "gold_boss_progress_history.csv": "gold_boss_progress_history",
 }
 
 LIVE_ROSTER_COLUMNS = {
