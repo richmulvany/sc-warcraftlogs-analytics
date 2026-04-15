@@ -267,9 +267,9 @@ def export_guild_zone_ranks(client: WorkspaceClient, warehouse_id: str, output_d
         guild(name: $guildName, serverSlug: $serverSlug, serverRegion: $serverRegion) {
           zoneRanking(zoneId: $zoneId) {
             progress(size: 20) {
-              world { number }
-              region { number }
-              server { number }
+              worldRank { number }
+              regionRank { number }
+              serverRank { number }
             }
           }
         }
@@ -301,9 +301,9 @@ def export_guild_zone_ranks(client: WorkspaceClient, warehouse_id: str, output_d
                 {
                     "zone_id": zone_id,
                     "zone_name": zone_name,
-                    "world_rank": ((progress.get("world") or {}).get("number")) or "",
-                    "region_rank": ((progress.get("region") or {}).get("number")) or "",
-                    "server_rank": ((progress.get("server") or {}).get("number")) or "",
+                    "world_rank": ((progress.get("worldRank") or {}).get("number")) or "",
+                    "region_rank": ((progress.get("regionRank") or {}).get("number")) or "",
+                    "server_rank": ((progress.get("serverRank") or {}).get("number")) or "",
                 }
             )
     finally:
