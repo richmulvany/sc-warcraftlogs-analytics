@@ -18,6 +18,7 @@ import {
   useBossKillRoster,
 } from '../hooks/useGoldData'
 import { formatNumber, formatDateShort } from '../utils/format'
+import { isIncludedZoneName } from '../utils/zones'
 import { formatThroughput, getThroughputColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
@@ -63,7 +64,7 @@ export function Overview() {
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
       hasRealText(r.report_code) &&
-      hasRealText(r.zone_name) &&
+      isIncludedZoneName(r.zone_name) &&
       hasRealText(r.raid_night_date) &&
       hasRealText(r.primary_difficulty)
     ),
@@ -84,6 +85,7 @@ export function Overview() {
   const scopedBossRows = useMemo(() =>
     killRoster.data.filter(row =>
       row.zone_name === currentTier &&
+      isIncludedZoneName(row.zone_name) &&
       matchesDifficulty(row.difficulty_label || row.difficulty)
     ),
     [killRoster.data, currentTier, difficulty]
@@ -104,6 +106,7 @@ export function Overview() {
   const killedBosses = useMemo(() =>
     bosses.data.filter(b =>
       b.zone_name === currentTier &&
+      isIncludedZoneName(b.zone_name) &&
       matchesDifficulty(b.difficulty_label || b.difficulty) &&
       (b.is_killed === 'True' || b.is_killed === (true as unknown as string))
     ),

@@ -14,6 +14,7 @@ import { useBossProgression, useBestKills, useBossWipeAnalysis, useBossPullHisto
 import { formatNumber, formatDate } from '../utils/format'
 import { DIFFICULTY_ORDER, formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
+import { isIncludedZoneName } from '../utils/zones'
 import clsx from 'clsx'
 
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
@@ -42,7 +43,7 @@ export function Bosses() {
   const canonicalZoneByEncounter = useMemo(() => {
     const counts = new Map<string, Map<string, number>>()
     prog.data.forEach(row => {
-      if (!hasValue(row.encounter_id) || !hasRealText(row.zone_name)) return
+      if (!hasValue(row.encounter_id) || !isIncludedZoneName(row.zone_name)) return
       const encounterId = String(row.encounter_id)
       if (!counts.has(encounterId)) counts.set(encounterId, new Map())
       const zoneCounts = counts.get(encounterId)!
@@ -58,7 +59,10 @@ export function Bosses() {
   }, [prog.data])
 
   const canonicalBossRows = useMemo(() =>
-    prog.data.filter(row => canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name),
+    prog.data.filter(row =>
+      isIncludedZoneName(row.zone_name) &&
+      canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name
+    ),
     [prog.data, canonicalZoneByEncounter]
   )
 

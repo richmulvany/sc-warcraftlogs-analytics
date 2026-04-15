@@ -11,6 +11,7 @@ import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { usePlayerAttendance, useRaidSummary, useBossKillRoster } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
+import { isIncludedZoneName } from '../utils/zones'
 import { useColourBlind } from '../context/ColourBlindContext'
 
 type SortKey = 'attendance_rate_pct' | 'raids_present' | 'total_raids_tracked'
@@ -50,7 +51,7 @@ export function Attendance() {
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
       hasRealText(r.report_code) &&
-      hasRealText(r.zone_name) &&
+      isIncludedZoneName(r.zone_name) &&
       hasRealText(r.raid_night_date) &&
       hasRealText(r.primary_difficulty)
     ),
@@ -75,6 +76,7 @@ export function Attendance() {
   const bossOptions = useMemo(() => {
     const bosses = [...new Set(
       killRoster.data
+        .filter(row => isIncludedZoneName(row.zone_name))
         .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
         .map(row => row.boss_name)
         .filter(hasRealText)
@@ -86,15 +88,18 @@ export function Attendance() {
     if (!bossOptions.includes(selectedBoss)) setSelectedBoss('All')
   }, [bossOptions, selectedBoss])
 
-  const scopedReportCodes = useMemo(() =>
-    new Set(
-      killRoster.data
-        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
-        .filter(row => difficulty === 'All' || row.difficulty_label === difficulty)
-        .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
-        .map(row => row.report_code)
-    ),
+  const filteredKillRosterRows = useMemo(() =>
+    killRoster.data
+      .filter(row => isIncludedZoneName(row.zone_name))
+      .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+      .filter(row => difficulty === 'All' || row.difficulty_label === difficulty)
+      .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss),
     [killRoster.data, selectedTier, difficulty, selectedBoss]
+  )
+
+  const scopedReportCodes = useMemo(() =>
+    new Set(filteredKillRosterRows.map(row => row.report_code)),
+    [filteredKillRosterRows]
   )
 
   const filteredSessions = useMemo(() => {
@@ -108,15 +113,13 @@ export function Attendance() {
   const scopedRows = useMemo(() => {
     const sessionCount = filteredSessions.length
     if (sessionCount === 0) return [] as ScopedAttendanceRow[]
+    const filteredReportCodes = new Set(filteredSessions.map(session => session.report_code))
 
     const attendanceClassMap = new Map(att.data.map(row => [row.player_name, row.player_class]))
     const grouped = new Map<string, { reports: Set<string>; first: string; last: string; player_class: string }>()
 
-    for (const row of killRoster.data) {
-      if (selectedTier && selectedTier !== 'All' && row.zone_name !== selectedTier) continue
-      if (difficulty !== 'All' && row.difficulty_label !== difficulty) continue
-      if (selectedBoss !== 'All' && row.boss_name !== selectedBoss) continue
-      if (!filteredSessions.some(session => session.report_code === row.report_code)) continue
+    for (const row of filteredKillRosterRows) {
+      if (!filteredReportCodes.has(row.report_code)) continue
 
       const existing = grouped.get(row.player_name)
       if (!existing) {
@@ -154,7 +157,7 @@ export function Attendance() {
         last_raid_date: info.last,
       }
     })
-  }, [filteredSessions, killRoster.data, selectedTier, difficulty, selectedBoss, att.data])
+  }, [filteredSessions, filteredKillRosterRows, att.data])
 
   const sorted = useMemo(() => {
     let rows = scopedRows.filter(r => Number(r.raids_present) >= minRaids)

@@ -13,6 +13,7 @@ import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { useBossKillRoster, useRaidSummary } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
+import { isIncludedZoneName } from '../utils/zones'
 import { formatThroughput, getThroughputColor, normaliseRole } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
@@ -66,6 +67,7 @@ export function Players() {
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
       hasRealText(r.zone_name) &&
+      isIncludedZoneName(r.zone_name) &&
       hasRealText(r.raid_night_date) &&
       hasRealText(r.primary_difficulty)
     ),
@@ -90,7 +92,10 @@ export function Players() {
   }, [selectedTier, currentTier])
 
   const tierBossRows = useMemo(() =>
-    killRoster.data.filter(row => selectedTier === 'All' || row.zone_name === selectedTier),
+    killRoster.data.filter(row =>
+      isIncludedZoneName(row.zone_name) &&
+      (selectedTier === 'All' || row.zone_name === selectedTier)
+    ),
     [killRoster.data, selectedTier]
   )
 

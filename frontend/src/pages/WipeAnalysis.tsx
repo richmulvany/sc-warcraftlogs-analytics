@@ -12,6 +12,7 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot } from '../components/ui/ClassLabel'
 import { useBossMechanics, usePlayerSurvivability, useBossWipeAnalysis, useBossKillRoster } from '../hooks/useGoldData'
 import { formatDate, formatNumber, formatPct } from '../utils/format'
+import { isIncludedZoneName } from '../utils/zones'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
@@ -53,7 +54,7 @@ export function WipeAnalysis() {
     const values = [...wipes.data]
       .sort((a, b) => String(b.latest_wipe_date ?? '').localeCompare(String(a.latest_wipe_date ?? '')))
       .map(row => row.zone_name)
-      .filter(Boolean)
+      .filter(isIncludedZoneName)
     return ['All', ...new Set(values)]
   }, [wipes.data])
 
@@ -69,6 +70,7 @@ export function WipeAnalysis() {
     const values = [...new Set(
       wipes.data
         .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+        .filter(row => isIncludedZoneName(row.zone_name))
         .map(row => row.boss_name)
         .filter(Boolean)
     )].sort()
@@ -82,6 +84,7 @@ export function WipeAnalysis() {
   const filteredWipes = useMemo(() =>
     wipes.data
       .filter(row => diff === 'All' || row.difficulty_label === diff)
+      .filter(row => isIncludedZoneName(row.zone_name))
       .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
       .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
       .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))
@@ -100,6 +103,7 @@ export function WipeAnalysis() {
   const filteredMechanics = useMemo(() =>
     mechs.data
       .filter(row => diff === 'All' || row.difficulty_label === diff)
+      .filter(row => isIncludedZoneName(row.zone_name))
       .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
       .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
       .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))
@@ -112,6 +116,7 @@ export function WipeAnalysis() {
     return new Set(
       roster.data
         .filter(row => encounterKeys.has(`${row.encounter_id}-${row.difficulty}`))
+        .filter(row => isIncludedZoneName(row.zone_name))
         .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
         .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
         .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase()))

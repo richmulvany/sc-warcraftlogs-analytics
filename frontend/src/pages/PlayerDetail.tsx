@@ -22,6 +22,7 @@ import {
 import { formatThroughput, getClassColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { formatDate, formatPct } from '../utils/format'
+import { isIncludedZoneName } from '../utils/zones'
 import type { PlayerBossPerformance } from '../types'
 
 type DifficultyFilter = 'All' | 'Mythic' | 'Heroic' | 'Normal'
@@ -68,6 +69,7 @@ export function PlayerDetail() {
   const playerRosterRows = useMemo(() =>
     roster.data
       .filter(r => r.player_name === name && Number(r.throughput_per_second) > 0)
+      .filter(r => isIncludedZoneName(r.zone_name))
       .sort((a, b) => String(a.raid_night_date).localeCompare(String(b.raid_night_date))),
     [roster.data, name]
   )
@@ -207,7 +209,7 @@ export function PlayerDetail() {
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
       hasRealText(r.report_code) &&
-      hasRealText(r.zone_name) &&
+      isIncludedZoneName(r.zone_name) &&
       hasRealText(r.raid_night_date) &&
       hasRealText(r.primary_difficulty)
     ),

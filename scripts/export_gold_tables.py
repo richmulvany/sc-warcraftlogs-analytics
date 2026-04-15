@@ -14,6 +14,7 @@ import csv
 import io
 import logging
 import os
+import shutil
 import time
 from pathlib import Path
 from typing import Any
@@ -35,6 +36,7 @@ CATALOG = os.environ.get("DATABRICKS_CATALOG", "04_sdp")
 SCHEMA = os.environ.get("DATABRICKS_SCHEMA", "warcraftlogs")
 _output_dir = Path(os.environ.get("EXPORT_OUTPUT_DIR", "frontend/public/data"))
 OUTPUT_DIR = _output_dir if _output_dir.is_absolute() else REPO_ROOT / _output_dir
+FRONTEND_PUBLIC_DATA_DIR = REPO_ROOT / "frontend/public/data"
 POLL_INTERVAL_SECONDS = float(os.environ.get("EXPORT_POLL_INTERVAL_SECONDS", "2"))
 POLL_TIMEOUT_SECONDS = int(os.environ.get("EXPORT_POLL_TIMEOUT_SECONDS", "300"))
 LIVE_ROSTER_SHEET_ID = (
@@ -77,6 +79,24 @@ FRONTEND_TABLES: dict[str, str] = {
     "gold_boss_progress_history.csv": "gold_boss_progress_history",
     "gold_boss_pull_history.csv": "gold_boss_pull_history",
 }
+EXCLUDED_ZONES = {"Blackrock Depths"}
+TABLE_EXPORT_STATEMENTS: dict[str, str] = {
+    "gold_weekly_activity": f"""
+        SELECT
+          DATE_TRUNC('week', CAST(start_time_utc AS TIMESTAMP)) AS week_start,
+          COUNT(*) AS raid_nights,
+          SUM(COALESCE(boss_kills, 0)) AS total_boss_kills,
+          SUM(COALESCE(total_wipes, 0)) AS total_wipes,
+          SUM(COALESCE(total_pulls, 0)) AS total_pulls,
+          SUM(COALESCE(total_fight_seconds, 0)) AS total_raid_seconds,
+          ARRAY_SORT(COLLECT_SET(zone_name)) AS zones_raided
+        FROM {CATALOG}.{SCHEMA}.gold_raid_summary
+        WHERE zone_name IS NOT NULL
+          AND zone_name NOT IN ({", ".join(repr(zone) for zone in sorted(EXCLUDED_ZONES))})
+        GROUP BY DATE_TRUNC('week', CAST(start_time_utc AS TIMESTAMP))
+        ORDER BY week_start
+    """.strip()
+}
 
 LIVE_ROSTER_COLUMNS = {
     "name": 0,
@@ -85,6 +105,53 @@ LIVE_ROSTER_COLUMNS = {
     "race": 119,
     "note": 120,
 }
+
+
+def _mirror_to_frontend_data(path: Path) -> None:
+    if path.parent.resolve() == FRONTEND_PUBLIC_DATA_DIR.resolve():
+        return
+
+    mirror_path = FRONTEND_PUBLIC_DATA_DIR / path.name
+    mirror_path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(path, mirror_path)
+    logger.info("Mirrored %s -> %s", path.name, mirror_path.relative_to(REPO_ROOT))
+
+
+def _filter_exported_csv(output_path: Path) -> int | None:
+    with output_path.open("r", newline="", encoding="utf-8") as fh:
+        reader = csv.DictReader(fh)
+        fieldnames = reader.fieldnames
+        if not fieldnames:
+            return None
+
+        rows = list(reader)
+
+    original_count = len(rows)
+    filtered_rows = rows
+    changed = False
+
+    if "zone_name" in fieldnames:
+        filtered_rows = [
+            row
+            for row in filtered_rows
+            if (row.get("zone_name") or "").strip() not in EXCLUDED_ZONES
+        ]
+        changed = changed or len(filtered_rows) != original_count
+
+    if not changed:
+        return original_count
+
+    with output_path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(filtered_rows)
+
+    logger.info(
+        "Filtered %s excluded-zone rows from %s",
+        original_count - len(filtered_rows),
+        output_path.relative_to(REPO_ROOT),
+    )
+    return len(filtered_rows)
 
 
 def _first_warehouse_id(client: WorkspaceClient) -> str:
@@ -224,6 +291,7 @@ def export_live_raid_roster(output_dir: Path) -> int:
         writer.writeheader()
         writer.writerows(normalised_rows)
 
+    _mirror_to_frontend_data(output_path)
     logger.info("  wrote %s live roster rows to %s", len(normalised_rows), output_path)
     return len(normalised_rows)
 
@@ -239,7 +307,8 @@ def export_guild_zone_ranks(client: WorkspaceClient, warehouse_id: str, output_d
         statement=(
             f"SELECT DISTINCT CAST(zone_id AS STRING) AS zone_id, zone_name "
             f"FROM {CATALOG}.{SCHEMA}.gold_boss_progression "
-            "WHERE zone_id IS NOT NULL AND zone_name IS NOT NULL"
+            "WHERE zone_id IS NOT NULL AND zone_name IS NOT NULL "
+            f"AND zone_name NOT IN ({', '.join(repr(zone) for zone in sorted(EXCLUDED_ZONES))})"
         ),
         disposition=sql.Disposition.INLINE,
         format=sql.Format.JSON_ARRAY,
@@ -291,12 +360,10 @@ def export_guild_zone_ranks(client: WorkspaceClient, warehouse_id: str, output_d
                     "zoneId": zone_id,
                 },
             )
-            progress = (
-                data.get("guildData", {})
-                .get("guild", {})
-                .get("zoneRanking", {})
-                .get("progress", {})
-            )
+            guild_data = data.get("guildData") or {}
+            guild = guild_data.get("guild") or {}
+            zone_ranking = guild.get("zoneRanking") or {}
+            progress = zone_ranking.get("progress") or {}
             rows_out.append(
                 {
                     "zone_id": zone_id,
@@ -319,6 +386,7 @@ def export_guild_zone_ranks(client: WorkspaceClient, warehouse_id: str, output_d
         writer.writeheader()
         writer.writerows(rows_out)
 
+    _mirror_to_frontend_data(output_path)
     logger.info("  wrote %s guild zone rank rows to %s", len(rows_out), output_path)
     return len(rows_out)
 
@@ -367,10 +435,11 @@ def _write_csv_from_statement(
 def export_table(client: WorkspaceClient, warehouse_id: str, filename: str, table_name: str) -> int:
     full_name = f"{CATALOG}.{SCHEMA}.{table_name}"
     logger.info("Exporting %s -> %s", full_name, filename)
+    statement = TABLE_EXPORT_STATEMENTS.get(table_name, f"SELECT * FROM {full_name}")
 
     response = client.statement_execution.execute_statement(
         warehouse_id=warehouse_id,
-        statement=f"SELECT * FROM {full_name}",
+        statement=statement,
         disposition=sql.Disposition.EXTERNAL_LINKS,
         format=sql.Format.CSV,
         wait_timeout="10s",
@@ -380,6 +449,10 @@ def export_table(client: WorkspaceClient, warehouse_id: str, filename: str, tabl
     response = _wait_for_success(client, response)
     output_path = OUTPUT_DIR / filename
     row_count = _write_csv_from_statement(client, response, output_path)
+    filtered_count = _filter_exported_csv(output_path)
+    if filtered_count is not None:
+        row_count = filtered_count
+    _mirror_to_frontend_data(output_path)
     logger.info("  wrote %s rows to %s", row_count or "unknown", output_path)
     return row_count
 

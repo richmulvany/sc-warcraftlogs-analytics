@@ -10,6 +10,7 @@ import { useRaidSummary, useBossKillRoster } from '../hooks/useGoldData'
 import { formatNumber, formatDate } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
+import { isIncludedZoneName } from '../utils/zones'
 import clsx from 'clsx'
 
 export function Raids() {
@@ -34,12 +35,28 @@ export function Raids() {
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
       hasRealText(r.report_code) &&
-      hasRealText(r.zone_name) &&
+      isIncludedZoneName(r.zone_name) &&
       hasRealText(r.raid_night_date) &&
       hasRealText(r.primary_difficulty)
     ),
     [raids.data]
   )
+
+  const raidZoneByReport = useMemo(() => {
+    const map = new Map<string, string>()
+    validRaidRows.forEach(row => {
+      map.set(row.report_code, row.zone_name)
+    })
+    return map
+  }, [validRaidRows])
+
+  const raidByReport = useMemo(() => {
+    const map = new Map<string, typeof validRaidRows[number]>()
+    validRaidRows.forEach(row => {
+      map.set(row.report_code, row)
+    })
+    return map
+  }, [validRaidRows])
 
   const tierOptions = useMemo(() => {
     const tiers = ['All', ...new Set(
@@ -64,7 +81,7 @@ export function Raids() {
   const bossOptions = useMemo(() => {
     const bosses = [...new Set(
       killRoster.data
-        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+        .filter(row => hasRealText(row.zone_name) && (selectedTier === 'All' || row.zone_name === selectedTier))
         .map(row => row.boss_name)
         .filter(hasRealText)
     )].sort()
@@ -73,31 +90,46 @@ export function Raids() {
 
   const scopedReportBossStats = useMemo(() => {
     const stats = new Map<string, { bossKills: number; uniqueBossesKilled: number }>()
-    const byReport = new Map<string, Set<string>>()
+    const fightsByReport = new Map<string, Set<string>>()
+    const encountersByReport = new Map<string, Set<string>>()
 
     killRoster.data.forEach(row => {
       if (!hasRealText(row.report_code) || !hasRealText(row.zone_name)) return
-      const raid = validRaidRows.find(r => r.report_code === row.report_code)
-      if (!raid || row.zone_name !== raid.zone_name) return
+      const raidZone = raidZoneByReport.get(row.report_code)
+      if (!raidZone || row.zone_name !== raidZone) return
 
       const fightKey = `${row.encounter_id}-${row.fight_id}`
-      const reportFightKey = `${row.report_code}:${fightKey}`
-      if (!byReport.has(row.report_code)) byReport.set(row.report_code, new Set())
-      const fights = byReport.get(row.report_code)!
-      fights.add(reportFightKey)
+      if (!fightsByReport.has(row.report_code)) fightsByReport.set(row.report_code, new Set())
+      if (!encountersByReport.has(row.report_code)) encountersByReport.set(row.report_code, new Set())
 
-      const current = stats.get(row.report_code) ?? { bossKills: 0, uniqueBossesKilled: 0 }
-      current.bossKills = fights.size
-      current.uniqueBossesKilled = new Set(
-        killRoster.data
-          .filter(r => r.report_code === row.report_code && r.zone_name === raid.zone_name)
-          .map(r => r.encounter_id)
-      ).size
-      stats.set(row.report_code, current)
+      fightsByReport.get(row.report_code)!.add(fightKey)
+      encountersByReport.get(row.report_code)!.add(String(row.encounter_id))
+    })
+
+    fightsByReport.forEach((fights, reportCode) => {
+      stats.set(reportCode, {
+        bossKills: fights.size,
+        uniqueBossesKilled: encountersByReport.get(reportCode)?.size ?? 0,
+      })
     })
 
     return stats
-  }, [killRoster.data, validRaidRows])
+  }, [killRoster.data, raidZoneByReport])
+
+  const matchingReportsByBoss = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+
+    killRoster.data.forEach(row => {
+      if (!hasRealText(row.report_code) || !hasRealText(row.zone_name) || !hasRealText(row.boss_name)) return
+      const raidZone = raidZoneByReport.get(row.report_code)
+      if (!raidZone || row.zone_name !== raidZone) return
+
+      if (!map.has(row.boss_name)) map.set(row.boss_name, new Set())
+      map.get(row.boss_name)!.add(row.report_code)
+    })
+
+    return map
+  }, [killRoster.data, raidZoneByReport])
 
   useEffect(() => {
     if (!bossOptions.includes(selectedBoss)) setSelectedBoss('All')
@@ -109,11 +141,12 @@ export function Raids() {
     if (diff !== 'All') rows = rows.filter(r => r.primary_difficulty === diff)
     if (selectedBoss !== 'All') {
       const matchingReports = new Set(
-        killRoster.data
-          .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
-          .filter(row => diff === 'All' || row.difficulty_label === diff)
-          .filter(row => row.boss_name === selectedBoss)
-          .map(row => row.report_code)
+        [...(matchingReportsByBoss.get(selectedBoss) ?? new Set<string>())].filter(reportCode => {
+          const raid = raidByReport.get(reportCode)
+          return !!raid &&
+            (selectedTier === 'All' || raid.zone_name === selectedTier) &&
+            (diff === 'All' || raid.primary_difficulty === diff)
+        })
       )
       rows = rows.filter(r => matchingReports.has(r.report_code))
     }
@@ -130,7 +163,7 @@ export function Raids() {
         ? b.raid_night_date.localeCompare(a.raid_night_date)
         : a.raid_night_date.localeCompare(b.raid_night_date)
     )
-  }, [validRaidRows, selectedTier, diff, selectedBoss, search, sortDesc, killRoster.data])
+  }, [validRaidRows, selectedTier, diff, selectedBoss, search, sortDesc, matchingReportsByBoss, raidByReport])
 
   const stats = useMemo(() => {
     if (!filtered.length) return null
