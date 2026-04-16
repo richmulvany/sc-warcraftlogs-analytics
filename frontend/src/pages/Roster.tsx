@@ -146,11 +146,11 @@ export function Roster() {
 
       {/* Tabs + search */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 bg-ctp-surface0 rounded-lg p-1 border border-ctp-surface1">
+        <div className="flex items-center gap-1 bg-ctp-surface0 rounded-xl p-[3px] border border-ctp-surface1">
           <button
             onClick={() => setTab('full')}
             className={clsx(
-              'px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
+              'px-3 py-1 rounded-lg text-xs font-medium transition-all duration-150',
               tab === 'full' ? 'bg-ctp-blue/20 text-ctp-blue' : 'text-ctp-overlay1 hover:text-ctp-text'
             )}
           >
@@ -159,7 +159,7 @@ export function Roster() {
           <button
             onClick={() => setTab('team')}
             className={clsx(
-              'px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
+              'px-3 py-1 rounded-lg text-xs font-medium transition-all duration-150',
               tab === 'team' ? 'bg-ctp-blue/20 text-ctp-blue' : 'text-ctp-overlay1 hover:text-ctp-text'
             )}
           >

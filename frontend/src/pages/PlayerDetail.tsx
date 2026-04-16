@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import clsx from 'clsx'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
+import { FilterSelect } from '../components/ui/FilterSelect'
 import { StatCard } from '../components/ui/StatCard'
+import { FilterTabs } from '../components/ui/FilterTabs'
 import { RoleBadge } from '../components/ui/Badge'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
@@ -351,40 +352,15 @@ export function PlayerDetail() {
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
-          {DIFFICULTIES.map(option => (
-            <button
-              key={option}
-              onClick={() => setDifficulty(option)}
-              className={clsx(
-                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
-                difficulty === option
-                  ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
-                  : 'text-ctp-overlay1 hover:text-ctp-subtext1'
-              )}
-            >
-              {option}
-            </button>
-          ))}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterTabs options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
+          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 flex-1" />
+          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 flex-1" />
         </div>
-        <select
-          value={selectedTier}
-          onChange={e => setSelectedTier(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-48"
-        >
-          {tierOptions.map(tier => <option key={tier} value={tier}>{tier}</option>)}
-        </select>
-        <select
-          value={selectedBoss}
-          onChange={e => setSelectedBoss(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
-        >
-          {bossOptions.map(boss => <option key={boss} value={boss}>{boss}</option>)}
-        </select>
-        <span className="ml-auto text-xs font-mono text-ctp-overlay0">
+        <p className="text-xs font-mono text-ctp-overlay0">
           {selectedTier || currentTier || 'No tier'} · {difficulty} · {selectedBoss}
-        </span>
+        </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

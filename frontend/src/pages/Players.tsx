@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import clsx from 'clsx'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle } from '../components/ui/Card'
+import { FilterSelect } from '../components/ui/FilterSelect'
 import { StatCard } from '../components/ui/StatCard'
+import { FilterTabs } from '../components/ui/FilterTabs'
 import { RoleBadge } from '../components/ui/Badge'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { ProgressBar } from '../components/ui/ProgressBar'
@@ -228,95 +229,49 @@ export function Players() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
-          {ROLES.map(r => (
-            <button
-              key={r.key}
-              onClick={() => setRole(r.key)}
-              className={clsx(
-                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
-                role === r.key
-                  ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
-                  : 'text-ctp-overlay1 hover:text-ctp-subtext1'
-              )}
-            >
-              {r.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
-          {DIFFICULTIES.map(option => (
-            <button
-              key={option}
-              onClick={() => setDifficulty(option)}
-              className={clsx(
-                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
-                difficulty === option
-                  ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
-                  : 'text-ctp-overlay1 hover:text-ctp-subtext1'
-              )}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-
-        <div className="relative">
-          {showTierHint && (
-            <span className="absolute right-7 top-1/2 -translate-y-1/2 text-xs font-mono text-ctp-overlay0 pointer-events-none">
-              tier
-            </span>
-          )}
-          <select
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterTabs options={ROLES.map(r => ({ value: r.key, label: r.label }))} value={role} onChange={setRole} buttonClassName="min-w-[60px]" />
+          <FilterTabs options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
+          <FilterSelect
             value={selectedTier}
+            onChange={setSelectedTier}
             onFocus={() => setShowTierHint(false)}
             onMouseDown={() => setShowTierHint(false)}
-            onChange={e => setSelectedTier(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl pl-3 pr-14 py-2 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-48 max-w-48"
-          >
-            {tierOptions.map(tier => (
-              <option key={tier} value={tier}>{tier}</option>
-            ))}
-          </select>
-        </div>
+            options={tierOptions}
+            hint="tier"
+            showHint={showTierHint}
+            className="pl-3 pr-14 py-2 min-w-48 max-w-48 flex-1"
+          />
 
-        <div className="relative">
-          {showBossHint && (
-            <span className="absolute right-7 top-1/2 -translate-y-1/2 text-xs font-mono text-ctp-overlay0 pointer-events-none">
-              boss
-            </span>
-          )}
-          <select
+          <FilterSelect
             value={selectedBoss}
+            onChange={setSelectedBoss}
             onFocus={() => setShowBossHint(false)}
             onMouseDown={() => setShowBossHint(false)}
-            onChange={e => setSelectedBoss(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl pl-3 pr-14 py-2 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52 max-w-52"
-          >
-            {bossOptions.map(boss => (
-              <option key={boss} value={boss}>{boss}</option>
-            ))}
-          </select>
-        </div>
+            options={bossOptions}
+            hint="boss"
+            showHint={showBossHint}
+            className="pl-3 pr-14 py-2 min-w-52 max-w-52 flex-1"
+          />
 
-        <input
-          type="text"
-          placeholder="Search player or class…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52"
-        />
+          <input
+            type="text"
+            placeholder="Search player or class…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52 flex-1"
+          />
+        </div>
+        <p className="text-xs font-mono text-ctp-overlay0">
+          {selectedTier || currentTier || 'No tier'} · {difficulty} · {selectedBoss}
+        </p>
       </div>
 
       <Card>
         <CardHeader className="flex items-start justify-between gap-3">
           <div>
             <CardTitle>All Players</CardTitle>
-            <p className="text-xs text-ctp-overlay1 mt-0.5">
-              {selectedTier || currentTier || 'No tier'} · {difficulty} · {selectedBoss}
-            </p>
           </div>
           <span className="inline-flex items-center rounded-lg border border-ctp-mauve/30 bg-ctp-mauve/12 px-2 py-1 text-xs font-mono text-ctp-mauve flex-shrink-0">
             {rows.length} players

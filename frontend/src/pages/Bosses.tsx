@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Swords, Trophy } from 'lucide-react'
+import clsx from 'clsx'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
+import { FilterSelect } from '../components/ui/FilterSelect'
 import { StatCard } from '../components/ui/StatCard'
+import { FilterTabs } from '../components/ui/FilterTabs'
 import { DiffBadge } from '../components/ui/Badge'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
@@ -15,7 +18,6 @@ import { formatNumber, formatDate } from '../utils/format'
 import { DIFFICULTY_ORDER, formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { isIncludedZoneName } from '../utils/zones'
-import clsx from 'clsx'
 
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
 
@@ -222,45 +224,20 @@ export function Bosses() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
-          {DIFFS.map(d => (
-            <button
-              key={d}
-              onClick={() => setDiff(d)}
-              className={clsx(
-                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
-                diff === d
-                  ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
-                  : 'text-ctp-overlay1 hover:text-ctp-subtext1'
-              )}
-            >
-              {d}
-            </button>
-          ))}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterTabs options={DIFFS} value={diff} onChange={setDiff} />
+          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 flex-1" />
+          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 flex-1" />
+          <input
+            type="text"
+            placeholder="Search boss…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-44 flex-1"
+          />
         </div>
-        <select
-          value={selectedTier}
-          onChange={e => setSelectedTier(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-48"
-        >
-          {tierOptions.map(tier => <option key={tier} value={tier}>{tier}</option>)}
-        </select>
-        <select
-          value={selectedBoss}
-          onChange={e => setSelectedBoss(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
-        >
-          {bossOptions.map(boss => <option key={boss} value={boss}>{boss}</option>)}
-        </select>
-        <input
-          type="text"
-          placeholder="Search boss…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-44"
-        />
-        <span className="ml-auto text-xs font-mono text-ctp-overlay0">{filtered.length} boss rows</span>
+        <p className="text-xs font-mono text-ctp-overlay0">{filtered.length} boss rows</p>
       </div>
 
       <Card>

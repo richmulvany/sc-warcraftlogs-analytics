@@ -47,9 +47,10 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
       </div>
 
       {/* Value */}
-      <div className="flex items-end gap-2 mt-4">
+      <div className="flex items-end gap-2 mt-0.5">
+
         <span
-          className={clsx('text-2xl font-semibold tracking-tight', !valueColor && style.text)}
+          className={clsx('text-3xl font-semibold tracking-tight', !valueColor && style.text)}
           style={valueColor ? { color: valueColor } : undefined}
         >
           {value}
@@ -67,7 +68,7 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
         )}
       </div>
 
-      <div className="mt-auto pt-1.5 min-h-[28px]">
+      <div className="mt-auto pt-3.5 min-h-[28px]">
         {subValue && (
           <p className="text-xs text-ctp-overlay0">{subValue}</p>
         )}

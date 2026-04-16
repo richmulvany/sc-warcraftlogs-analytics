@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Swords } from 'lucide-react'
-import clsx from 'clsx'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
+import { FilterTabs } from '../components/ui/FilterTabs'
 import { StatCard } from '../components/ui/StatCard'
 import { DiffBadge } from '../components/ui/Badge'
 import { ProgressBar } from '../components/ui/ProgressBar'
@@ -166,22 +166,7 @@ export function Overview() {
             {currentTier ?? 'No current tier data'}
           </p>
         </div>
-        <div className="ml-auto flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
-          {DIFFICULTY_FILTERS.map(option => (
-            <button
-              key={option}
-              onClick={() => setDifficulty(option)}
-              className={clsx(
-                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
-                difficulty === option
-                  ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
-                  : 'text-ctp-overlay1 hover:text-ctp-subtext1'
-              )}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
+        <FilterTabs className="ml-auto" options={DIFFICULTY_FILTERS} value={difficulty} onChange={setDifficulty} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

@@ -3,6 +3,8 @@ import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
 import { DiffBadge } from '../components/ui/Badge'
+import { FilterSelect } from '../components/ui/FilterSelect'
+import { FilterTabs } from '../components/ui/FilterTabs'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
@@ -11,7 +13,7 @@ import { formatNumber, formatDate } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { isIncludedZoneName } from '../utils/zones'
-import clsx from 'clsx'
+const DIFFICULTY_OPTIONS = ['All', 'Mythic', 'Heroic', 'Normal'] as const
 
 export function Raids() {
   const { killColor, wipeColor } = useColourBlind()
@@ -73,10 +75,12 @@ export function Raids() {
     if (!selectedTier && currentTier) setSelectedTier(currentTier)
   }, [selectedTier, currentTier])
 
-  const diffs = useMemo(() => {
-    const ds = [...new Set(validRaidRows.map(r => r.primary_difficulty))].sort()
-    return ['All', ...ds]
-  }, [validRaidRows])
+  const diffs = useMemo(() =>
+    DIFFICULTY_OPTIONS.filter(option =>
+      option === 'All' || validRaidRows.some(row => row.primary_difficulty === option)
+    ),
+    [validRaidRows]
+  )
 
   const bossOptions = useMemo(() => {
     const bosses = [...new Set(
@@ -223,51 +227,26 @@ export function Raids() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-0.5 bg-ctp-surface0 rounded-xl p-1 border border-ctp-surface1">
-          {diffs.map(d => (
-            <button
-              key={d}
-              onClick={() => setDiff(d)}
-              className={clsx(
-                'px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150',
-                diff === d
-                  ? 'bg-ctp-mauve/20 text-ctp-mauve shadow-mauve-glow'
-                  : 'text-ctp-overlay1 hover:text-ctp-subtext1'
-              )}
-            >
-              {d}
-            </button>
-          ))}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <FilterTabs options={diffs} value={diff} onChange={setDiff} />
+          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 flex-1" />
+          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 flex-1" />
+          <input
+            type="text"
+            placeholder="Search raid, zone, date…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52 flex-1"
+          />
+          <button
+            onClick={() => setSortDesc(!sortDesc)}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs font-mono text-ctp-overlay1 hover:text-ctp-subtext1 transition-colors"
+          >
+            Date {sortDesc ? '↓' : '↑'}
+          </button>
         </div>
-        <select
-          value={selectedTier}
-          onChange={e => setSelectedTier(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-48"
-        >
-          {tierOptions.map(tier => <option key={tier} value={tier}>{tier}</option>)}
-        </select>
-        <select
-          value={selectedBoss}
-          onChange={e => setSelectedBoss(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors min-w-52"
-        >
-          {bossOptions.map(boss => <option key={boss} value={boss}>{boss}</option>)}
-        </select>
-        <input
-          type="text"
-          placeholder="Search raid, zone, date…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52"
-        />
-        <button
-          onClick={() => setSortDesc(!sortDesc)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs font-mono text-ctp-overlay1 hover:text-ctp-subtext1 transition-colors"
-        >
-          Date {sortDesc ? '↓' : '↑'}
-        </button>
-        <span className="ml-auto text-xs font-mono text-ctp-overlay0">{filtered.length} sessions</span>
+        <p className="text-xs font-mono text-ctp-overlay0">{filtered.length} sessions</p>
       </div>
 
       {/* Zone-grouped cards */}
