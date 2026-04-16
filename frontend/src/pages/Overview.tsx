@@ -10,7 +10,7 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { WeeklyActivityChart } from '../components/charts/WeeklyActivityChart'
-import { ParseHistogramChart } from '../components/charts/ParseHistogramChart'
+import { ParseHistogramChart, getParseDistributionSummary } from '../components/charts/ParseHistogramChart'
 import {
   useRaidSummary,
   useBossProgression,
@@ -200,6 +200,11 @@ export function Overview() {
       .sort((a, b) => String(b.raid_night_date ?? '').localeCompare(String(a.raid_night_date ?? '')))
       .slice(0, 5),
     [scopedRaids]
+  )
+
+  const parseDistributionSummary = useMemo(() =>
+    getParseDistributionSummary(scopedBossRows),
+    [scopedBossRows]
   )
 
   function bossHref(encounterId: string, difficultyValue: string) {
@@ -472,7 +477,22 @@ export function Overview() {
                 <CardTitle>Parse Distribution</CardTitle>
                 <p className="text-xs text-ctp-overlay1 mt-0.5">{currentTier ?? 'No tier'} · {difficulty} · fight-level parse spread</p>
               </div>
-              <FilterTabs options={['No Curve', 'Curve']} value={parseView} onChange={setParseView} />
+              <div className="flex items-center gap-3">
+                {parseView === 'Curve' && parseDistributionSummary && (
+                  <div className="text-right font-mono whitespace-nowrap">
+                    <p className="text-[10px] leading-tight">
+                      <span className="text-ctp-mauve">{parseDistributionSummary.type} Distribution</span>{' '}
+                      <span style={{ color: getParseColor(parseDistributionSummary.probability) }}>
+                        {parseDistributionSummary.probability.toFixed(2)}%
+                      </span>
+                    </p>
+                    <p className="mt-0.5 text-[9px] leading-tight text-ctp-red">
+                      σ {parseDistributionSummary.standardDeviation.toFixed(2)} · γ₁ {parseDistributionSummary.skewness.toFixed(2)} · κ {parseDistributionSummary.kurtosis.toFixed(2)}
+                    </p>
+                  </div>
+                )}
+                <FilterTabs options={['No Curve', 'Curve']} value={parseView} onChange={setParseView} />
+              </div>
             </div>
           </CardHeader>
           <CardBody className="flex-1 flex">
