@@ -227,17 +227,16 @@ export function Bosses() {
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <FilterTabs options={DIFFS} value={diff} onChange={setDiff} />
-          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 flex-1" />
-          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 flex-1" />
+          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48" />
+          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52" />
           <input
             type="text"
             placeholder="Search boss…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-44 flex-1"
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-44"
           />
         </div>
-        <p className="text-xs font-mono text-ctp-overlay0">{filtered.length} boss rows</p>
       </div>
 
       <Card>

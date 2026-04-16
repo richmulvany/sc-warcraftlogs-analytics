@@ -214,29 +214,28 @@ export function Attendance() {
             options={DIFFICULTIES}
             value={difficulty}
             onChange={setDifficulty}
-            activeClassName="bg-ctp-blue/20 text-ctp-blue shadow-mauve-glow"
+            activeClassName="bg-ctp-blue/20 text-ctp-blue"
           />
-          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 flex-1" />
-          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 flex-1" />
+          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 focus:border-ctp-blue/40" />
+          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 focus:border-ctp-blue/40" />
           <input
             type="text"
             placeholder="Search player or class…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 w-48 flex-1"
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-blue/40 w-48"
           />
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono text-ctp-overlay0">Min raids:</span>
             <select
               value={minRaids}
               onChange={e => setMinRaids(Number(e.target.value))}
-              className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-2 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40"
+              className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-2 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-blue/40"
             >
               {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n}+</option>)}
             </select>
           </div>
         </div>
-        <p className="text-xs font-mono text-ctp-surface2">{sorted.length} players</p>
       </div>
 
       <Card>

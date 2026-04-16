@@ -355,12 +355,9 @@ export function PlayerDetail() {
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <FilterTabs options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
-          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 flex-1" />
-          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 flex-1" />
+          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48" />
+          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52" />
         </div>
-        <p className="text-xs font-mono text-ctp-overlay0">
-          {selectedTier || currentTier || 'No tier'} · {difficulty} · {selectedBoss}
-        </p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

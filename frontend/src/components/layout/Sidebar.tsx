@@ -30,8 +30,8 @@ export function Sidebar() {
       {/* Guild branding */}
       <div className="px-5 pt-6 pb-5 border-b border-ctp-surface0 flex-shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-ctp-mauve/20 border border-ctp-mauve/30 flex items-center justify-center flex-shrink-0">
-            <Swords className="w-4 h-4 text-ctp-mauve" />
+          <div className="w-8 h-8 rounded-xl bg-ctp-mauve/20 border border-ctp-mauve/30 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            <img src="/logo.jpg" alt="Student Council logo" className="w-7 h-7 rounded-[10px] object-cover" />
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-ctp-text truncate">Student Council</p>

@@ -158,15 +158,29 @@ export function Overview() {
   const error = raids.error || bosses.error || killRoster.error
 
   return (
-    <AppLayout title="Dashboard" subtitle="Student Council · Twisting Nether EU">
-      <div className="flex flex-wrap items-end gap-3">
-        <div>
-          <p className="text-[10px] font-mono text-ctp-overlay0">Dashboard Scope</p>
-          <p className="text-sm font-semibold text-ctp-text mt-0.5">
+    <AppLayout title="Dashboard" subtitle="Student Council · Twisting Nether EU" hideHeader>
+      <div
+        className="relative overflow-hidden rounded-2xl border border-ctp-surface1/80 bg-ctp-surface0"
+        style={{
+          backgroundImage: "linear-gradient(90deg, rgba(24, 24, 37, 0.82) 0%, rgba(24, 24, 37, 0.5) 48%, rgba(17, 17, 27, 0.78) 100%), url('/raid-banner.png')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+          <FilterTabs options={DIFFICULTY_FILTERS} value={difficulty} onChange={setDifficulty} />
+        </div>
+        <div className="px-5 py-4 pr-[17rem]">
+          <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ctp-subtext0/90">
+            Current Tier
+          </p>
+          <p className="text-xl font-semibold text-ctp-text mt-1">
             {currentTier ?? 'No current tier data'}
           </p>
+          <p className="text-[11px] font-mono text-ctp-overlay0 mt-1">
+            {difficulty === 'All' ? 'all difficulties' : difficulty}
+          </p>
         </div>
-        <FilterTabs className="ml-auto" options={DIFFICULTY_FILTERS} value={difficulty} onChange={setDifficulty} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

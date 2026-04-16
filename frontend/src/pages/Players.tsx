@@ -166,10 +166,19 @@ export function Players() {
 
   const stats = useMemo(() => {
     const withData = aggregatedRows.filter(p => p.avg_rank_percent > 0)
-    if (!withData.length) return null
+    const withItemLevel = aggregatedRows.filter(p => p.avg_item_level > 0)
+    if (!withData.length && !withItemLevel.length) return null
     const avg = withData.reduce((sum, p) => sum + p.avg_rank_percent, 0) / withData.length
     const top = Math.max(...withData.map(p => p.best_rank_percent || 0))
-    return { count: withData.length, avg, top, total: aggregatedRows.length }
+    const avgItemLevel = withItemLevel.length
+      ? withItemLevel.reduce((sum, p) => sum + p.avg_item_level, 0) / withItemLevel.length
+      : 0
+    const itemLevelStdDev = withItemLevel.length
+      ? Math.sqrt(
+          withItemLevel.reduce((sum, p) => sum + ((p.avg_item_level - avgItemLevel) ** 2), 0) / withItemLevel.length
+        )
+      : 0
+    return { avg, top, avgItemLevel, itemLevelStdDev }
   }, [aggregatedRows])
 
   const rows = useMemo(() => {
@@ -221,61 +230,57 @@ export function Players() {
           Array(4).fill(null).map((_, i) => <SkeletonCard key={i} />)
         ) : (
           <>
-            <StatCard label="Players Tracked" value={stats?.total ?? 0} subValue="in current filter scope" icon="◉" accent="blue" />
-            <StatCard label="With Parse Data" value={stats?.count ?? 0} subValue="min 1 kill" icon="◈" accent="mauve" />
+            <StatCard label="Guild Item Level" value={stats ? stats.avgItemLevel.toFixed(1) : '—'} subValue="average in current scope" icon="◉" accent="blue" />
+            <StatCard label="Item Level Spread" value={stats ? stats.itemLevelStdDev.toFixed(1) : '—'} subValue="standard deviation" icon="◈" accent="mauve" />
             <StatCard label="Guild Avg Parse" value={`${stats?.avg?.toFixed(1) ?? '—'}%`} subValue="WCL rank %" icon="◷" valueColor={stats ? getParseColor(stats.avg) : undefined} accent="none" />
             <StatCard label="Best Parse" value={`${stats?.top?.toFixed(0) ?? '—'}%`} subValue="filter-scope record" valueColor={stats ? topTierColor : undefined} accent="none" />
           </>
         )}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <FilterTabs options={ROLES.map(r => ({ value: r.key, label: r.label }))} value={role} onChange={setRole} buttonClassName="min-w-[60px]" />
-          <FilterTabs options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
-          <FilterSelect
-            value={selectedTier}
-            onChange={setSelectedTier}
-            onFocus={() => setShowTierHint(false)}
-            onMouseDown={() => setShowTierHint(false)}
-            options={tierOptions}
-            hint="tier"
-            showHint={showTierHint}
-            className="pl-3 pr-14 py-2 min-w-48 max-w-48 flex-1"
-          />
+      <div className="flex flex-wrap items-center gap-3">
+        <FilterTabs options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
+        <FilterSelect
+          value={selectedTier}
+          onChange={setSelectedTier}
+          onFocus={() => setShowTierHint(false)}
+          onMouseDown={() => setShowTierHint(false)}
+          options={tierOptions}
+          hint="tier"
+          showHint={showTierHint}
+          className="pl-3 pr-14 py-2 min-w-48 max-w-48"
+        />
 
-          <FilterSelect
-            value={selectedBoss}
-            onChange={setSelectedBoss}
-            onFocus={() => setShowBossHint(false)}
-            onMouseDown={() => setShowBossHint(false)}
-            options={bossOptions}
-            hint="boss"
-            showHint={showBossHint}
-            className="pl-3 pr-14 py-2 min-w-52 max-w-52 flex-1"
-          />
-
-          <input
-            type="text"
-            placeholder="Search player or class…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52 flex-1"
-          />
-        </div>
-        <p className="text-xs font-mono text-ctp-overlay0">
-          {selectedTier || currentTier || 'No tier'} · {difficulty} · {selectedBoss}
-        </p>
+        <FilterSelect
+          value={selectedBoss}
+          onChange={setSelectedBoss}
+          onFocus={() => setShowBossHint(false)}
+          onMouseDown={() => setShowBossHint(false)}
+          options={bossOptions}
+          hint="boss"
+          showHint={showBossHint}
+          className="pl-3 pr-14 py-2 min-w-52 max-w-52"
+        />
       </div>
 
       <Card>
-        <CardHeader className="flex items-start justify-between gap-3">
-          <div>
-            <CardTitle>All Players</CardTitle>
+        <CardHeader className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <CardTitle>Rankings</CardTitle>
+            <FilterTabs options={ROLES.map(r => ({ value: r.key, label: r.label }))} value={role} onChange={setRole} buttonClassName="min-w-[60px]" />
           </div>
-          <span className="inline-flex items-center rounded-lg border border-ctp-mauve/30 bg-ctp-mauve/12 px-2 py-1 text-xs font-mono text-ctp-mauve flex-shrink-0">
-            {rows.length} players
-          </span>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <input
+              type="text"
+              placeholder="Search player or class…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52"
+            />
+            <span className="inline-flex items-center self-center rounded-xl border border-ctp-mauve/30 bg-ctp-mauve/12 px-3 py-2 text-xs font-mono text-ctp-mauve">
+              {rows.length} players
+            </span>
+          </div>
         </CardHeader>
         {loading ? (
           <div className="p-5"><LoadingState rows={10} /></div>
@@ -289,13 +294,13 @@ export function Players() {
               <tr>
                 <Th className="w-8">#</Th>
                 <Th>Player</Th>
-                <Th>Role</Th>
+                <Th className="normal-case tracking-normal">Role</Th>
                 <Th right><SortBtn k="avg_rank_percent">Avg Parse</SortBtn></Th>
                 <Th right><SortBtn k="best_rank_percent">Best Parse</SortBtn></Th>
                 <Th right><SortBtn k="avg_throughput_per_second">Avg DPS/HPS</SortBtn></Th>
-                <Th right><SortBtn k="avg_item_level">Avg iLvl</SortBtn></Th>
+                <Th right><SortBtn k="avg_item_level">Item Level</SortBtn></Th>
                 <Th right><SortBtn k="kills_tracked">Kills</SortBtn></Th>
-                <Th>Last Seen</Th>
+                <Th className="normal-case tracking-normal">Last Seen</Th>
               </tr>
             </THead>
             <TBody>

@@ -144,13 +144,13 @@ export function Roster() {
         <StatCard label="Classes"      value={stats.classes}  subValue="unique classes" />
       </div>
 
-      {/* Tabs + search */}
+      {/* Tabs */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1 bg-ctp-surface0 rounded-xl p-[3px] border border-ctp-surface1">
+        <div className="flex items-center gap-1 bg-ctp-surface0 rounded-lg p-1 border border-ctp-surface1">
           <button
             onClick={() => setTab('full')}
             className={clsx(
-              'px-3 py-1 rounded-lg text-xs font-medium transition-all duration-150',
+              'px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
               tab === 'full' ? 'bg-ctp-blue/20 text-ctp-blue' : 'text-ctp-overlay1 hover:text-ctp-text'
             )}
           >
@@ -159,21 +159,14 @@ export function Roster() {
           <button
             onClick={() => setTab('team')}
             className={clsx(
-              'px-3 py-1 rounded-lg text-xs font-medium transition-all duration-150',
+              'px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
               tab === 'team' ? 'bg-ctp-blue/20 text-ctp-blue' : 'text-ctp-overlay1 hover:text-ctp-text'
             )}
           >
             Raid Team
           </button>
         </div>
-        <input
-          type="text"
-          placeholder="Search name / class…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 w-48"
-        />
-        <span className="text-xs font-mono text-ctp-surface2 ml-auto">
+        <span className="text-xs font-mono text-ctp-surface2">
           {tab === 'full' ? filteredFull.length : filteredTeam.length} members
         </span>
       </div>
@@ -182,7 +175,16 @@ export function Roster() {
       {tab === 'full' ? (
         <Card>
           <CardHeader>
-            <CardTitle>Guild Roster</CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle>Guild Roster</CardTitle>
+              <input
+                type="text"
+                placeholder="Search name / class…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 w-52"
+              />
+            </div>
           </CardHeader>
           {loading ? (
             <CardBody><LoadingState rows={12} /></CardBody>
@@ -290,6 +292,13 @@ export function Roster() {
                 </span>
               )}
             </div>
+            <input
+              type="text"
+              placeholder="Search name / class…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="mt-3 bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 w-52"
+            />
           </CardHeader>
           {loading ? (
             <CardBody><LoadingState rows={12} /></CardBody>

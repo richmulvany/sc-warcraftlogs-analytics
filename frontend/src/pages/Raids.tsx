@@ -230,14 +230,14 @@ export function Raids() {
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3">
           <FilterTabs options={diffs} value={diff} onChange={setDiff} />
-          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 flex-1" />
-          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 flex-1" />
+          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48" />
+          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52" />
           <input
             type="text"
             placeholder="Search raid, zone, date…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52 flex-1"
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52"
           />
           <button
             onClick={() => setSortDesc(!sortDesc)}
@@ -246,7 +246,6 @@ export function Raids() {
             Date {sortDesc ? '↓' : '↑'}
           </button>
         </div>
-        <p className="text-xs font-mono text-ctp-overlay0">{filtered.length} sessions</p>
       </div>
 
       {/* Zone-grouped cards */}
@@ -267,7 +266,6 @@ export function Raids() {
         <div className="space-y-8 max-h-[42rem] overflow-y-auto pr-2">
           {Object.entries(byZone).map(([zoneName, zoneRaids]) => (
             <div key={zoneName}>
-              <h2 className="section-label mb-3">{zoneName}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {zoneRaids.map(r => {
                   const scopedBossStats = scopedReportBossStats.get(r.report_code)
