@@ -1,26 +1,30 @@
 import { useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { ComposedChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Line } from 'recharts'
 import type { BossKillRosterRow } from '../../types'
 import { useColourBlind } from '../../context/ColourBlindContext'
 import { formatNumber, formatPct } from '../../utils/format'
 
-interface Props { data: BossKillRosterRow[] }
+interface Props {
+  data: BossKillRosterRow[]
+  showCurve?: boolean
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function Tip({ active, payload, label }: any) {
   const { getParseColor } = useColourBlind()
   if (!active || !payload?.length) return null
+  const countPayload = payload.find((item: { dataKey?: string }) => item.dataKey === 'count') ?? payload[0]
   const start = Number(label.split('–')[0])
   const midpoint = start + 2.5
   return (
     <div className="bg-ctp-surface0 border border-ctp-surface2 rounded-xl px-3 py-2 text-xs font-mono shadow-xl">
       <p style={{ color: getParseColor(midpoint) }} className="font-semibold mb-0.5">{label}</p>
-      <p className="text-ctp-subtext1">{payload[0].value} parses</p>
+      <p className="text-ctp-subtext1">{countPayload.value} parses</p>
     </div>
   )
 }
 
-export function ParseHistogramChart({ data }: Props) {
+export function ParseHistogramChart({ data, showCurve = false }: Props) {
   const { getParseColor } = useColourBlind()
 
   const { buckets, totalParses, avgParse, medianParse, eliteCount, greyCount, tierMix } = useMemo(() => {
@@ -41,10 +45,22 @@ export function ParseHistogramChart({ data }: Props) {
         ? (sortedValues[medianIndex - 1] + sortedValues[medianIndex]) / 2
         : sortedValues[medianIndex]
 
+    const bandwidth = Math.max(6, Math.min(12, 100 / Math.sqrt(Math.max(values.length, 1))))
+    const rawDensity = counts.map((_, i) => {
+      const x = i * 5 + 2.5
+      return values.reduce((sum, value) => {
+        const z = (x - value) / bandwidth
+        return sum + Math.exp(-0.5 * z * z)
+      }, 0)
+    })
+    const maxDensity = Math.max(...rawDensity, 0)
+    const maxCount = Math.max(...counts, 0)
+
     const buckets = counts.map((count, i) => ({
       label: i === 19 ? '95–100' : `${i * 5}–${i * 5 + 4}`,
       count,
       midpoint: i * 5 + 2.5,
+      curve: maxDensity > 0 ? (rawDensity[i] / maxDensity) * maxCount : 0,
     }))
 
     const totalParses = sortedValues.length
@@ -68,28 +84,41 @@ export function ParseHistogramChart({ data }: Props) {
   }, [data])
 
   return (
-    <div>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={buckets} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
-          <XAxis
-            dataKey="label"
-            tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <Tooltip content={<Tip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-            {buckets.map((b, i) => (
-              <Cell key={i} fill={getParseColor(b.midpoint)} fillOpacity={0.85} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="flex h-full w-full flex-col">
+      <div className="min-h-[280px] flex-1">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={buckets} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <Tooltip content={<Tip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
+            <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              {buckets.map((b, i) => (
+                <Cell key={i} fill={getParseColor(b.midpoint)} fillOpacity={0.85} />
+              ))}
+            </Bar>
+            {showCurve && (
+              <Line
+                type="monotone"
+                dataKey="curve"
+                stroke="#f38ba8"
+                strokeWidth={4}
+                dot={false}
+                activeDot={false}
+                isAnimationActive={false}
+              />
+            )}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
         <div className="rounded-xl border border-ctp-surface1 bg-ctp-surface0/70 px-3 py-2.5">

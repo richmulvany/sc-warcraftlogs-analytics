@@ -314,8 +314,8 @@ export function Bosses() {
                   </div>
                   <DiffBadge label={b.difficulty_label} />
                 </div>
-                <p className="text-[10px] font-mono text-ctp-overlay0 mb-3 truncate">{b.zone_name}</p>
-                <div className="flex items-center justify-between text-[11px] font-mono mb-2.5">
+                <p className="text-[10px] font-mono text-ctp-overlay0 mb-2 truncate">{b.zone_name}</p>
+                <div className="flex items-center justify-between text-[11px] font-mono mb-2">
                   <span className="inline-flex items-center gap-1" style={{ color: killColor }}>
                     <Swords className="w-3 h-3" />
                     {b.total_kills}
@@ -328,11 +328,11 @@ export function Bosses() {
                   )}
                 </div>
                 <ProgressBar value={bestHpRemaining} color={diffColor} height="xs" />
-                <p className="text-[10px] font-mono text-ctp-overlay0 mt-2">
+                <p className="text-[10px] font-mono text-ctp-overlay0 mt-1.5">
                   {killed ? 'Killed' : `Best HP: ${bestHpRemaining.toFixed(1)}%`}
                 </p>
                 {killed && b.first_kill_date && (
-                  <p className="text-[10px] font-mono text-ctp-overlay0 mt-1">First: {formatDate(b.first_kill_date)}</p>
+                  <p className="text-[10px] font-mono text-ctp-overlay0 mt-0.5 whitespace-nowrap">First Kill: {formatDate(b.first_kill_date)}</p>
                 )}
               </Link>
             )
