@@ -12,12 +12,15 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import logging
 import os
+import re
 import shutil
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from databricks.sdk import WorkspaceClient
@@ -60,6 +63,41 @@ WCL_GUILD_SERVER_REGION = (
     os.environ.get("WCL_GUILD_SERVER_REGION") or os.environ.get("GUILD_SERVER_REGION") or "EU"
 )
 GUILD_ZONE_RANKS_FILENAME = os.environ.get("GUILD_ZONE_RANKS_FILENAME") or "guild_zone_ranks.csv"
+BLIZZARD_CLIENT_ID = (
+    os.environ.get("BLIZZARD_CLIENT_ID_PROFILE")
+    or os.environ.get("BLIZZARD_PROFILE_CLIENT_ID")
+    or os.environ.get("BLIZZARD_CLIENT_ID")
+    or os.environ.get("BLIZZARD_CLIENT_ID_ROSTER")
+    or os.environ.get("BLIZZARD_CLIENTID")
+    or os.environ.get("BLIZZARD_API_CLIENT_ID")
+    or ""
+)
+BLIZZARD_CLIENT_SECRET = (
+    os.environ.get("BLIZZARD_CLIENT_SECRET_PROFILE")
+    or os.environ.get("BLIZZARD_PROFILE_CLIENT_SECRET")
+    or os.environ.get("BLIZZARD_CLIENT_SECRET")
+    or os.environ.get("BLIZZARD_CLIENT_SECRET_ROSTER")
+    or os.environ.get("BLIZZARD_CLIENTSECRET")
+    or os.environ.get("BLIZZARD_API_CLIENT_SECRET")
+    or ""
+)
+BLIZZARD_REGION = (
+    os.environ.get("BLIZZARD_REGION")
+    or os.environ.get("GUILD_SERVER_REGION")
+    or WCL_GUILD_SERVER_REGION
+    or "EU"
+).lower()
+BLIZZARD_LOCALE = os.environ.get("BLIZZARD_LOCALE") or "en_GB"
+BLIZZARD_PROFILE_EXPORT_CAP = int(os.environ.get("BLIZZARD_PROFILE_EXPORT_CAP", "80"))
+PLAYER_CHARACTER_MEDIA_FILENAME = (
+    os.environ.get("PLAYER_CHARACTER_MEDIA_FILENAME") or "player_character_media.csv"
+)
+PLAYER_CHARACTER_EQUIPMENT_FILENAME = (
+    os.environ.get("PLAYER_CHARACTER_EQUIPMENT_FILENAME") or "player_character_equipment.csv"
+)
+PLAYER_RAID_ACHIEVEMENTS_FILENAME = (
+    os.environ.get("PLAYER_RAID_ACHIEVEMENTS_FILENAME") or "player_raid_achievements.csv"
+)
 
 FRONTEND_TABLES: dict[str, str] = {
     "gold_raid_summary.csv": "gold_raid_summary",
@@ -104,6 +142,51 @@ LIVE_ROSTER_COLUMNS = {
     "player_class": 5,
     "race": 119,
     "note": 120,
+}
+
+MEDIA_FIELDNAMES = [
+    "player_name",
+    "realm_slug",
+    "avatar_url",
+    "inset_url",
+    "main_url",
+    "main_raw_url",
+]
+EQUIPMENT_FIELDNAMES = [
+    "player_name",
+    "realm_slug",
+    "slot_type",
+    "slot_name",
+    "item_id",
+    "item_name",
+    "icon_url",
+    "quality",
+    "item_level",
+    "inventory_type",
+    "item_subclass",
+    "binding",
+    "transmog_name",
+    "enchantments_json",
+    "sockets_json",
+    "stats_json",
+    "spells_json",
+    "raw_details_json",
+]
+RAID_ACHIEVEMENT_FIELDNAMES = [
+    "player_name",
+    "realm_slug",
+    "achievement_id",
+    "achievement_name",
+    "completed_timestamp",
+]
+
+REALM_SLUG_OVERRIDES = {
+    "twistingnether": "twisting-nether",
+    "twisting-nether": "twisting-nether",
+    "defiasbrotherhood": "defias-brotherhood",
+    "defias-brotherhood": "defias-brotherhood",
+    "argentdawn": "argent-dawn",
+    "argent-dawn": "argent-dawn",
 }
 
 
@@ -351,15 +434,19 @@ def export_guild_zone_ranks(client: WorkspaceClient, warehouse_id: str, output_d
         for row in zone_rows:
             zone_id = int(row[0])
             zone_name = str(row[1])
-            data = adapter._graphql_query(  # noqa: SLF001 - reuse existing adapter request path
-                query,
+            result = adapter.fetch(
+                "guild_zone_ranks",
                 {
-                    "guildName": WCL_GUILD_NAME,
-                    "serverSlug": WCL_GUILD_SERVER_SLUG,
-                    "serverRegion": WCL_GUILD_SERVER_REGION,
-                    "zoneId": zone_id,
+                    "query": query,
+                    "variables": {
+                        "guildName": WCL_GUILD_NAME,
+                        "serverSlug": WCL_GUILD_SERVER_SLUG,
+                        "serverRegion": WCL_GUILD_SERVER_REGION,
+                        "zoneId": zone_id,
+                    },
                 },
             )
+            data = result.records[0] if result.records else {}
             guild_data = data.get("guildData") or {}
             guild = guild_data.get("guild") or {}
             zone_ranking = guild.get("zoneRanking") or {}
@@ -389,6 +476,312 @@ def export_guild_zone_ranks(client: WorkspaceClient, warehouse_id: str, output_d
     _mirror_to_frontend_data(output_path)
     logger.info("  wrote %s guild zone rank rows to %s", len(rows_out), output_path)
     return len(rows_out)
+
+
+def _realm_to_slug(value: str | None) -> str:
+    text = (value or WCL_GUILD_SERVER_SLUG or "").strip()
+    if not text:
+        return WCL_GUILD_SERVER_SLUG
+
+    cleaned = text.replace("'", "").replace("_", "-").replace(" ", "-")
+    cleaned = re.sub(r"(?<=[a-z])(?=[A-Z])", "-", cleaned).lower()
+    cleaned = re.sub(r"-+", "-", cleaned).strip("-")
+    return REALM_SLUG_OVERRIDES.get(cleaned.replace("-", ""), cleaned)
+
+
+def _character_slug(value: str) -> str:
+    return quote(value.strip().lower(), safe="")
+
+
+def _blizzard_token() -> str:
+    if not BLIZZARD_CLIENT_ID or not BLIZZARD_CLIENT_SECRET:
+        raise RuntimeError("Blizzard client credentials are not configured.")
+
+    response = httpx.post(
+        "https://oauth.battle.net/token",
+        auth=(BLIZZARD_CLIENT_ID, BLIZZARD_CLIENT_SECRET),
+        data={"grant_type": "client_credentials"},
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()["access_token"]
+
+
+def _blizzard_get(
+    http: httpx.Client,
+    path: str,
+    namespace: str | None = None,
+) -> dict[str, Any] | None:
+    response = http.get(
+        f"https://{BLIZZARD_REGION}.api.blizzard.com{path}",
+        params={
+            "namespace": namespace or f"profile-{BLIZZARD_REGION}",
+            "locale": BLIZZARD_LOCALE,
+        },
+    )
+    if response.status_code in {403, 404}:
+        return None
+    response.raise_for_status()
+    return response.json()
+
+
+def _blizzard_item_icon_url(http: httpx.Client, item_id: Any, cache: dict[str, str]) -> str:
+    item_key = str(item_id or "").strip()
+    if not item_key:
+        return ""
+    if item_key in cache:
+        return cache[item_key]
+
+    payload = _blizzard_get(
+        http,
+        f"/data/wow/media/item/{item_key}",
+        namespace=f"static-{BLIZZARD_REGION}",
+    )
+    assets = _asset_map(payload)
+    cache[item_key] = assets.get("icon", "")
+    return cache[item_key]
+
+
+def _json_dump(value: Any) -> str:
+    if not value:
+        return ""
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def _simplify_enchantments(item: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "display_string": enchantment.get("display_string") or "",
+            "source_item_name": ((enchantment.get("source_item") or {}).get("name")) or "",
+            "enchantment_id": ((enchantment.get("enchantment_id") or enchantment.get("id")) or ""),
+        }
+        for enchantment in item.get("enchantments", [])
+    ]
+
+
+def _simplify_sockets(item: dict[str, Any]) -> list[dict[str, Any]]:
+    sockets = []
+    for socket in item.get("sockets", []):
+        gem = socket.get("item") or {}
+        sockets.append(
+            {
+                "socket_type": ((socket.get("socket_type") or {}).get("name")) or "",
+                "item_id": gem.get("id") or "",
+                "item_name": gem.get("name") or "",
+                "display_string": socket.get("display_string") or "",
+            }
+        )
+    return sockets
+
+
+def _simplify_stats(item: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "type": ((stat.get("type") or {}).get("name")) or "",
+            "value": stat.get("value") or "",
+            "display": stat.get("display", {}).get("display_string")
+            if isinstance(stat.get("display"), dict)
+            else stat.get("display_string", ""),
+            "is_negated": bool(stat.get("is_negated")),
+        }
+        for stat in item.get("stats", [])
+    ]
+
+
+def _simplify_spells(item: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = []
+    for spell in item.get("spells", []):
+        rows.append(
+            {
+                "spell_id": ((spell.get("spell") or {}).get("id")) or "",
+                "spell_name": ((spell.get("spell") or {}).get("name")) or "",
+                "description": spell.get("description") or "",
+            }
+        )
+    return rows
+
+
+def _asset_map(payload: dict[str, Any] | None) -> dict[str, str]:
+    if not payload:
+        return {}
+    return {
+        str(asset.get("key") or ""): str(asset.get("value") or "")
+        for asset in payload.get("assets", [])
+        if asset.get("key") and asset.get("value")
+    }
+
+
+def _looks_like_raid_feat(name: str) -> bool:
+    lowered = name.lower()
+    return "cutting edge:" in lowered or "famed slayer" in lowered or "famed bane" in lowered
+
+
+def _fetch_blizzard_profile_candidates(
+    client: WorkspaceClient, warehouse_id: str
+) -> list[dict[str, str]]:
+    statement = f"""
+        SELECT player_name, COALESCE(NULLIF(realm, ''), '{WCL_GUILD_SERVER_SLUG}') AS realm
+        FROM {CATALOG}.{SCHEMA}.gold_player_profile
+        WHERE player_name IS NOT NULL
+          AND player_name != ''
+          AND (
+            COALESCE(is_raid_team, false) = true
+            OR COALESCE(kills_tracked, 0) > 0
+          )
+        ORDER BY COALESCE(is_raid_team, false) DESC,
+                 latest_kill_date DESC NULLS LAST,
+                 player_name
+        LIMIT {BLIZZARD_PROFILE_EXPORT_CAP}
+    """.strip()
+
+    response = client.statement_execution.execute_statement(
+        warehouse_id=warehouse_id,
+        statement=statement,
+        disposition=sql.Disposition.INLINE,
+        format=sql.Format.JSON_ARRAY,
+        wait_timeout="30s",
+    )
+    response = _wait_for_success(client, response)
+    rows = getattr(getattr(response, "result", None), "data_array", None) or []
+
+    seen: set[tuple[str, str]] = set()
+    candidates: list[dict[str, str]] = []
+    for row in rows:
+        player_name = str(row[0] or "").strip()
+        realm_slug = _realm_to_slug(str(row[1] or ""))
+        key = (player_name.casefold(), realm_slug)
+        if not player_name or key in seen:
+            continue
+        seen.add(key)
+        candidates.append({"player_name": player_name, "realm_slug": realm_slug})
+    return candidates
+
+
+def export_blizzard_character_profiles(
+    client: WorkspaceClient,
+    warehouse_id: str,
+    output_dir: Path,
+) -> int:
+    if not BLIZZARD_CLIENT_ID or not BLIZZARD_CLIENT_SECRET:
+        logger.info("Skipping Blizzard character profile export: credentials not configured.")
+        return 0
+
+    candidates = _fetch_blizzard_profile_candidates(client, warehouse_id)
+    logger.info("Exporting Blizzard character profiles for %s characters", len(candidates))
+    token = _blizzard_token()
+
+    media_rows: list[dict[str, Any]] = []
+    equipment_rows: list[dict[str, Any]] = []
+    achievement_rows: list[dict[str, Any]] = []
+    item_icon_cache: dict[str, str] = {}
+
+    with httpx.Client(
+        headers={"Authorization": f"Bearer {token}"},
+        follow_redirects=True,
+        timeout=30,
+    ) as http:
+        for candidate in candidates:
+            player_name = candidate["player_name"]
+            realm_slug = candidate["realm_slug"]
+            character_slug = _character_slug(player_name)
+            base = f"/profile/wow/character/{realm_slug}/{character_slug}"
+
+            try:
+                media = _blizzard_get(http, f"{base}/character-media")
+                if media is None:
+                    logger.info("Blizzard profile not found for %s-%s", player_name, realm_slug)
+                    time.sleep(0.05)
+                    continue
+
+                assets = _asset_map(media)
+                media_rows.append(
+                    {
+                        "player_name": player_name,
+                        "realm_slug": realm_slug,
+                        "avatar_url": assets.get("avatar", ""),
+                        "inset_url": assets.get("inset", ""),
+                        "main_url": assets.get("main", ""),
+                        "main_raw_url": assets.get("main-raw", ""),
+                    }
+                )
+
+                equipment = _blizzard_get(http, f"{base}/equipment")
+                for item in (equipment or {}).get("equipped_items", []):
+                    item_id = ((item.get("item") or {}).get("id")) or ""
+                    equipment_rows.append(
+                        {
+                            "player_name": player_name,
+                            "realm_slug": realm_slug,
+                            "slot_type": ((item.get("slot") or {}).get("type")) or "",
+                            "slot_name": ((item.get("slot") or {}).get("name")) or "",
+                            "item_id": item_id,
+                            "item_name": item.get("name") or "",
+                            "icon_url": _blizzard_item_icon_url(http, item_id, item_icon_cache),
+                            "quality": ((item.get("quality") or {}).get("name")) or "",
+                            "item_level": ((item.get("level") or {}).get("value")) or "",
+                            "inventory_type": ((item.get("inventory_type") or {}).get("name"))
+                            or "",
+                            "item_subclass": ((item.get("item_subclass") or {}).get("name")) or "",
+                            "binding": ((item.get("binding") or {}).get("name")) or "",
+                            "transmog_name": (
+                                ((item.get("transmog") or {}).get("item") or {}).get("name")
+                            )
+                            or "",
+                            "enchantments_json": _json_dump(_simplify_enchantments(item)),
+                            "sockets_json": _json_dump(_simplify_sockets(item)),
+                            "stats_json": _json_dump(_simplify_stats(item)),
+                            "spells_json": _json_dump(_simplify_spells(item)),
+                            "raw_details_json": _json_dump(
+                                {
+                                    "name_description": item.get("name_description") or {},
+                                    "requirements": item.get("requirements") or {},
+                                    "durability": item.get("durability") or {},
+                                    "limit_category": item.get("limit_category") or "",
+                                }
+                            ),
+                        }
+                    )
+
+                achievements = _blizzard_get(http, f"{base}/achievements")
+                for row in (achievements or {}).get("achievements", []):
+                    achievement = row.get("achievement") or {}
+                    name = str(achievement.get("name") or "")
+                    criteria = row.get("criteria") or {}
+                    completed = bool(criteria.get("is_completed")) or bool(
+                        row.get("completed_timestamp")
+                    )
+                    if completed and _looks_like_raid_feat(name):
+                        achievement_rows.append(
+                            {
+                                "player_name": player_name,
+                                "realm_slug": realm_slug,
+                                "achievement_id": achievement.get("id") or row.get("id") or "",
+                                "achievement_name": name,
+                                "completed_timestamp": row.get("completed_timestamp") or "",
+                            }
+                        )
+                time.sleep(0.05)
+            except Exception as exc:
+                logger.warning(
+                    "Skipping Blizzard profile for %s-%s: %s", player_name, realm_slug, exc
+                )
+
+    outputs = [
+        (PLAYER_CHARACTER_MEDIA_FILENAME, MEDIA_FIELDNAMES, media_rows),
+        (PLAYER_CHARACTER_EQUIPMENT_FILENAME, EQUIPMENT_FIELDNAMES, equipment_rows),
+        (PLAYER_RAID_ACHIEVEMENTS_FILENAME, RAID_ACHIEVEMENT_FIELDNAMES, achievement_rows),
+    ]
+    for filename, fieldnames, rows in outputs:
+        output_path = output_dir / filename
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_path.open("w", newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+        _mirror_to_frontend_data(output_path)
+        logger.info("  wrote %s rows to %s", len(rows), output_path)
+
+    return len(media_rows) + len(equipment_rows) + len(achievement_rows)
 
 
 def _write_csv_from_statement(
@@ -476,10 +869,15 @@ def main() -> None:
     except Exception as exc:
         logger.warning("Skipping guild zone ranks export: %s", exc)
 
+    try:
+        total_rows += export_blizzard_character_profiles(client, warehouse_id, OUTPUT_DIR)
+    except Exception as exc:
+        logger.warning("Skipping Blizzard character profile export: %s", exc)
+
     logger.info(
         "Export complete. %s total rows across %s files.",
         total_rows or "unknown",
-        len(FRONTEND_TABLES) + 1,
+        len(FRONTEND_TABLES) + 5,
     )
 
 

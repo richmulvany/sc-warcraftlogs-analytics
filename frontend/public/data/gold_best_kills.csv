@@ -27,7 +27,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 2435,Sylvanas Windrunner,Sanctum of Domination,4,Heroic,694,730.7142857142857,7,2021-08-16,2022-08-15,11m 34s
 2542,"Skolex, the Insatiable Ravener",Sepulcher of the First Ones,4,Heroic,150,227.6,10,2022-03-02,2022-09-12,2m 30s
 2682,Assault of the Zaqali,Vault of the Incarnates,4,Heroic,31,31.0,1,2024-08-19,2024-08-19,0m 31s
-3048,The Seven,Blackrock Depths,3,Normal,291,291.0,1,2024-10-23,2024-10-23,4m 51s
 2728,Council of Dreams,"Amirdrassil, the Dream's Hope",4,Heroic,152,230.16666666666666,12,2023-11-20,2024-06-19,2m 32s
 2590,The Primal Council,Vault of the Incarnates,3,Normal,149,207.33333333333334,6,2022-12-14,2024-04-29,2m 29s
 2432,Remnant of Ner'zhul,Sanctum of Domination,5,Mythic,339,353.0,2,2021-09-08,2021-09-29,5m 39s
@@ -97,7 +96,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 2687,The Amalgamation Chamber,"Aberrus, the Shadowed Crucible",5,Mythic,262,334.0,10,2023-05-29,2024-05-06,4m 22s
 2434,Soulrender Dormazain,Sanctum of Domination,4,Heroic,220,297.9,10,2021-07-14,2022-08-31,3m 40s
 2918,Rasha'nan,Nerub-ar Palace,3,Normal,121,158.57142857142858,14,2024-09-11,2024-11-03,2m 01s
-3043,Lord Incendius,Blackrock Depths,4,Heroic,316,316.0,1,2024-10-27,2024-10-27,5m 16s
 2824,Smolderon,"Amirdrassil, the Dream's Hope",4,Heroic,185,243.46153846153845,13,2023-11-21,2024-06-19,3m 05s
 2728,Council of Dreams,Vault of the Incarnates,4,Heroic,145,145.0,1,2024-08-19,2024-08-19,2m 25s
 2902,Ulgrax the Devourer,Nerub-ar Palace,4,Heroic,171,258.26666666666665,15,2024-09-11,2025-01-13,2m 51s
@@ -108,7 +106,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 3180,Lightblinded Vanguard,VS / DR / MQD,4,Heroic,246,263.0,3,2026-03-30,2026-04-08,4m 06s
 3015,"Mug'Zee, Heads of Security",Liberation of Undermine,3,Normal,209,261.0,6,2025-03-05,2025-05-04,3m 29s
 3013,Sprocketmonger Lockenstock,Liberation of Undermine,3,Normal,147,203.16666666666666,6,2025-03-05,2025-05-04,2m 27s
-3048,The Seven,Blackrock Depths,4,Heroic,317,317.0,1,2024-10-27,2024-10-27,5m 17s
 2423,The Tarragrue,Sanctum of Domination,5,Mythic,196,285.0,12,2021-08-02,2022-02-25,3m 16s
 2406,Lady Inerva Darkvein,Castle Nathria,3,Normal,336,336.0,1,2021-01-31,2021-01-31,5m 36s
 2680,"Rashok, the Elder","Aberrus, the Shadowed Crucible",4,Heroic,161,215.57142857142858,7,2023-05-15,2024-06-12,2m 41s
@@ -128,15 +125,12 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 2677,Fyrakk the Blazing,"Amirdrassil, the Dream's Hope",4,Heroic,356,417.8181818181818,11,2023-11-27,2024-06-19,5m 56s
 2546,Anduin Wrynn,Sepulcher of the First Ones,4,Heroic,321,475.2857142857143,7,2022-03-23,2022-09-12,5m 21s
 2402,Sun King's Salvation,Castle Nathria,4,Heroic,181,275.6363636363636,11,2021-01-27,2022-09-14,3m 01s
-3046,Golem Lord Argelmach,Blackrock Depths,3,Normal,271,271.0,1,2024-10-23,2024-10-23,4m 31s
 2405,Artificer Xy'mox,Castle Nathria,4,Heroic,138,268.6666666666667,12,2021-01-27,2022-09-14,2m 18s
 2689,"The Vigilant Steward, Zskarn","Aberrus, the Shadowed Crucible",3,Normal,116,197.83333333333334,6,2023-05-10,2024-05-01,1m 56s
 2786,"Tindral Sageswift, Seer of the Flame",Vault of the Incarnates,4,Heroic,303,303.0,1,2024-08-19,2024-08-19,5m 03s
-3044,Bael'Gar,Blackrock Depths,4,Heroic,293,346.5,2,2024-10-27,2024-10-27,4m 53s
 3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic,234,300.75,4,2026-03-23,2026-04-08,3m 54s
 2921,The Silken Court,Nerub-ar Palace,5,Mythic,437,437.0,1,2025-01-29,2025-01-29,7m 17s
 2398,Shriekwing,Castle Nathria,4,Heroic,86,203.72,25,2021-01-27,2022-09-14,1m 26s
-3047,Ambassador Flamelash,Blackrock Depths,3,Normal,223,223.0,1,2024-10-23,2024-10-23,3m 43s
 2537,The Jailer,Sepulcher of the First Ones,4,Heroic,487,518.3333333333334,3,2022-04-25,2022-08-22,8m 07s
 2587,Eranog,Vault of the Incarnates,3,Normal,121,165.5,6,2022-12-14,2024-04-29,2m 01s
 3183,Midnight Falls,VS / DR / MQD,3,Normal,259,259.0,1,2026-04-01,2026-04-01,4m 19s
@@ -164,7 +158,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 2919,Broodtwister Ovi'nax,Nerub-ar Palace,5,Mythic,474,474.0,1,2024-11-25,2024-11-25,7m 54s
 2436,Guardian of the First Ones,Sanctum of Domination,5,Mythic,313,313.0,1,2021-11-08,2021-11-08,5m 13s
 2683,Magmorax,Vault of the Incarnates,4,Heroic,124,124.0,1,2024-08-19,2024-08-19,2m 04s
-3044,Bael'Gar,Blackrock Depths,3,Normal,191,191.0,1,2024-10-23,2024-10-23,3m 11s
 2820,Gnarlroot,"Amirdrassil, the Dream's Hope",5,Mythic,207,253.25,8,2023-11-29,2024-05-13,3m 27s
 2512,Vigilant Guardian,Sepulcher of the First Ones,5,Mythic,352,368.0,3,2022-04-11,2022-05-02,5m 52s
 2607,Raszageth the Storm-Eater,Vault of the Incarnates,4,Heroic,464,567.4444444444445,9,2023-01-09,2024-08-19,7m 44s
@@ -176,17 +169,14 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 3181,Crown of the Cosmos,VS / DR / MQD,3,Normal,391,455.0,2,2026-03-18,2026-03-25,6m 31s
 2898,"Sikran, Captain of the Sureki",Nerub-ar Palace,3,Normal,117,145.71428571428572,14,2024-09-11,2024-11-03,1m 57s
 3016,Chrome King Gallywix,Liberation of Undermine,3,Normal,242,336.5,6,2025-03-05,2025-05-04,4m 02s
-3049,Emperor Dagran Thaurissan,Blackrock Depths,3,Normal,282,282.0,1,2024-10-23,2024-10-23,4m 42s
 2407,Sire Denathrius,Castle Nathria,4,Heroic,237,391.95652173913044,23,2021-01-25,2022-09-14,3m 57s
 2688,"Kazzara, the Hellforged","Aberrus, the Shadowed Crucible",5,Mythic,230,290.72727272727275,11,2023-05-22,2024-05-06,3m 50s
 2689,"The Vigilant Steward, Zskarn",Vault of the Incarnates,4,Heroic,112,112.0,1,2024-08-19,2024-08-19,1m 52s
 3013,Sprocketmonger Lockenstock,Liberation of Undermine,5,Mythic,311,311.0,1,2025-05-21,2025-05-21,5m 11s
-3042,Lord Roccor,Blackrock Depths,3,Normal,218,218.0,1,2024-10-23,2024-10-23,3m 38s
 3015,"Mug'Zee, Heads of Security",Liberation of Undermine,4,Heroic,166,249.75,20,2025-03-17,2025-07-30,2m 46s
 2417,Stone Legion Generals,Castle Nathria,4,Heroic,259,387.45454545454544,22,2021-01-27,2022-09-14,4m 19s
 3009,Vexie and the Geargrinders,Liberation of Undermine,3,Normal,143,178.5,6,2025-03-05,2025-05-04,2m 23s
 3131,Loom'ithar,Manaforge Omega,4,Heroic,157,255.71428571428572,7,2025-08-13,2025-12-01,2m 37s
-3046,Golem Lord Argelmach,Blackrock Depths,4,Heroic,270,270.0,1,2024-10-27,2024-10-27,4m 30s
 2406,Lady Inerva Darkvein,Castle Nathria,4,Heroic,107,243.46153846153845,13,2021-01-27,2022-09-14,1m 47s
 2693,The Forgotten Experiments,"Aberrus, the Shadowed Crucible",5,Mythic,292,326.14285714285717,7,2023-06-12,2024-05-06,4m 52s
 2537,The Jailer,Sepulcher of the First Ones,3,Normal,403,403.0,1,2022-03-30,2022-03-30,6m 43s
@@ -252,7 +242,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 2731,"Larodar, Keeper of the Flame","Amirdrassil, the Dream's Hope",5,Mythic,311,322.5,2,2024-01-15,2024-01-22,5m 11s
 3015,"Mug'Zee, Heads of Security",Liberation of Undermine,5,Mythic,332,332.0,1,2025-07-02,2025-07-02,5m 32s
 2824,Smolderon,"Amirdrassil, the Dream's Hope",5,Mythic,418,418.0,1,2024-03-04,2024-03-04,6m 58s
-3043,Lord Incendius,Blackrock Depths,3,Normal,232,232.0,1,2024-10-23,2024-10-23,3m 52s
 2383,Hungering Destroyer,Castle Nathria,3,Normal,313,313.0,1,2021-01-31,2021-01-31,5m 13s
 3133,Fractillus,Manaforge Omega,4,Heroic,177,233.77777777777777,9,2025-08-18,2025-12-01,2m 57s
 3306,"Chimaerus, the Undreamt God",VS / DR / MQD,3,Normal,260,305.0,3,2026-03-18,2026-03-25,4m 20s
@@ -273,13 +262,11 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 2418,Huntsman Altimor,Castle Nathria,3,Normal,233,233.0,1,2021-01-31,2021-01-31,3m 53s
 2434,Soulrender Dormazain,Sanctum of Domination,5,Mythic,442,442.0,1,2021-09-29,2021-09-29,7m 22s
 3132,Forgeweaver Araz,Manaforge Omega,3,Normal,127,191.0,3,2025-08-13,2025-11-23,2m 07s
-3045,General Angerforge,Blackrock Depths,3,Normal,532,532.0,1,2024-10-23,2024-10-23,8m 52s
 2683,Magmorax,"Aberrus, the Shadowed Crucible",4,Heroic,147,184.0,7,2023-05-15,2024-06-12,2m 27s
 3182,"Belo'ren, Child of Al'ar",VS / DR / MQD,3,Normal,161,161.0,1,2026-04-01,2026-04-01,2m 41s
 2898,"Sikran, Captain of the Sureki",Nerub-ar Palace,4,Heroic,123,202.0,14,2024-09-16,2025-01-13,2m 03s
 2737,Volcoross,"Amirdrassil, the Dream's Hope",4,Heroic,120,158.36363636363637,11,2023-11-20,2024-06-19,2m 00s
 3133,Fractillus,Manaforge Omega,3,Normal,114,197.0,3,2025-08-13,2025-11-23,1m 54s
-3042,Lord Roccor,Blackrock Depths,4,Heroic,275,297.5,2,2024-10-27,2024-10-27,4m 35s
 2709,Igira the Cruel,"Amirdrassil, the Dream's Hope",5,Mythic,285,331.0,7,2023-12-11,2024-05-13,4m 45s
 2922,Queen Ansurek,Manaforge Omega,5,Mythic,200,200.0,1,2026-01-26,2026-01-26,3m 20s
 2592,"Sennarth, The Cold Breath",Vault of the Incarnates,3,Normal,186,254.33333333333334,6,2022-12-18,2024-04-29,3m 06s

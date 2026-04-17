@@ -65,14 +65,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,cum
 2917,The Bloodbound Horror,Nerub-ar Palace,3,Normal,2024-09-29,64
 2922,Queen Ansurek,Nerub-ar Palace,3,Normal,2024-09-29,65
 2921,The Silken Court,Nerub-ar Palace,3,Normal,2024-09-29,66
-3045,General Angerforge,Blackrock Depths,3,Normal,2024-10-23,67
-3047,Ambassador Flamelash,Blackrock Depths,3,Normal,2024-10-23,68
-3048,The Seven,Blackrock Depths,3,Normal,2024-10-23,69
-3043,Lord Incendius,Blackrock Depths,3,Normal,2024-10-23,70
-3049,Emperor Dagran Thaurissan,Blackrock Depths,3,Normal,2024-10-23,71
-3046,Golem Lord Argelmach,Blackrock Depths,3,Normal,2024-10-23,72
-3044,Bael'Gar,Blackrock Depths,3,Normal,2024-10-23,73
-3042,Lord Roccor,Blackrock Depths,3,Normal,2024-10-23,74
 3012,Stix Bunkjunker,Liberation of Undermine,3,Normal,2025-05-04,75
 3011,Rik Reverb,Liberation of Undermine,3,Normal,2025-05-04,76
 3010,Cauldron of Carnage,Liberation of Undermine,3,Normal,2025-05-04,77
@@ -155,11 +147,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,cum
 2708,"Nymue, Weaver of the Cycle","Amirdrassil, the Dream's Hope",4,Heroic,2024-05-29,55
 2737,Volcoross,"Amirdrassil, the Dream's Hope",4,Heroic,2024-05-29,56
 2731,"Larodar, Keeper of the Flame","Amirdrassil, the Dream's Hope",4,Heroic,2024-05-29,57
-3042,Lord Roccor,Blackrock Depths,4,Heroic,2024-10-27,58
-3044,Bael'Gar,Blackrock Depths,4,Heroic,2024-10-27,59
-3046,Golem Lord Argelmach,Blackrock Depths,4,Heroic,2024-10-27,60
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,61
-3048,The Seven,Blackrock Depths,4,Heroic,2024-10-27,62
 2902,Ulgrax the Devourer,Nerub-ar Palace,4,Heroic,2024-11-24,63
 2920,Nexus-Princess Ky'veza,Nerub-ar Palace,4,Heroic,2024-11-24,64
 2921,The Silken Court,Nerub-ar Palace,4,Heroic,2024-11-24,65

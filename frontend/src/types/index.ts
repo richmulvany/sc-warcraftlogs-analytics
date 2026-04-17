@@ -228,6 +228,44 @@ export interface LiveRaidRosterEntry {
   source_refreshed_at: string
 }
 
+export interface PlayerCharacterMedia {
+  player_name: string
+  realm_slug: string
+  avatar_url: string
+  inset_url: string
+  main_url: string
+  main_raw_url: string
+}
+
+export interface PlayerCharacterEquipment {
+  player_name: string
+  realm_slug: string
+  slot_type: string
+  slot_name: string
+  item_id: string
+  item_name: string
+  icon_url: string
+  quality: string
+  item_level: number
+  inventory_type: string
+  item_subclass: string
+  binding: string
+  transmog_name: string
+  enchantments_json: string
+  sockets_json: string
+  stats_json: string
+  spells_json: string
+  raw_details_json: string
+}
+
+export interface PlayerRaidAchievement {
+  player_name: string
+  realm_slug: string
+  achievement_id: string
+  achievement_name: string
+  completed_timestamp: number
+}
+
 export interface BestKill {
   encounter_id: string
   boss_name: string

@@ -15,6 +15,9 @@ import type {
   ProgressionTimeline,
   RaidTeamMember,
   LiveRaidRosterEntry,
+  PlayerCharacterMedia,
+  PlayerCharacterEquipment,
+  PlayerRaidAchievement,
   BestKill,
   BossMechanics,
   PlayerBossPerformance,
@@ -35,6 +38,9 @@ export const usePlayerSurvivability = () => useCSV<PlayerSurvivability>('gold_pl
 export const useProgressionTimeline = () => useCSV<ProgressionTimeline>('gold_progression_timeline.csv')
 export const useRaidTeam           = () => useCSV<RaidTeamMember>('gold_raid_team.csv')
 export const useLiveRaidRoster     = () => useCSV<LiveRaidRosterEntry>('live_raid_roster.csv', { optional: true })
+export const usePlayerCharacterMedia = () => useCSV<PlayerCharacterMedia>('player_character_media.csv', { optional: true })
+export const usePlayerCharacterEquipment = () => useCSV<PlayerCharacterEquipment>('player_character_equipment.csv', { optional: true })
+export const usePlayerRaidAchievements = () => useCSV<PlayerRaidAchievement>('player_raid_achievements.csv', { optional: true })
 export const useBestKills          = () => useCSV<BestKill>('gold_best_kills.csv')
 export const useBossMechanics      = () => useCSV<BossMechanics>('gold_boss_mechanics.csv')
 export const usePlayerBossPerformance = () => useCSV<PlayerBossPerformance>('gold_player_boss_performance.csv')

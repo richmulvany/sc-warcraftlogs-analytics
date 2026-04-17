@@ -616,21 +616,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,rep
 3016,Chrome King Gallywix,Liberation of Undermine,4,Heroic,2025-07-30,Gz9FbdKWfkp8BPJV,alt raid hc clear,2025-07-30T17:50:06.404Z,2025-07-30T19:31:53.519Z,17,false,16.78,16.78,332,1
 3016,Chrome King Gallywix,Liberation of Undermine,4,Heroic,2025-07-30,Gz9FbdKWfkp8BPJV,alt raid hc clear,2025-07-30T17:50:06.404Z,2025-07-30T19:31:53.519Z,18,false,60.26,60.26,129,2
 3016,Chrome King Gallywix,Liberation of Undermine,4,Heroic,2025-07-30,Gz9FbdKWfkp8BPJV,alt raid hc clear,2025-07-30T17:50:06.404Z,2025-07-30T19:31:53.519Z,19,true,0.01,0.0,340,3
-3042,Lord Roccor,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,6,false,61.83,61.83,132,0
-3042,Lord Roccor,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,8,true,0.01,0.0,275,0
-3044,Bael'Gar,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,14,false,70.35,70.35,114,0
-3044,Bael'Gar,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,15,true,0.01,0.0,400,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,20,false,47.47,47.47,186,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,22,false,78.34,78.34,67,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,23,false,8.89,8.89,331,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,24,false,26.1,26.1,342,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,25,false,40.48,40.48,233,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,27,false,69.54,69.54,79,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,28,false,19.48,19.48,260,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,29,false,20.84,20.84,255,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,31,false,9.49,9.49,260,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,32,false,56.56,56.56,117,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,xNRrdBfvPqJgbDGY,ellie hc brd,2024-10-27T19:15:33.654Z,2024-10-27T20:47:42.780Z,34,false,14.26,14.26,285,0
 3133,Fractillus,Manaforge Omega,5,Mythic,2025-09-29,rDM1AxNBGFPmLn98,2025-09-29 fractilicious,2025-09-29T17:59:57.775Z,2025-09-29T20:05:01.017Z,4,false,14.54,14.54,302,0
 3133,Fractillus,Manaforge Omega,5,Mythic,2025-09-29,rDM1AxNBGFPmLn98,2025-09-29 fractilicious,2025-09-29T17:59:57.775Z,2025-09-29T20:05:01.017Z,5,false,60.86,60.86,109,0
 3133,Fractillus,Manaforge Omega,5,Mythic,2025-09-29,rDM1AxNBGFPmLn98,2025-09-29 fractilicious,2025-09-29T17:59:57.775Z,2025-09-29T20:05:01.017Z,6,false,21.49,21.49,237,0
@@ -4328,31 +4313,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,rep
 3134,Nexus-King Salhadaar,Manaforge Omega,5,Mythic,2025-10-22,tMKRpzq23H4hAybm,2025-10-22 LEFT SIDE,2025-10-22T17:56:37.097Z,2025-10-22T20:59:44.162Z,50,false,52.61,52.61,177,1
 3134,Nexus-King Salhadaar,Manaforge Omega,5,Mythic,2025-10-22,tMKRpzq23H4hAybm,2025-10-22 LEFT SIDE,2025-10-22T17:56:37.097Z,2025-10-22T20:59:44.162Z,51,false,48.77,48.77,168,1
 3134,Nexus-King Salhadaar,Manaforge Omega,5,Mythic,2025-10-22,tMKRpzq23H4hAybm,2025-10-22 LEFT SIDE,2025-10-22T17:56:37.097Z,2025-10-22T20:59:44.162Z,52,false,56.92,56.92,135,2
-3042,Lord Roccor,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,2,false,62.25,62.25,100,0
-3042,Lord Roccor,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,3,true,0.01,0.0,320,0
-3044,Bael'Gar,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,9,true,0.01,0.0,293,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,12,false,16.33,16.33,273,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,13,false,59.12,59.12,124,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,14,false,36.19,36.19,196,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,15,false,8.63,8.63,276,0
-3043,Lord Incendius,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,16,true,0.33,0.0,316,0
-3046,Golem Lord Argelmach,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,25,false,0.01,0.01,173,0
-3046,Golem Lord Argelmach,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,26,false,0.01,0.01,229,0
-3046,Golem Lord Argelmach,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,27,false,0.01,0.01,332,0
-3046,Golem Lord Argelmach,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,28,false,0.01,0.01,134,0
-3046,Golem Lord Argelmach,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,29,false,0.01,0.01,168,0
-3046,Golem Lord Argelmach,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,30,true,0.01,0.0,270,0
-3048,The Seven,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,32,false,56.84,56.84,169,0
-3048,The Seven,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,33,false,59.11,59.11,145,0
-3048,The Seven,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,34,false,66.72,66.72,135,0
-3048,The Seven,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,35,false,48.5,48.5,200,0
-3048,The Seven,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,36,false,62.43,62.43,135,0
-3048,The Seven,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,37,false,55.77,55.77,190,0
-3048,The Seven,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,38,true,0.01,0.0,317,0
-3045,General Angerforge,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,40,false,100.0,100.0,68,0
-3045,General Angerforge,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,41,false,100.0,100.0,227,0
-3045,General Angerforge,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,42,false,100.0,100.0,50,0
-3045,General Angerforge,Blackrock Depths,4,Heroic,2024-10-27,N9t8HagBJLyQrKG7,BRD HC God Group,2024-10-27T19:05:41.201Z,2024-10-27T21:32:40.465Z,43,false,100.0,100.0,287,0
 2398,Shriekwing,Castle Nathria,4,Heroic,2022-08-24,7ZqAvVTgpGMJDfQ2,hc CN,2022-08-24T17:58:38.646Z,2022-08-24T20:56:00.247Z,4,true,0.01,0.0,175,1
 2418,Huntsman Altimor,Castle Nathria,4,Heroic,2022-08-24,7ZqAvVTgpGMJDfQ2,hc CN,2022-08-24T17:58:38.646Z,2022-08-24T20:56:00.247Z,9,true,0.01,0.0,183,4
 2383,Hungering Destroyer,Castle Nathria,4,Heroic,2022-08-24,7ZqAvVTgpGMJDfQ2,hc CN,2022-08-24T17:58:38.646Z,2022-08-24T20:56:00.247Z,12,true,0.01,0.0,187,0
@@ -8355,22 +8315,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,rep
 2918,Rasha'nan,Nerub-ar Palace,5,Mythic,2024-10-23,myC6dYFhbrgRQKJB,2024-10-23 hc into myffic,2024-10-23T18:00:56.918Z,2024-10-23T20:57:24.672Z,52,false,16.82,16.82,282,0
 2918,Rasha'nan,Nerub-ar Palace,5,Mythic,2024-10-23,myC6dYFhbrgRQKJB,2024-10-23 hc into myffic,2024-10-23T18:00:56.918Z,2024-10-23T20:57:24.672Z,54,false,33.19,33.19,154,0
 2918,Rasha'nan,Nerub-ar Palace,5,Mythic,2024-10-23,myC6dYFhbrgRQKJB,2024-10-23 hc into myffic,2024-10-23T18:00:56.918Z,2024-10-23T20:57:24.672Z,55,true,0.01,0.0,384,0
-3042,Lord Roccor,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,11,true,0.03,0.0,218,0
-3044,Bael'Gar,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,14,false,34.98,34.98,265,0
-3044,Bael'Gar,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,15,true,0.21,0.0,191,0
-3043,Lord Incendius,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,20,false,60.53,60.53,89,0
-3043,Lord Incendius,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,22,true,0.01,0.0,232,0
-3046,Golem Lord Argelmach,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,28,false,0.01,0.01,101,0
-3046,Golem Lord Argelmach,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,29,false,0.01,0.01,233,0
-3046,Golem Lord Argelmach,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,30,true,0.01,0.0,271,0
-3048,The Seven,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,32,true,0.01,0.0,291,0
-3045,General Angerforge,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,39,false,100.0,100.0,65,0
-3045,General Angerforge,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,41,true,0.01,0.0,532,0
-3047,Ambassador Flamelash,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,44,true,0.01,0.0,223,0
-3049,Emperor Dagran Thaurissan,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,47,false,98.41,98.41,70,0
-3049,Emperor Dagran Thaurissan,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,49,false,93.67,93.67,86,0
-3049,Emperor Dagran Thaurissan,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,51,false,30.82,30.82,251,0
-3049,Emperor Dagran Thaurissan,Blackrock Depths,3,Normal,2024-10-23,G2DXPmwTRnQdMvJW,normal brd,2024-10-23T10:49:13.878Z,2024-10-23T13:42:53.011Z,52,true,0.01,0.0,282,0
 2685,Scalecommander Sarkareth,"Aberrus, the Shadowed Crucible",5,Mythic,2023-10-04,hzAPY2FJ1QctbGZN,2023-10-04 PLEASE PLEASE PLEASE KILL SARK,2023-10-04T17:46:15.311Z,2023-10-04T21:07:56.052Z,4,false,68.11,68.11,113,2
 2685,Scalecommander Sarkareth,"Aberrus, the Shadowed Crucible",5,Mythic,2023-10-04,hzAPY2FJ1QctbGZN,2023-10-04 PLEASE PLEASE PLEASE KILL SARK,2023-10-04T17:46:15.311Z,2023-10-04T21:07:56.052Z,5,false,47.22,47.22,224,2
 2685,Scalecommander Sarkareth,"Aberrus, the Shadowed Crucible",5,Mythic,2023-10-04,hzAPY2FJ1QctbGZN,2023-10-04 PLEASE PLEASE PLEASE KILL SARK,2023-10-04T17:46:15.311Z,2023-10-04T21:07:56.052Z,6,false,69.44,69.44,112,2

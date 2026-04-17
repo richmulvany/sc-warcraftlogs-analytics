@@ -19,16 +19,174 @@ import {
   useBossKillRoster,
   usePlayerBossPerformance,
   useRaidSummary,
+  usePlayerCharacterMedia,
+  usePlayerCharacterEquipment,
+  usePlayerRaidAchievements,
 } from '../hooks/useGoldData'
 import { formatThroughput, getClassColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { formatDate, formatPct } from '../utils/format'
 import { isIncludedZoneName } from '../utils/zones'
-import type { PlayerBossPerformance } from '../types'
+import type { PlayerBossPerformance, PlayerCharacterEquipment } from '../types'
 
 type DifficultyFilter = 'All' | 'Mythic' | 'Heroic' | 'Normal'
 
 const DIFFICULTIES: DifficultyFilter[] = ['All', 'Mythic', 'Heroic', 'Normal']
+
+const EQUIPMENT_SLOTS = [
+  { type: 'HEAD', label: 'Head', side: 'left' },
+  { type: 'NECK', label: 'Neck', side: 'left' },
+  { type: 'SHOULDER', label: 'Shoulder', side: 'left' },
+  { type: 'BACK', label: 'Back', side: 'left' },
+  { type: 'CHEST', label: 'Chest', side: 'left' },
+  { type: 'SHIRT', label: 'Shirt', side: 'left' },
+  { type: 'TABARD', label: 'Tabard', side: 'left' },
+  { type: 'WRIST', label: 'Wrist', side: 'left' },
+  { type: 'HANDS', label: 'Hands', side: 'right' },
+  { type: 'WAIST', label: 'Waist', side: 'right' },
+  { type: 'LEGS', label: 'Legs', side: 'right' },
+  { type: 'FEET', label: 'Feet', side: 'right' },
+  { type: 'FINGER_1', label: 'Finger', side: 'right' },
+  { type: 'FINGER_2', label: 'Finger', side: 'right' },
+  { type: 'TRINKET_1', label: 'Trinket', side: 'right' },
+  { type: 'TRINKET_2', label: 'Trinket', side: 'right' },
+  { type: 'MAIN_HAND', label: 'Main Hand', side: 'bottom' },
+  { type: 'OFF_HAND', label: 'Off Hand', side: 'bottom' },
+] as const
+
+const EQUIPMENT_SLOT_ORDER: string[] = EQUIPMENT_SLOTS.map(slot => slot.type)
+
+const QUALITY_COLORS: Record<string, string> = {
+  Poor: '#9ca3af',
+  Common: '#d1d5db',
+  Uncommon: '#a6e3a1',
+  Rare: '#89b4fa',
+  Epic: '#cba6f7',
+  Legendary: '#fab387',
+  Artifact: '#f9e2af',
+  Heirloom: '#94e2d5',
+}
+
+interface GearEnhancement {
+  display_string?: string
+  item_name?: string
+  source_item_name?: string
+  socket_type?: string
+  value?: number | string
+  type?: string
+  display?: string
+  description?: string
+  spell_name?: string
+}
+
+function parseGearJson(value: unknown): GearEnhancement[] {
+  if (typeof value !== 'string' || !value.trim()) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function ItemTooltip({ item, color }: { item: PlayerCharacterEquipment; color: string }) {
+  const enchants = parseGearJson(item.enchantments_json)
+  const sockets = parseGearJson(item.sockets_json)
+  const stats = parseGearJson(item.stats_json)
+  const spells = parseGearJson(item.spells_json)
+
+  return (
+    <div className="pointer-events-none absolute left-12 top-0 z-40 hidden w-72 rounded-xl border border-ctp-surface2 bg-ctp-crust/95 p-4 text-left shadow-2xl backdrop-blur group-hover:block">
+      <p className="text-sm font-semibold" style={{ color }}>{item.item_name}</p>
+      {item.transmog_name && (
+        <p className="mt-1 text-xs text-ctp-pink">Transmog: {item.transmog_name}</p>
+      )}
+      <p className="mt-1 text-xs font-mono text-ctp-yellow">Item Level {item.item_level || '—'}</p>
+      <p className="mt-2 text-xs text-ctp-subtext1">{item.binding || 'Binds when picked up'}</p>
+      <p className="text-xs text-ctp-overlay1">{item.inventory_type || item.slot_name} {item.item_subclass ? `· ${item.item_subclass}` : ''}</p>
+
+      {stats.length > 0 && (
+        <div className="mt-3 space-y-0.5">
+          {stats.slice(0, 8).map((stat, index) => (
+            <p key={index} className="text-xs text-ctp-text">
+              {stat.display || `${stat.value ? `+${stat.value} ` : ''}${stat.type ?? ''}`}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {enchants.length > 0 && (
+        <div className="mt-3 space-y-0.5">
+          {enchants.map((enchant, index) => (
+            <p key={index} className="text-xs text-ctp-green">
+              Enchanted: {enchant.display_string || enchant.source_item_name || 'Unknown enchant'}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {sockets.length > 0 && (
+        <div className="mt-3 space-y-1">
+          {sockets.map((socket, index) => (
+            <p key={index} className="text-xs text-ctp-sapphire">
+              {socket.item_name || socket.display_string || socket.socket_type || 'Empty socket'}
+            </p>
+          ))}
+        </div>
+      )}
+
+      {spells.length > 0 && (
+        <div className="mt-3 space-y-2">
+          {spells.slice(0, 3).map((spell, index) => (
+            <div key={index}>
+              <p className="text-xs font-medium text-ctp-text">{spell.spell_name}</p>
+              {spell.description && <p className="mt-0.5 text-xs leading-relaxed text-ctp-subtext1">{spell.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GearSlot({ item, label, classColor }: { item?: PlayerCharacterEquipment; label: string; classColor: string }) {
+  const qualityColor = item ? (QUALITY_COLORS[item.quality] ?? classColor) : '#45475a'
+  const enchants = item ? parseGearJson(item.enchantments_json) : []
+  const sockets = item ? parseGearJson(item.sockets_json) : []
+
+  return (
+    <div className="group relative flex min-h-[54px] items-center gap-2 rounded-xl border border-ctp-surface1 bg-ctp-surface0/55 px-2 py-1.5">
+      <div
+        className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-ctp-crust/80"
+        style={{ borderColor: item ? qualityColor : '#313244' }}
+      >
+        {item?.icon_url ? (
+          <img src={item.icon_url} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-[9px] font-mono text-ctp-surface2">{label.slice(0, 2)}</span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <p className="truncate text-[10px] font-mono uppercase tracking-wide text-ctp-overlay0">{label}</p>
+          <p className="text-[10px] font-mono text-ctp-yellow">{item?.item_level || '—'}</p>
+        </div>
+        <p className="mt-0.5 truncate text-xs font-medium" style={{ color: item ? qualityColor : '#6c7086' }}>
+          {item?.item_name || 'Empty'}
+        </p>
+        {(enchants.length > 0 || sockets.length > 0) && (
+          <div className="mt-0.5 flex items-center gap-1.5">
+            {enchants.length > 0 && <span className="text-[9px] font-mono text-ctp-green">ench</span>}
+            {sockets.slice(0, 3).map((socket, index) => (
+              <span key={index} className="h-1.5 w-1.5 rounded-full bg-ctp-sapphire" title={socket.item_name || socket.socket_type} />
+            ))}
+          </div>
+        )}
+      </div>
+      {item && <ItemTooltip item={item} color={qualityColor} />}
+    </div>
+  )
+}
 
 export function PlayerDetail() {
   const { getParseColor, wipeColor, getDeathRateColor, getAttendanceColor } = useColourBlind()
@@ -43,6 +201,9 @@ export function PlayerDetail() {
   const raids = useRaidSummary()
   const roster = useBossKillRoster()
   const bossPf = usePlayerBossPerformance()
+  const characterMedia = usePlayerCharacterMedia()
+  const characterEquipment = usePlayerCharacterEquipment()
+  const raidAchievements = usePlayerRaidAchievements()
 
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
@@ -259,6 +420,42 @@ export function PlayerDetail() {
     return gaps
   }, [summary, attRow, survRow, dpsOverTime.length, heatmapData.length])
 
+  const playerMedia = useMemo(
+    () => characterMedia.data.find(row => row.player_name.toLowerCase() === name.toLowerCase()) ?? null,
+    [characterMedia.data, name]
+  )
+
+  const playerEquipment = useMemo(() =>
+    characterEquipment.data
+      .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
+      .sort((a, b) =>
+        (EQUIPMENT_SLOT_ORDER.indexOf(a.slot_type) === -1 ? 999 : EQUIPMENT_SLOT_ORDER.indexOf(a.slot_type)) -
+        (EQUIPMENT_SLOT_ORDER.indexOf(b.slot_type) === -1 ? 999 : EQUIPMENT_SLOT_ORDER.indexOf(b.slot_type))
+      ),
+    [characterEquipment.data, name]
+  )
+
+  const equipmentBySlot = useMemo(() => {
+    const map = new Map<string, PlayerCharacterEquipment>()
+    playerEquipment.forEach(item => {
+      if (item.slot_type) map.set(item.slot_type, item)
+    })
+    return map
+  }, [playerEquipment])
+
+  const playerRaidAchievements = useMemo(() =>
+    [...raidAchievements.data]
+      .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
+      .sort((a, b) => Number(b.completed_timestamp) - Number(a.completed_timestamp)),
+    [raidAchievements.data, name]
+  )
+
+  function formatBlizzardTimestamp(value: unknown): string {
+    const timestamp = Number(value)
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return '—'
+    return formatDate(new Date(timestamp).toISOString())
+  }
+
   const loading = perf.loading || surv.loading || att.loading || raids.loading || roster.loading || bossPf.loading
   const error = perf.error || surv.error || raids.error
 
@@ -311,12 +508,19 @@ export function PlayerDetail() {
         ) : summary ? (
           <div className="flex flex-wrap items-center gap-5">
             <div
-              className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl font-bold border"
+              className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 text-xl font-bold border overflow-hidden"
               style={{ background: `${classColor}15`, borderColor: `${classColor}30`, color: classColor }}
             >
-              {summary.player_class[0]}
+              {playerMedia?.inset_url || playerMedia?.avatar_url || playerMedia?.main_url ? (
+                <img
+                  src={playerMedia.inset_url || playerMedia.avatar_url || playerMedia.main_url}
+                  alt={`${summary.player_name} character portrait`}
+                  className="h-full w-full p-0.5 rounded-2xl  object-cover"
+                />
+              ) : (
+                summary.player_class?.[0] ?? '?'
+              )}
             </div>
-
             <div className="flex-1 min-w-0">
               <h2 className="text-xl font-semibold" style={{ color: classColor }}>
                 {summary.player_name}
@@ -399,6 +603,117 @@ export function PlayerDetail() {
           </>
         )}
       </div>
+
+      {(characterEquipment.data.length > 0 || raidAchievements.data.length > 0) && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          <Card className="xl:col-span-2">
+            <CardHeader>
+              <CardTitle>Equipped Gear</CardTitle>
+              <p className="text-xs text-ctp-overlay1 mt-0.5">
+                Blizzard profile snapshot
+              </p>
+            </CardHeader>
+            <CardBody>
+              {characterEquipment.loading ? (
+                <LoadingState rows={6} />
+              ) : playerEquipment.length === 0 ? (
+                <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">
+                  No exposed equipment found for this character.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)_minmax(0,1fr)]">
+                  <div className="space-y-2">
+                    {EQUIPMENT_SLOTS.filter(slot => slot.side === 'left').map(slot => (
+                      <GearSlot
+                        key={slot.type}
+                        label={slot.label}
+                        item={equipmentBySlot.get(slot.type)}
+                        classColor={classColor}
+                      />
+                    ))}
+                  </div>
+
+                  <div
+                    className="relative order-first flex min-h-[520px] items-end justify-center overflow-hidden rounded-2xl border border-ctp-surface1 bg-ctp-crust/70 lg:order-none"
+                    style={{
+                      background: `radial-gradient(circle at 50% 22%, ${classColor}24 0%, rgba(24, 24, 37, 0.58) 38%, rgba(17, 17, 27, 0.92) 100%)`,
+                    }}
+                  >
+                    {playerMedia?.main_raw_url || playerMedia?.main_url ? (
+                      <img
+                        src={playerMedia.main_raw_url || playerMedia.main_url}
+                        alt={`${name} standing character render`}
+                        className="absolute inset-x-[-32%] -bottom-9 z-10 h-[132%] w-[164%] max-w-none object-cover object-bottom drop-shadow-2xl"
+                      />
+                    ) : (
+                      <div className="relative z-10 flex h-full w-full items-center justify-center text-5xl font-bold" style={{ color: classColor }}>
+                        {name[0] ?? '?'}
+                      </div>
+                    )}
+                    <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-b from-ctp-crust/10 via-transparent to-ctp-crust/45" />
+                  </div>
+
+                  <div className="space-y-2">
+                    {EQUIPMENT_SLOTS.filter(slot => slot.side === 'right').map(slot => (
+                      <GearSlot
+                        key={slot.type}
+                        label={slot.label}
+                        item={equipmentBySlot.get(slot.type)}
+                        classColor={classColor}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:col-span-3">
+                    {EQUIPMENT_SLOTS.filter(slot => slot.side === 'bottom').map(slot => (
+                      <GearSlot
+                        key={slot.type}
+                        label={slot.label}
+                        item={equipmentBySlot.get(slot.type)}
+                        classColor={classColor}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Raid Feats</CardTitle>
+              <p className="text-xs text-ctp-overlay1 mt-0.5">
+                Exposed Cutting Edge / Famed Slayer style achievements
+              </p>
+            </CardHeader>
+            <CardBody>
+              {raidAchievements.loading ? (
+                <LoadingState rows={4} />
+              ) : playerRaidAchievements.length === 0 ? (
+                <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">
+                  No exposed raid feats found for this character.
+                </p>
+              ) : (
+                <div className="space-y-2.5">
+                  {playerRaidAchievements.slice(0, 8).map(achievement => (
+                    <div
+                      key={`${achievement.achievement_id}-${achievement.completed_timestamp}`}
+                      className="rounded-xl border border-ctp-surface1 bg-ctp-surface0/60 px-3 py-2"
+                    >
+                      <p className="text-xs font-medium text-ctp-text">
+                        {achievement.achievement_name}
+                      </p>
+                      <p className="mt-0.5 text-[10px] font-mono text-ctp-overlay0">
+                        {formatBlizzardTimestamp(achievement.completed_timestamp)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
+      )}
 
       {dataCoverage.length > 0 && (
         <Card>
