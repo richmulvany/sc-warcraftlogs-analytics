@@ -348,3 +348,105 @@ export interface PlayerBossPerformance {
   first_kill_date: string
   latest_kill_date: string
 }
+
+export interface PlayerMplusSummary {
+  player_name: string
+  realm_slug: string
+  region: string
+  profile_url: string
+  season: string
+  snapshot_at: string
+  score_all: number
+  score_dps: number
+  score_healer: number
+  score_tank: number
+  world_rank: number
+  region_rank: number
+  realm_rank: number
+  total_runs: number
+  timed_runs: number
+  untimed_runs: number
+  highest_timed_level: number
+  highest_untimed_level: number
+  most_common_key_level: number
+  most_common_key_count: number
+  best_run_dungeon: string
+  best_run_short_name: string
+  best_run_level: number
+  best_run_score: number
+  best_run_timed: string | boolean
+  best_run_completed_at: string
+  best_run_url: string
+}
+
+export interface PlayerMplusScoreHistory {
+  player_name: string
+  realm_slug: string
+  region: string
+  profile_url: string
+  season: string
+  snapshot_at: string
+  snapshot_date: string
+  score_all: number
+  score_dps: number
+  score_healer: number
+  score_tank: number
+  world_rank: number
+  region_rank: number
+  realm_rank: number
+  raiderio_last_crawled_at: string
+}
+
+export interface PlayerMplusRunHistory {
+  player_name: string
+  realm_slug: string
+  region: string
+  season: string
+  source: string
+  dungeon: string
+  short_name: string
+  mythic_level: number
+  score: number
+  completed_at: string
+  completed_date: string
+  clear_time_ms: number
+  par_time_ms: number
+  num_keystone_upgrades: number
+  timed: string | boolean
+  url: string
+  snapshot_at: string
+}
+
+export interface PlayerMplusWeeklyActivity {
+  player_name: string
+  realm_slug: string
+  region: string
+  season: string
+  week_start: string
+  total_runs: number
+  timed_runs: number
+  untimed_runs: number
+  highest_key_level: number
+  unique_dungeons: number
+  most_common_key_level: number
+}
+
+export interface PlayerMplusDungeonBreakdown {
+  player_name: string
+  realm_slug: string
+  region: string
+  season: string
+  dungeon: string
+  best_short_name: string
+  highest_key_level: number
+  highest_timed_level: number
+  total_runs: number
+  timed_runs: number
+  untimed_runs: number
+  latest_completed_at: string
+  best_key_level: number
+  best_score: number
+  best_timed: string | boolean
+  best_completed_at: string
+  best_run_url: string
+}

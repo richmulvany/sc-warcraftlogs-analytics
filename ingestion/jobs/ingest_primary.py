@@ -81,6 +81,7 @@ for subdir in (
     "player_details",
     "zone_catalog",
     "guild_members",
+    "raiderio_character_profiles",
     "fight_rankings",
     "fight_deaths",
     "archived",       # skip-marker directory — one empty file per archived report code
@@ -100,6 +101,7 @@ def _mark_archived(report_code: str) -> None:
 
 run_ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 ingested_at = datetime.now(UTC).isoformat()
+guild_member_records: list[dict[str, object]] = []
 
 # Helper: throttle between API calls to stay within 30 req/min
 def _sleep() -> None:
@@ -322,6 +324,7 @@ try:
         }
         for r in roster_result.records
     ]
+    guild_member_records = records
 
     members_file = f"{landing}/guild_members/{run_ts}.jsonl"
     with open(members_file, "w") as fh:
@@ -334,6 +337,154 @@ except Exception as e:
     logger.warning(
         "Blizzard API not configured or failed: %s — skipping guild members", e
     )
+
+# COMMAND ----------
+
+# DBTITLE 1,Raider.IO Character Profiles
+# Fetches current-season Mythic+ profile data for raid-team characters and lands
+# the raw profile payload as opaque JSON.  DLT owns parsing and product shaping.
+RAIDER_IO_EXPORT_ENABLED = os.environ.get("RAIDER_IO_EXPORT_ENABLED", "true").lower() == "true"
+RAIDER_IO_REGION = os.environ.get("RAIDER_IO_REGION", server_region).lower()
+RAIDER_IO_SEASON = os.environ.get("RAIDER_IO_SEASON", "current")
+RAIDER_IO_PROFILE_EXPORT_CAP = int(os.environ.get("RAIDER_IO_PROFILE_EXPORT_CAP", "80"))
+RAIDER_IO_REQUEST_SLEEP_SECONDS = float(os.environ.get("RAIDER_IO_REQUEST_SLEEP_SECONDS", "0.25"))
+RAID_TEAM_RANKS = {0, 1, 2, 3, 4, 5, 8}
+
+
+def _realm_to_slug(value: object) -> str:
+    text = str(value or server_slug or "").strip()
+    if not text:
+        return server_slug
+    cleaned = text.replace("'", "").replace("_", "-").replace(" ", "-")
+    cleaned = "".join(
+        f"-{char.lower()}" if char.isupper() else char
+        for char in cleaned
+    ).lower()
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    overrides = {
+        "twistingnether": "twisting-nether",
+        "twisting-nether": "twisting-nether",
+        "defiasbrotherhood": "defias-brotherhood",
+        "defias-brotherhood": "defias-brotherhood",
+        "argentdawn": "argent-dawn",
+        "argent-dawn": "argent-dawn",
+    }
+    return overrides.get(cleaned.replace("-", ""), cleaned.strip("-"))
+
+
+def _raiderio_candidates_from_current_roster() -> list[dict[str, str]]:
+    candidates: list[dict[str, str]] = []
+    for member in guild_member_records:
+        name = str(member.get("name") or "").strip()
+        rank = member.get("rank")
+        if not name or rank not in RAID_TEAM_RANKS:
+            continue
+        candidates.append(
+            {
+                "player_name": name,
+                "realm_slug": _realm_to_slug(member.get("realm_slug")),
+                "region": RAIDER_IO_REGION,
+            }
+        )
+    return candidates
+
+
+def _raiderio_candidates_from_gold_raid_team() -> list[dict[str, str]]:
+    try:
+        rows = spark.sql(  # noqa: F821
+            f"""
+            SELECT name, COALESCE(NULLIF(realm, ''), '{server_slug}') AS realm
+            FROM `{catalog}`.`{schema}`.gold_raid_team
+            WHERE name IS NOT NULL AND name != ''
+            ORDER BY rank ASC NULLS LAST, name
+            LIMIT {RAIDER_IO_PROFILE_EXPORT_CAP}
+            """
+        ).collect()
+    except Exception as exc:
+        logger.info("raiderio: gold_raid_team unavailable for candidate seed: %s", exc)
+        return []
+
+    return [
+        {
+            "player_name": str(row["name"]).strip(),
+            "realm_slug": _realm_to_slug(row["realm"]),
+            "region": RAIDER_IO_REGION,
+        }
+        for row in rows
+        if str(row["name"] or "").strip()
+    ]
+
+
+if RAIDER_IO_EXPORT_ENABLED:
+    try:
+        from ingestion.src.adapters.raiderio.client import (  # noqa: PLC0415
+            RaiderIoAdapter,
+            RaiderIoNotFoundError,
+        )
+
+        seen_candidates: set[tuple[str, str, str]] = set()
+        raiderio_candidates: list[dict[str, str]] = []
+        for candidate in (
+            _raiderio_candidates_from_current_roster()
+            + _raiderio_candidates_from_gold_raid_team()
+        ):
+            key = (
+                candidate["player_name"].casefold(),
+                candidate["realm_slug"],
+                candidate["region"],
+            )
+            if key in seen_candidates:
+                continue
+            seen_candidates.add(key)
+            raiderio_candidates.append(candidate)
+
+        raiderio_candidates = raiderio_candidates[:RAIDER_IO_PROFILE_EXPORT_CAP]
+        logger.info("Fetching Raider.IO profiles for %d characters", len(raiderio_candidates))
+
+        rio_adapter = RaiderIoAdapter(
+            region=RAIDER_IO_REGION,
+            request_sleep_seconds=RAIDER_IO_REQUEST_SLEEP_SECONDS,
+        )
+        rio_adapter.authenticate()
+
+        profiles_file = f"{landing}/raiderio_character_profiles/{run_ts}.jsonl"
+        rows_written = 0
+        with open(profiles_file, "w") as fh:
+            for candidate in raiderio_candidates:
+                player_name = candidate["player_name"]
+                realm_slug = candidate["realm_slug"]
+                try:
+                    result = rio_adapter.fetch_character_profile(
+                        name=player_name,
+                        realm_slug=realm_slug,
+                        season=RAIDER_IO_SEASON,
+                    )
+                except RaiderIoNotFoundError:
+                    logger.info("Raider.IO profile not found for %s-%s", player_name, realm_slug)
+                    time.sleep(RAIDER_IO_REQUEST_SLEEP_SECONDS)
+                    continue
+
+                profile = result.records[0] if result.records else {}
+                record = {
+                    "player_name": player_name,
+                    "realm_slug": realm_slug,
+                    "region": RAIDER_IO_REGION,
+                    "profile_url": profile.get("profile_url"),
+                    "profile_json": json.dumps(profile),
+                    "_source": "raiderio",
+                    "_ingested_at": ingested_at,
+                }
+                fh.write(json.dumps(record) + "\n")
+                rows_written += 1
+                time.sleep(RAIDER_IO_REQUEST_SLEEP_SECONDS)
+
+        rio_adapter.close()
+        logger.info("raiderio_character_profiles → %d profiles", rows_written)
+    except Exception as e:
+        logger.warning("Raider.IO API failed: %s — skipping Mythic+ profile ingestion", e)
+else:
+    logger.info("Skipping Raider.IO character profiles: RAIDER_IO_EXPORT_ENABLED=false")
 
 # COMMAND ----------
 

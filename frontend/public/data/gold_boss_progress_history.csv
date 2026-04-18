@@ -2041,3 +2041,8 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,rep
 3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,2026-04-08,MjLA6DqRmKQvcGNp,Last (full) Heroic Reclear of the Tier (OOOOOO) - 04-08,2026-04-08T17:54:33.662Z,2026-04-08T21:02:21.098Z,1,1,0,null,null,0.0,true,310,310
 3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic,2026-04-08,MjLA6DqRmKQvcGNp,Last (full) Heroic Reclear of the Tier (OOOOOO) - 04-08,2026-04-08T17:54:33.662Z,2026-04-08T21:02:21.098Z,1,1,0,null,null,0.0,true,234,234
 3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2026-04-13,YfPd184vjqtFRrh6,Mythic Reclear #1 - 04-13,2026-04-13T18:10:18.867Z,2026-04-13T18:22:07.276Z,3,0,3,29.0,57.73,29.0,false,null,257
+3177,Vorasius,VS / DR / MQD,5,Mythic,2026-04-15,PkmcAzgyjQfGwMZB,Reclear 2 Electric Boogaloo 04-15,2026-04-15T18:17:46.823Z,2026-04-15T21:18:22.168Z,6,1,5,1.07,46.76,0.0,true,359,385
+3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2026-04-15,PkmcAzgyjQfGwMZB,Reclear 2 Electric Boogaloo 04-15,2026-04-15T18:17:46.823Z,2026-04-15T21:18:22.168Z,8,0,8,16.02,40.29,16.02,false,null,340
+3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,2026-04-15,PkmcAzgyjQfGwMZB,Reclear 2 Electric Boogaloo 04-15,2026-04-15T18:17:46.823Z,2026-04-15T21:18:22.168Z,1,1,0,null,null,0.0,true,253,253
+3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2026-04-15,PkmcAzgyjQfGwMZB,Reclear 2 Electric Boogaloo 04-15,2026-04-15T18:17:46.823Z,2026-04-15T21:18:22.168Z,1,1,0,null,null,0.0,true,384,384
+3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2026-04-15,PkmcAzgyjQfGwMZB,Reclear 2 Electric Boogaloo 04-15,2026-04-15T18:17:46.823Z,2026-04-15T21:18:22.168Z,5,1,4,51.52,68.3,0.0,true,391,391

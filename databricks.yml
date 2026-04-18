@@ -84,6 +84,8 @@ resources:
             path: pipeline/silver/clean_rankings.py
         - notebook:
             path: pipeline/silver/clean_events.py
+        - notebook:
+            path: pipeline/silver/clean_raiderio.py
         # Gold — business-ready data products
         - notebook:
             path: pipeline/gold/summary_products.py
@@ -99,6 +101,8 @@ resources:
             path: pipeline/gold/survivability_products.py
         - notebook:
             path: pipeline/gold/preparation_products.py
+        - notebook:
+            path: pipeline/gold/mplus_products.py
 
       configuration:
         secret_scope: pipeline-secrets

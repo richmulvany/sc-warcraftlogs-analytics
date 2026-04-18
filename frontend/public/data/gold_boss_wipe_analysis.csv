@@ -29,7 +29,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,total_wipes,best_wi
 3010,Cauldron of Carnage,Liberation of Undermine,5,Mythic,28,2.41,48.40357142857143,1.2142857142857142,2,234.89285714285714,484,2025-03-24,2025-04-30,5,48.4
 2685,Scalecommander Sarkareth,"Aberrus, the Shadowed Crucible",3,Normal,21,3.31,36.14714285714287,2.5714285714285716,3,276.6666666666667,508,2023-05-10,2024-05-01,6,36.1
 3130,Soulbinder Naazindhri,Manaforge Omega,5,Mythic,9,2.03,34.19888888888889,0.0,0,313.55555555555554,485,2025-08-25,2025-10-01,3,34.2
-3177,Vorasius,VS / DR / MQD,5,Mythic,13,4.18,33.878461538461536,0.0,0,285.0,383,2026-04-06,2026-04-06,1,33.9
 2587,Eranog,Vault of the Incarnates,5,Mythic,6,12.39,41.385,1.1666666666666667,2,147.5,244,2022-12-28,2023-02-01,2,41.4
 2590,The Primal Council,Vault of the Incarnates,4,Heroic,5,1.21,28.862000000000002,0.0,0,218.8,381,2022-12-19,2024-04-24,2,28.9
 2918,Rasha'nan,Nerub-ar Palace,5,Mythic,57,4.53,32.01473684210526,0.0,0,167.43859649122808,336,2024-10-14,2024-12-29,8,32.0
@@ -59,7 +58,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,total_wipes,best_wi
 2614,Broodkeeper Diurna,Vault of the Incarnates,5,Mythic,96,3.79,65.10531250000001,1.2604166666666667,2,220.20833333333334,574,2023-02-20,2023-04-19,6,65.1
 2433,The Eye of the Jailer,Sanctum of Domination,5,Mythic,30,0.64,52.417666666666676,1.0,1,242.7,520,2021-08-16,2021-09-22,7,52.4
 2786,"Tindral Sageswift, Seer of the Flame","Amirdrassil, the Dream's Hope",3,Normal,1,4.26,4.26,3.0,3,400.0,400,2023-11-15,2023-11-15,1,4.3
-3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,11,55.5,69.01636363636364,1.7272727272727273,2,169.8181818181818,255,2026-04-08,2026-04-08,1,69.0
 2786,"Tindral Sageswift, Seer of the Flame","Amirdrassil, the Dream's Hope",4,Heroic,17,0.07,47.5035294117647,1.7647058823529411,3,202.23529411764707,405,2023-11-27,2024-05-29,7,47.5
 3178,Vaelgor & Ezzorak,VS / DR / MQD,4,Heroic,11,0.32,51.622727272727275,1.0909090909090908,2,260.8181818181818,570,2026-03-23,2026-03-25,2,51.6
 2682,Assault of the Zaqali,"Aberrus, the Shadowed Crucible",5,Mythic,5,6.52,18.674,1.8,2,302.4,344,2023-05-31,2023-07-05,4,18.7
@@ -212,3 +210,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,total_wipes,best_wi
 2922,Queen Ansurek,Manaforge Omega,5,Mythic,3,19.94,24.2,2.3333333333333335,3,159.0,183,2026-01-26,2026-01-26,1,24.2
 3129,Plexus Sentinel,Manaforge Omega,3,Normal,1,77.59,77.59,1.0,1,38.0,38,2025-11-23,2025-11-23,1,77.6
 2423,The Tarragrue,Sanctum of Domination,3,Normal,1,30.73,30.73,1.0,1,312.0,312,2021-07-07,2021-07-07,1,30.7
+3177,Vorasius,VS / DR / MQD,5,Mythic,18,1.07,37.45722222222222,0.0,0,264.0,385,2026-04-06,2026-04-15,2,37.5
+3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,15,51.52,68.82533333333335,1.7333333333333334,2,164.4,255,2026-04-08,2026-04-15,2,68.8
+3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,8,16.02,40.2925,1.0,1,229.875,340,2026-04-15,2026-04-15,1,40.3

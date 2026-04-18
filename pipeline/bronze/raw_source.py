@@ -306,6 +306,39 @@ def bronze_guild_members():
     )
 
 
+# ── Raider.IO Character Profiles ──────────────────────────────────────────────
+# profile_json is an opaque JSON string parsed in silver. Keeping bronze narrow
+# protects the pipeline from optional Raider.IO fields changing shape.
+
+_RAIDERIO_CHARACTER_PROFILE_SCHEMA = StructType([
+    StructField("player_name", StringType(), True),
+    StructField("realm_slug", StringType(), True),
+    StructField("region", StringType(), True),
+    StructField("profile_url", StringType(), True),
+    StructField("profile_json", StringType(), True),
+    StructField("_source", StringType(), True),
+    StructField("_ingested_at", StringType(), True),
+])
+
+
+@dlt.table(
+    name="bronze_raiderio_character_profiles",
+    comment="Raw Raider.IO character profile payloads for Mythic+ analysis.",
+    table_properties={"quality": "bronze"},
+)
+@dlt.expect("has_player_name", "player_name IS NOT NULL")
+@dlt.expect("has_profile_json", "profile_json IS NOT NULL")
+def bronze_raiderio_character_profiles():
+    return (
+        spark.readStream.format("cloudFiles")  # noqa: F821
+        .schema(_RAIDERIO_CHARACTER_PROFILE_SCHEMA)
+        .option("cloudFiles.format", "json")
+        .option("cloudFiles.schemaLocation", f"{LANDING}/raiderio_character_profiles/_schema")
+        .load(f"{LANDING}/raiderio_character_profiles/")
+        .withColumn("_file_path", F.col("_metadata.file_path"))
+    )
+
+
 # ── Fight Rankings ─────────────────────────────────────────────────────────────
 # rankings_json is an opaque JSON string from the WCL rankings scalar.
 # Parsed in silver with an explicit schema.

@@ -118,6 +118,11 @@ FRONTEND_TABLES: dict[str, str] = {
     "gold_player_boss_performance.csv": "gold_player_boss_performance",
     "gold_boss_progress_history.csv": "gold_boss_progress_history",
     "gold_boss_pull_history.csv": "gold_boss_pull_history",
+    "gold_player_mplus_summary.csv": "gold_player_mplus_summary",
+    "gold_player_mplus_score_history.csv": "gold_player_mplus_score_history",
+    "gold_player_mplus_run_history.csv": "gold_player_mplus_run_history",
+    "gold_player_mplus_weekly_activity.csv": "gold_player_mplus_weekly_activity",
+    "gold_player_mplus_dungeon_breakdown.csv": "gold_player_mplus_dungeon_breakdown",
 }
 EXCLUDED_ZONES = {"Blackrock Depths"}
 TABLE_EXPORT_STATEMENTS: dict[str, str] = {

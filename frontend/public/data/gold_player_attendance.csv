@@ -1,7 +1,6 @@
 player_name,player_class,total_raids_tracked,raids_present,raids_benched,raids_absent,last_raid_date,first_raid_date,zones_attended,attendance_rate_pct
 Hrøøthgar,Warrior,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Brageuroo,Mage,1,1,0,0,2023-12-27,2023-12-27,"[""Amirdrassil, the Dream's Hope""]",100.0
-Dorathy,Warrior,17,17,0,0,2026-04-13,2023-05-21,"[""Aberrus, the Shadowed Crucible"",""Blackrock Depths"",""VS / DR / MQD""]",100.0
 Chardadot,Druid,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
 Snich,Warrior,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Ilybrew,Monk,5,5,0,0,2023-05-24,2023-05-10,"[""Aberrus, the Shadowed Crucible""]",100.0
@@ -116,7 +115,6 @@ Pepka,Shaman,1,1,0,0,2024-01-07,2024-01-07,"[""Amirdrassil, the Dream's Hope""]"
 Endeering,Hunter,1,1,0,0,2024-06-19,2024-06-19,"[""Amirdrassil, the Dream's Hope""]",100.0
 Шпнедамажат,Priest,1,1,0,0,2021-04-04,2021-04-04,"[""Castle Nathria""]",100.0
 Bamhurger,Monk,1,1,0,0,2021-10-07,2021-10-07,"[""Castle Nathria""]",100.0
-Lunasnow,Mage,8,8,0,0,2026-04-08,2026-03-18,"[""VS / DR / MQD""]",100.0
 Malee,DemonHunter,2,2,0,0,2022-08-31,2022-08-17,"[""Sanctum of Domination"",""Sepulcher of the First Ones""]",100.0
 Ozzÿ,Warlock,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
 Xaxatumba,Shaman,1,1,0,0,2021-03-12,2021-03-12,"[""Castle Nathria""]",100.0
@@ -482,8 +480,6 @@ Xarlock,Warlock,1,1,0,0,2023-03-29,2023-03-29,"[""Vault of the Incarnates""]",10
 Cálamíty,Mage,1,1,0,0,2024-01-24,2024-01-24,"[""Amirdrassil, the Dream's Hope""]",100.0
 Josey,DemonHunter,10,10,0,0,2023-12-18,2023-11-15,"[""Amirdrassil, the Dream's Hope""]",100.0
 Yoshira,Hunter,1,1,0,0,2021-09-03,2021-09-03,"[""Sanctum of Domination""]",100.0
-Midnight,Mage,10,10,0,0,2026-04-13,2026-01-26,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
-Rivey,Monk,15,15,0,0,2026-04-13,2025-11-23,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
 Artigkara,Rogue,1,1,0,0,2023-11-20,2023-11-20,"[""Amirdrassil, the Dream's Hope""]",100.0
 Nikka,Mage,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
 Getfresh,Warrior,18,18,0,0,2024-11-20,2023-01-01,"[""Vault of the Incarnates"",""Nerub-ar Palace""]",100.0
@@ -568,7 +564,6 @@ Nazrelina,Warrior,1,1,0,0,2025-01-13,2025-01-13,"[""Nerub-ar Palace""]",100.0
 Drinky,Paladin,3,3,0,0,2023-06-05,2023-05-21,"[""Aberrus, the Shadowed Crucible""]",100.0
 Alexiamae,DeathKnight,1,1,0,0,2022-05-02,2022-05-02,"[""Sepulcher of the First Ones""]",100.0
 Nimilora,Priest,1,1,0,0,2025-05-18,2025-05-18,"[""Liberation of Undermine""]",100.0
-Jadsrune,DeathKnight,10,10,0,0,2026-04-13,2026-02-02,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
 Valáron,Druid,1,1,0,0,2025-03-23,2025-03-23,"[""Liberation of Undermine""]",100.0
 Gazler,Mage,1,1,0,0,2021-03-10,2021-03-10,"[""Castle Nathria""]",100.0
 Barshock,Shaman,1,1,0,0,2021-01-25,2021-01-25,"[""Castle Nathria""]",100.0
@@ -640,7 +635,6 @@ Methlocke,Warlock,1,1,0,0,2025-01-13,2025-01-13,"[""Nerub-ar Palace""]",100.0
 Neamateru,Warlock,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
 Markerr,Druid,1,1,0,0,2025-03-25,2025-03-25,"[""Liberation of Undermine""]",100.0
 Zydeh,DemonHunter,2,2,0,0,2024-05-29,2024-05-15,"[""Amirdrassil, the Dream's Hope"",""Vault of the Incarnates""]",100.0
-Mleko,Priest,2,2,0,0,2026-04-13,2024-04-29,"[""VS / DR / MQD"",""Vault of the Incarnates""]",100.0
 Gaiablood,Druid,1,1,0,0,2024-10-02,2024-10-02,"[""Nerub-ar Palace""]",100.0
 Kûngfu,Monk,1,1,0,0,2021-03-20,2021-03-20,"[""Castle Nathria""]",100.0
 Tiskonlone,Shaman,1,1,0,0,2024-12-29,2024-12-29,"[""Nerub-ar Palace""]",100.0
@@ -685,11 +679,9 @@ Mandalore,Hunter,1,1,0,0,2021-03-20,2021-03-20,"[""Castle Nathria""]",100.0
 Delfinarios,Mage,1,1,0,0,2021-03-25,2021-03-25,"[""Castle Nathria""]",100.0
 Neosferus,DemonHunter,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Slînks,Hunter,2,2,0,0,2021-02-07,2021-01-31,"[""Castle Nathria""]",100.0
-Yearning,Monk,118,118,0,0,2026-04-13,2024-01-10,"[""Amirdrassil, the Dream's Hope"",""Manaforge Omega"",""Aberrus, the Shadowed Crucible"",""Nerub-ar Palace"",""Vault of the Incarnates"",""Liberation of Undermine"",""VS / DR / MQD""]",100.0
 Fibres,Mage,9,9,0,0,2024-11-24,2021-03-21,"[""Vault of the Incarnates"",""Amirdrassil, the Dream's Hope"",""Nerub-ar Palace"",""Castle Nathria"",""Blackrock Depths"",""Aberrus, the Shadowed Crucible""]",100.0
 Flyingducks,Evoker,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Errorzone,DemonHunter,1,1,0,0,2024-01-07,2024-01-07,"[""Amirdrassil, the Dream's Hope""]",100.0
-Garsias,Shaman,54,54,0,0,2026-04-13,2025-08-13,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
 Turbolinus,DeathKnight,1,1,0,0,2021-08-29,2021-08-29,"[""Sanctum of Domination""]",100.0
 Ærra,DemonHunter,1,1,0,0,2024-09-25,2024-09-25,"[""Nerub-ar Palace""]",100.0
 Naixberserk,Warrior,1,1,0,0,2021-04-04,2021-04-04,"[""Castle Nathria""]",100.0
@@ -712,7 +704,6 @@ Nelethe,Priest,1,1,0,0,2021-08-15,2021-08-15,"[""Sanctum of Domination""]",100.0
 Glanielle,Mage,1,1,0,0,2021-03-20,2021-03-20,"[""Castle Nathria""]",100.0
 Eppatdh,DemonHunter,1,1,0,0,2024-05-06,2024-05-06,"[""Aberrus, the Shadowed Crucible""]",100.0
 Eclipseon,Druid,11,11,0,0,2023-04-25,2023-03-22,"[""Vault of the Incarnates""]",100.0
-Estrogel,Evoker,4,4,0,0,2026-04-13,2026-04-01,"[""VS / DR / MQD""]",100.0
 Gothwarr,Warrior,5,5,0,0,2021-03-07,2021-02-28,"[""Castle Nathria""]",100.0
 Funkog,Hunter,1,1,0,0,2023-11-20,2023-11-20,"[""Amirdrassil, the Dream's Hope""]",100.0
 Khelthis,Rogue,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
@@ -798,7 +789,6 @@ Karlosmmh,Shaman,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Isfin,Mage,1,1,0,0,2025-05-25,2025-05-25,"[""Liberation of Undermine""]",100.0
 Misume,Priest,5,5,0,0,2021-03-07,2021-01-25,"[""Castle Nathria""]",100.0
 Firkapleb,Hunter,1,1,0,0,2023-09-20,2023-09-20,"[""Aberrus, the Shadowed Crucible""]",100.0
-Jumzo,Paladin,100,100,0,0,2026-04-13,2024-09-15,"[""Blackrock Depths"",""Nerub-ar Palace"",""Manaforge Omega"",""Liberation of Undermine"",""VS / DR / MQD""]",100.0
 Alannaria,Monk,1,1,0,0,2024-01-24,2024-01-24,"[""Amirdrassil, the Dream's Hope""]",100.0
 Kròpta,Shaman,1,1,0,0,2025-06-18,2025-06-18,"[""Liberation of Undermine""]",100.0
 Inthemud,Monk,30,30,0,0,2021-03-17,2021-01-27,"[""Castle Nathria""]",100.0
@@ -817,7 +807,6 @@ Tiktòk,Rogue,1,1,0,0,2021-03-10,2021-03-10,"[""Castle Nathria""]",100.0
 Mameau,Druid,1,1,0,0,2021-04-18,2021-04-18,"[""Castle Nathria""]",100.0
 Sixteen,Warrior,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
 Wwollveriine,Druid,1,1,0,0,2024-01-24,2024-01-24,"[""Amirdrassil, the Dream's Hope""]",100.0
-Jointsuckerr,Shaman,5,5,0,0,2026-04-13,2024-09-15,"[""VS / DR / MQD"",""Nerub-ar Palace""]",100.0
 Cake,Priest,1,1,0,0,2025-03-09,2025-03-09,"[""Liberation of Undermine""]",100.0
 Curostyle,Druid,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Snipedamage,Mage,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
@@ -965,7 +954,6 @@ Fauxcoated,Monk,4,4,0,0,2025-09-14,2023-12-10,"[""Vault of the Incarnates"",""Am
 Imnotjeff,Rogue,1,1,0,0,2021-08-15,2021-08-15,"[""Sanctum of Domination""]",100.0
 Vesnir,Hunter,1,1,0,0,2025-05-18,2025-05-18,"[""Liberation of Undermine""]",100.0
 Crio,Mage,1,1,0,0,2024-01-24,2024-01-24,"[""Amirdrassil, the Dream's Hope""]",100.0
-Yevie,Priest,26,26,0,0,2026-04-13,2021-02-07,"[""Liberation of Undermine"",""Castle Nathria"",""VS / DR / MQD""]",100.0
 Bensvoker,Evoker,5,5,0,0,2024-12-11,2024-05-08,"[""Amirdrassil, the Dream's Hope"",""Nerub-ar Palace""]",100.0
 Aelio,Shaman,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Bombalomeer,Paladin,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
@@ -1015,9 +1003,7 @@ Biglade,Warrior,2,2,0,0,2025-07-30,2025-07-30,"[""Liberation of Undermine""]",10
 Akurai,DemonHunter,1,1,0,0,2021-03-07,2021-03-07,"[""Castle Nathria""]",100.0
 Unowen,Hunter,11,11,0,0,2021-02-24,2021-01-27,"[""Castle Nathria""]",100.0
 Noevoker,Evoker,2,2,0,0,2023-02-26,2022-12-21,"[""Vault of the Incarnates""]",100.0
-Lenus,DemonHunter,270,270,0,0,2026-04-13,2022-12-18,"[""Liberation of Undermine"",""Amirdrassil, the Dream's Hope"",""VS / DR / MQD"",""Nerub-ar Palace"",""Vault of the Incarnates"",""Manaforge Omega"",""Aberrus, the Shadowed Crucible"",""Blackrock Depths""]",100.0
 Völt,Shaman,1,1,0,0,2021-03-20,2021-03-20,"[""Castle Nathria""]",100.0
-Everrin,Evoker,9,9,0,0,2026-04-13,2026-03-18,"[""VS / DR / MQD""]",100.0
 Vekkah,Priest,1,1,0,0,2023-06-04,2023-06-04,"[""Aberrus, the Shadowed Crucible""]",100.0
 Karrior,Warrior,1,1,0,0,2021-03-10,2021-03-10,"[""Castle Nathria""]",100.0
 Gan,Mage,1,1,0,0,2025-06-18,2025-06-18,"[""Liberation of Undermine""]",100.0
@@ -1122,7 +1108,6 @@ Roaman,Shaman,3,3,0,0,2021-02-28,2021-02-28,"[""Castle Nathria""]",100.0
 Escdk,DeathKnight,2,2,0,0,2022-08-29,2022-08-15,"[""Castle Nathria"",""Sanctum of Domination""]",100.0
 Blubbii,Shaman,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
 Toxos,Paladin,1,1,0,0,2023-11-20,2023-11-20,"[""Amirdrassil, the Dream's Hope""]",100.0
-Zren,Hunter,8,8,0,0,2026-04-08,2026-03-18,"[""VS / DR / MQD""]",100.0
 Dunhua,Monk,1,1,0,0,2021-03-20,2021-03-20,"[""Castle Nathria""]",100.0
 Malnes,Evoker,1,1,0,0,2024-05-01,2024-05-01,"[""Aberrus, the Shadowed Crucible""]",100.0
 Dion,Hunter,10,10,0,0,2021-03-21,2021-02-07,"[""Castle Nathria""]",100.0
@@ -1171,7 +1156,6 @@ Momobamie,Hunter,6,6,0,0,2022-09-14,2021-03-12,"[""Sepulcher of the First Ones""
 Eutsí,Druid,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Ênzo,Mage,1,1,0,0,2021-03-10,2021-03-10,"[""Castle Nathria""]",100.0
 Loccalo,Warlock,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
-Hobbyalkis,Rogue,359,359,0,0,2026-04-13,2021-01-25,"[""VS / DR / MQD"",""Nerub-ar Palace"",""Vault of the Incarnates"",""Blackrock Depths"",""Sanctum of Domination"",""Castle Nathria"",""Liberation of Undermine"",""Aberrus, the Shadowed Crucible"",""Sepulcher of the First Ones"",""Manaforge Omega"",""Amirdrassil, the Dream's Hope""]",100.0
 Delvur,Paladin,9,9,0,0,2025-08-31,2025-06-23,"[""Liberation of Undermine"",""Manaforge Omega""]",100.0
 Phelios,Hunter,1,1,0,0,2021-09-03,2021-09-03,"[""Sanctum of Domination""]",100.0
 Pompqmoi,Mage,2,2,0,0,2026-03-25,2026-03-25,"[""VS / DR / MQD""]",100.0
@@ -1240,7 +1224,6 @@ Hashasin,Rogue,1,1,0,0,2021-03-12,2021-03-12,"[""Castle Nathria""]",100.0
 Rudisha,Hunter,1,1,0,0,2021-04-18,2021-04-18,"[""Castle Nathria""]",100.0
 Mmdcarrykon,Hunter,1,1,0,0,2024-01-24,2024-01-24,"[""Amirdrassil, the Dream's Hope""]",100.0
 Goonlock,Warlock,4,4,0,0,2021-03-03,2021-02-24,"[""Castle Nathria""]",100.0
-Bigboiples,Druid,259,259,0,0,2026-04-13,2022-09-12,"[""VS / DR / MQD"",""Manaforge Omega"",""Nerub-ar Palace"",""Blackrock Depths"",""Castle Nathria"",""Liberation of Undermine"",""Sepulcher of the First Ones"",""Vault of the Incarnates"",""Amirdrassil, the Dream's Hope"",""Aberrus, the Shadowed Crucible""]",100.0
 Swanval,Hunter,3,3,0,0,2024-09-11,2024-05-29,"[""Amirdrassil, the Dream's Hope"",""Nerub-ar Palace""]",100.0
 Avop,Paladin,1,1,0,0,2021-09-03,2021-09-03,"[""Sanctum of Domination""]",100.0
 Waalt,DeathKnight,1,1,0,0,2021-04-04,2021-04-04,"[""Castle Nathria""]",100.0
@@ -1273,7 +1256,6 @@ Heerarena,Unknown,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",10
 Yolt,Hunter,18,18,0,0,2023-05-28,2021-03-17,"[""Vault of the Incarnates"",""Aberrus, the Shadowed Crucible"",""Sanctum of Domination"",""Castle Nathria""]",100.0
 Vivdrd,Druid,2,2,0,0,2021-03-21,2021-03-21,"[""Castle Nathria""]",100.0
 Fesad,Warlock,5,5,0,0,2021-03-14,2021-02-28,"[""Castle Nathria""]",100.0
-Typ,Warrior,7,7,0,0,2026-04-13,2026-03-23,"[""VS / DR / MQD""]",100.0
 Alexidabstar,Mage,1,1,0,0,2021-03-25,2021-03-25,"[""Castle Nathria""]",100.0
 Dhallé,DemonHunter,3,3,0,0,2022-09-12,2022-05-23,"[""Sepulcher of the First Ones"",""Castle Nathria""]",100.0
 Каринка,Shaman,1,1,0,0,2025-03-25,2025-03-25,"[""Liberation of Undermine""]",100.0
@@ -1281,12 +1263,10 @@ Hreidamar,Rogue,1,1,0,0,2025-06-18,2025-06-18,"[""Liberation of Undermine""]",10
 Elood,Hunter,20,20,0,0,2022-08-17,2021-02-21,"[""Sepulcher of the First Ones"",""Castle Nathria"",""Sanctum of Domination""]",100.0
 Зефирус,Paladin,1,1,0,0,2024-01-07,2024-01-07,"[""Amirdrassil, the Dream's Hope""]",100.0
 Kotikokki,Shaman,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
-Turbohot,Hunter,210,210,0,0,2026-04-13,2022-03-02,"[""Sanctum of Domination"",""Sepulcher of the First Ones"",""Vault of the Incarnates"",""Liberation of Undermine"",""Nerub-ar Palace"",""Manaforge Omega"",""Aberrus, the Shadowed Crucible"",""Amirdrassil, the Dream's Hope"",""VS / DR / MQD""]",100.0
 Slaskepot,Unknown,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
 Badý,Druid,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Toukä,Rogue,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
 Dxdydz,Shaman,1,1,0,0,2025-09-14,2025-09-14,"[""Manaforge Omega""]",100.0
-Sebaheoung,Warlock,56,56,0,0,2026-04-13,2024-08-19,"[""Manaforge Omega"",""Liberation of Undermine"",""Nerub-ar Palace"",""Vault of the Incarnates"",""VS / DR / MQD""]",100.0
 Stronk,Warlock,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Lalune,Druid,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
 Taubenuss,Unknown,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
@@ -1357,7 +1337,6 @@ Freydisnuts,Mage,1,1,0,0,2024-08-19,2024-08-19,"[""Vault of the Incarnates""]",1
 Kolofwtias,Mage,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
 Woknpho,Monk,1,1,0,0,2021-01-31,2021-01-31,"[""Castle Nathria""]",100.0
 Stanzance,Shaman,1,1,0,0,2024-09-17,2024-09-17,"[""Nerub-ar Palace""]",100.0
-Bileplume,Rogue,5,5,0,0,2026-04-08,2022-12-18,"[""Vault of the Incarnates"",""Nerub-ar Palace"",""VS / DR / MQD""]",100.0
 Panster,Shaman,1,1,0,0,2025-01-13,2025-01-13,"[""Nerub-ar Palace""]",100.0
 Troakya,DeathKnight,1,1,0,0,2021-04-18,2021-04-18,"[""Castle Nathria""]",100.0
 Blooddrop,Druid,1,1,0,0,2021-03-20,2021-03-20,"[""Castle Nathria""]",100.0
@@ -1460,7 +1439,6 @@ Bitcoìn,Shaman,1,1,0,0,2021-04-04,2021-04-04,"[""Castle Nathria""]",100.0
 Druoo,Unknown,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
 Hatewatching,Monk,1,1,0,0,2025-03-16,2025-03-16,"[""Liberation of Undermine""]",100.0
 Kaniko,Hunter,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
-Karllia,DemonHunter,25,25,0,0,2026-04-13,2025-11-17,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
 Avanthe,Unknown,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
 Vchytry,Evoker,1,1,0,0,2025-06-18,2025-06-18,"[""Liberation of Undermine""]",100.0
 Verressa,Priest,1,1,0,0,2024-10-30,2024-10-30,"[""Nerub-ar Palace""]",100.0
@@ -1485,7 +1463,6 @@ Walace,Paladin,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
 Emss,Druid,8,8,0,0,2021-08-10,2021-03-28,"[""Sanctum of Domination"",""Castle Nathria""]",100.0
 Akiyasutsut,Monk,1,1,0,0,2025-12-01,2025-12-01,"[""Manaforge Omega""]",100.0
 Zób,Shaman,2,2,0,0,2024-10-30,2024-10-13,"[""Nerub-ar Palace""]",100.0
-Megachomber,DeathKnight,9,9,0,0,2026-04-13,2026-03-18,"[""VS / DR / MQD""]",100.0
 Deformed,Rogue,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
 Vorfo,Unknown,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]",100.0
 Chicknblend,Druid,1,1,0,0,2021-04-14,2021-04-14,"[""Castle Nathria""]",100.0
@@ -1706,3 +1683,26 @@ Nøhunterrog,Unknown,1,1,0,0,2021-08-10,2021-08-10,"[""Sanctum of Domination""]"
 Solestealer,Warlock,1,1,0,0,2023-06-04,2023-06-04,"[""Aberrus, the Shadowed Crucible""]",100.0
 Mirh,Warrior,1,1,0,0,2024-09-25,2024-09-25,"[""Nerub-ar Palace""]",100.0
 Acala,Mage,1,1,0,0,2021-04-14,2021-04-14,"[""Castle Nathria""]",100.0
+Dorathy,Warrior,18,18,0,0,2026-04-15,2023-05-21,"[""Aberrus, the Shadowed Crucible"",""Blackrock Depths"",""VS / DR / MQD""]",100.0
+Lunasnow,Mage,9,9,0,0,2026-04-15,2026-03-18,"[""VS / DR / MQD""]",100.0
+Midnight,Mage,11,11,0,0,2026-04-15,2026-01-26,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
+Rivey,Monk,16,16,0,0,2026-04-15,2025-11-23,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
+Jadsrune,DeathKnight,11,11,0,0,2026-04-15,2026-02-02,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
+Mleko,Priest,3,3,0,0,2026-04-15,2024-04-29,"[""VS / DR / MQD"",""Vault of the Incarnates""]",100.0
+Yearning,Monk,119,119,0,0,2026-04-15,2024-01-10,"[""Amirdrassil, the Dream's Hope"",""Manaforge Omega"",""Aberrus, the Shadowed Crucible"",""Nerub-ar Palace"",""Vault of the Incarnates"",""Liberation of Undermine"",""VS / DR / MQD""]",100.0
+Garsias,Shaman,55,55,0,0,2026-04-15,2025-08-13,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
+Estrogel,Evoker,5,5,0,0,2026-04-15,2026-04-01,"[""VS / DR / MQD""]",100.0
+Jumzo,Paladin,101,101,0,0,2026-04-15,2024-09-15,"[""Blackrock Depths"",""Nerub-ar Palace"",""Manaforge Omega"",""Liberation of Undermine"",""VS / DR / MQD""]",100.0
+Jointsuckerr,Shaman,6,6,0,0,2026-04-15,2024-09-15,"[""VS / DR / MQD"",""Nerub-ar Palace""]",100.0
+Yevie,Priest,27,27,0,0,2026-04-15,2021-02-07,"[""Liberation of Undermine"",""Castle Nathria"",""VS / DR / MQD""]",100.0
+Lenus,DemonHunter,271,271,0,0,2026-04-15,2022-12-18,"[""Liberation of Undermine"",""Amirdrassil, the Dream's Hope"",""VS / DR / MQD"",""Nerub-ar Palace"",""Vault of the Incarnates"",""Manaforge Omega"",""Aberrus, the Shadowed Crucible"",""Blackrock Depths""]",100.0
+Everrin,Evoker,10,10,0,0,2026-04-15,2026-03-18,"[""VS / DR / MQD""]",100.0
+Zren,Hunter,9,9,0,0,2026-04-15,2026-03-18,"[""VS / DR / MQD""]",100.0
+Hobbyalkis,Rogue,360,360,0,0,2026-04-15,2021-01-25,"[""VS / DR / MQD"",""Nerub-ar Palace"",""Vault of the Incarnates"",""Blackrock Depths"",""Sanctum of Domination"",""Castle Nathria"",""Liberation of Undermine"",""Aberrus, the Shadowed Crucible"",""Sepulcher of the First Ones"",""Manaforge Omega"",""Amirdrassil, the Dream's Hope""]",100.0
+Bigboiples,Druid,260,260,0,0,2026-04-15,2022-09-12,"[""VS / DR / MQD"",""Manaforge Omega"",""Nerub-ar Palace"",""Blackrock Depths"",""Castle Nathria"",""Liberation of Undermine"",""Sepulcher of the First Ones"",""Vault of the Incarnates"",""Amirdrassil, the Dream's Hope"",""Aberrus, the Shadowed Crucible""]",100.0
+Typ,Warrior,8,8,0,0,2026-04-15,2026-03-23,"[""VS / DR / MQD""]",100.0
+Turbohot,Hunter,211,211,0,0,2026-04-15,2022-03-02,"[""Sanctum of Domination"",""Sepulcher of the First Ones"",""Vault of the Incarnates"",""Liberation of Undermine"",""Nerub-ar Palace"",""Manaforge Omega"",""Aberrus, the Shadowed Crucible"",""Amirdrassil, the Dream's Hope"",""VS / DR / MQD""]",100.0
+Sebaheoung,Warlock,57,57,0,0,2026-04-15,2024-08-19,"[""Manaforge Omega"",""Liberation of Undermine"",""Nerub-ar Palace"",""Vault of the Incarnates"",""VS / DR / MQD""]",100.0
+Bileplume,Rogue,6,6,0,0,2026-04-15,2022-12-18,"[""Vault of the Incarnates"",""Nerub-ar Palace"",""VS / DR / MQD""]",100.0
+Karllia,DemonHunter,26,26,0,0,2026-04-15,2025-11-17,"[""Manaforge Omega"",""VS / DR / MQD""]",100.0
+Megachomber,DeathKnight,10,10,0,0,2026-04-15,2026-03-18,"[""VS / DR / MQD""]",100.0

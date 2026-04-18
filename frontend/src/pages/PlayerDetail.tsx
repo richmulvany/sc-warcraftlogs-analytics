@@ -1,5 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
 import { FilterSelect } from '../components/ui/FilterSelect'
@@ -25,12 +36,22 @@ import {
   usePlayerCharacterMedia,
   usePlayerCharacterEquipment,
   usePlayerRaidAchievements,
+  usePlayerMplusSummary,
+  usePlayerMplusScoreHistory,
+  usePlayerMplusWeeklyActivity,
+  usePlayerMplusDungeonBreakdown,
 } from '../hooks/useGoldData'
 import { formatThroughput, getClassColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { formatDate, formatPct } from '../utils/format'
 import { isIncludedZoneName } from '../utils/zones'
-import type { PlayerBossPerformance, PlayerCharacterEquipment } from '../types'
+import type {
+  PlayerBossPerformance,
+  PlayerCharacterEquipment,
+  PlayerMplusDungeonBreakdown,
+  PlayerMplusScoreHistory,
+  PlayerMplusWeeklyActivity,
+} from '../types'
 
 type DifficultyFilter = 'All' | 'Mythic' | 'Heroic' | 'Normal'
 type BossParseMode = 'average' | 'best'
@@ -47,6 +68,7 @@ const COMPLETION_COLORS: Record<Exclude<DifficultyFilter, 'All'>, string> = {
   Normal: '#a6e3a1',
 }
 const WARCRAFTLOGS_LINK_TITLE = 'view on warcraftlogs - opens in a new tab'
+const RAIDERIO_LINK_TITLE = 'view on raider.io - opens in a new tab'
 
 const EQUIPMENT_SLOTS = [
   { type: 'HEAD', label: 'Head', side: 'left' },
@@ -157,6 +179,20 @@ function warcraftLogsReportUrl(reportCode: string, fightId?: string | number): s
   if (!reportCode) return null
   const fight = fightId ? `#fight=${encodeURIComponent(String(fightId))}` : ''
   return `https://www.warcraftlogs.com/reports/${encodeURIComponent(reportCode)}${fight}`
+}
+
+function formatNumber(value: unknown, digits = 0): string {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number <= 0) return '—'
+  return number.toLocaleString(undefined, {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits,
+  })
+}
+
+function formatKeyLevel(value: unknown): string {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? `+${number}` : '—'
 }
 
 function formatRealmName(value: unknown): string {
@@ -478,6 +514,106 @@ function SectionDivider({ label, subtitle }: { label: string; subtitle?: string 
   )
 }
 
+function MplusScoreChart({ data }: { data: PlayerMplusScoreHistory[] }) {
+  const chartData = data.map(row => ({
+    date: row.snapshot_date || row.snapshot_at,
+    score: Number(row.score_all) || 0,
+  }))
+
+  if (chartData.length < 2) {
+    return (
+      <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-ctp-surface2 bg-ctp-crust/35 px-6 text-center">
+        <p className="text-xs font-mono text-ctp-overlay0">
+          Score history starts from the first Raider.IO ingestion. Another snapshot is needed for a trend line.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-56">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={chartData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+          <CartesianGrid stroke="#313244" strokeDasharray="3 3" />
+          <XAxis dataKey="date" tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <Tooltip
+            contentStyle={{ background: '#11111b', border: '1px solid #45475a', borderRadius: 12 }}
+            labelStyle={{ color: '#cdd6f4' }}
+          />
+          <Line type="monotone" dataKey="score" stroke="#cba6f7" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function MplusWeeklyChart({ data }: { data: PlayerMplusWeeklyActivity[] }) {
+  const chartData = data.map(row => ({
+    week: row.week_start,
+    timed: Number(row.timed_runs) || 0,
+    untimed: Number(row.untimed_runs) || 0,
+  }))
+
+  if (chartData.length === 0) {
+    return (
+      <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-ctp-surface2 bg-ctp-crust/35 px-6 text-center">
+        <p className="text-xs font-mono text-ctp-overlay0">No Mythic+ run activity has been exported for this character yet.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-56">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={chartData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
+          <CartesianGrid stroke="#313244" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="week" tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis allowDecimals={false} tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <Tooltip
+            contentStyle={{ background: '#11111b', border: '1px solid #45475a', borderRadius: 12 }}
+            labelStyle={{ color: '#cdd6f4' }}
+          />
+          <Bar dataKey="timed" stackId="runs" fill="#a6e3a1" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="untimed" stackId="runs" fill="#f38ba8" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+function DungeonBreakdownCard({ row }: { row: PlayerMplusDungeonBreakdown }) {
+  const timedPct = Number(row.total_runs) > 0 ? (Number(row.timed_runs) / Number(row.total_runs)) * 100 : 0
+  const href = row.best_run_url || undefined
+
+  return (
+    <a
+      href={href}
+      target={href ? '_blank' : undefined}
+      rel={href ? 'noopener noreferrer' : undefined}
+      title={href ? RAIDERIO_LINK_TITLE : undefined}
+      className="group rounded-xl border border-ctp-surface1 bg-ctp-surface0/55 p-3 transition-all hover:border-ctp-mauve/50 hover:bg-ctp-surface0"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-ctp-text transition-colors group-hover:text-ctp-mauve">{row.dungeon}</p>
+          <p className="mt-0.5 text-[10px] font-mono text-ctp-overlay0">
+            {Number(row.total_runs) || 0} runs · {Number(row.timed_runs) || 0} timed
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-semibold text-ctp-mauve">{formatKeyLevel(row.best_key_level)}</p>
+          <p className="text-[10px] font-mono text-ctp-overlay0">{formatNumber(row.best_score, 1)} score</p>
+        </div>
+      </div>
+      <ProgressBar value={timedPct} color="#a6e3a1" height="xs" className="mt-3" />
+      <p className="mt-2 text-[10px] font-mono text-ctp-overlay0">
+        Latest: {row.latest_completed_at ? formatDate(row.latest_completed_at) : '—'}
+      </p>
+    </a>
+  )
+}
+
 export function PlayerDetail() {
   const { getParseColor, wipeColor, getDeathRateColor, getAttendanceColor } = useColourBlind()
   const { playerName } = useParams<{ playerName: string }>()
@@ -497,6 +633,10 @@ export function PlayerDetail() {
   const characterMedia = usePlayerCharacterMedia()
   const characterEquipment = usePlayerCharacterEquipment()
   const raidAchievements = usePlayerRaidAchievements()
+  const mplusSummary = usePlayerMplusSummary()
+  const mplusScoreHistory = usePlayerMplusScoreHistory()
+  const mplusWeeklyActivity = usePlayerMplusWeeklyActivity()
+  const mplusDungeonBreakdown = usePlayerMplusDungeonBreakdown()
 
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
@@ -791,6 +931,43 @@ export function PlayerDetail() {
   const profileLinks = useMemo(
     () => externalCharacterLinks(name, playerMedia?.realm_slug, summary?.realm),
     [name, playerMedia?.realm_slug, summary?.realm]
+  )
+
+  const playerMplusSummary = useMemo(
+    () => mplusSummary.data.find(row => row.player_name.toLowerCase() === name.toLowerCase()) ?? null,
+    [mplusSummary.data, name]
+  )
+
+  const playerMplusScoreHistory = useMemo(
+    () => [...mplusScoreHistory.data]
+      .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
+      .sort((a, b) => String(a.snapshot_at).localeCompare(String(b.snapshot_at))),
+    [mplusScoreHistory.data, name]
+  )
+
+  const playerMplusWeeklyActivity = useMemo(
+    () => [...mplusWeeklyActivity.data]
+      .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
+      .sort((a, b) => String(a.week_start).localeCompare(String(b.week_start))),
+    [mplusWeeklyActivity.data, name]
+  )
+
+  const playerMplusDungeonBreakdown = useMemo(
+    () => [...mplusDungeonBreakdown.data]
+      .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
+      .sort((a, b) =>
+        (Number(b.best_score) || 0) - (Number(a.best_score) || 0) ||
+        (Number(b.best_key_level) || 0) - (Number(a.best_key_level) || 0) ||
+        a.dungeon.localeCompare(b.dungeon)
+      ),
+    [mplusDungeonBreakdown.data, name]
+  )
+
+  const hasMplusData = Boolean(
+    playerMplusSummary ||
+    playerMplusScoreHistory.length > 0 ||
+    playerMplusWeeklyActivity.length > 0 ||
+    playerMplusDungeonBreakdown.length > 0
   )
 
   const playerEquipment = useMemo(() =>
@@ -1431,33 +1608,125 @@ export function PlayerDetail() {
         subtitle="Raider.IO-backed dungeon score and key history"
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Mythic+ Progression</CardTitle>
-          <p className="text-xs text-ctp-overlay1 mt-0.5">
-            Planned Raider.IO API integration for score, timed keys, dungeon volume, and score history.
-          </p>
-        </CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {[
-              ['Raider.IO Score', 'current score + role/realm rank'],
-              ['Score Over Time', 'weekly score trend'],
-              ['Dungeons Completed', 'completed keys by season'],
-              ['Timed vs Untimed', 'completion quality split'],
-            ].map(([title, description]) => (
-              <div
-                key={title}
-                className="rounded-xl border border-ctp-surface1 bg-ctp-surface0/45 p-4"
-              >
-                <p className="text-xs font-semibold text-ctp-text">{title}</p>
-                <p className="mt-1.5 text-[10px] font-mono text-ctp-overlay0">{description}</p>
-                <div className="mt-4 h-12 rounded-lg border border-dashed border-ctp-surface2 bg-ctp-crust/35" />
-              </div>
-            ))}
+      {!hasMplusData && !mplusSummary.loading && !mplusScoreHistory.loading ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Mythic+ Progression</CardTitle>
+            <p className="text-xs text-ctp-overlay1 mt-0.5">
+              No Raider.IO Mythic+ data has been exported for this character yet.
+            </p>
+          </CardHeader>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+            <StatCard
+              label="Raider.IO Score"
+              value={formatNumber(playerMplusSummary?.score_all, 1)}
+              subValue={playerMplusSummary?.world_rank ? `World #${formatNumber(playerMplusSummary.world_rank)}` : 'Current season'}
+              icon="◆"
+              valueColor="#cba6f7"
+              accent="none"
+            />
+            <StatCard
+              label="Best Timed Key"
+              value={formatKeyLevel(playerMplusSummary?.highest_timed_level)}
+              subValue={playerMplusSummary?.best_run_dungeon || 'No timed key exported'}
+              icon="⏱"
+              valueColor="#a6e3a1"
+              accent="none"
+            />
+            <StatCard
+              label="Timed / Untimed"
+              value={`${Number(playerMplusSummary?.timed_runs) || 0} / ${Number(playerMplusSummary?.untimed_runs) || 0}`}
+              subValue={`${Number(playerMplusSummary?.total_runs) || 0} exported runs`}
+              icon="◒"
+              accent="blue"
+            />
+            <StatCard
+              label="Common Key Level"
+              value={formatKeyLevel(playerMplusSummary?.most_common_key_level)}
+              subValue={`${Number(playerMplusSummary?.most_common_key_count) || 0} runs at that level`}
+              icon="◇"
+              valueColor="#cba6f7"
+              accent="none"
+            />
           </div>
-        </CardBody>
-      </Card>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Score Over Time</CardTitle>
+                <p className="text-xs text-ctp-overlay1 mt-0.5">
+                  Nightly Raider.IO score snapshots from Databricks ingestion
+                </p>
+              </CardHeader>
+              <CardBody>
+                {mplusScoreHistory.loading ? (
+                  <LoadingState rows={5} />
+                ) : (
+                  <MplusScoreChart data={playerMplusScoreHistory} />
+                )}
+              </CardBody>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Dungeon Activity</CardTitle>
+                <p className="text-xs text-ctp-overlay1 mt-0.5">
+                  Weekly completed keys from recent/best Raider.IO runs
+                </p>
+              </CardHeader>
+              <CardBody>
+                {mplusWeeklyActivity.loading ? (
+                  <LoadingState rows={5} />
+                ) : (
+                  <MplusWeeklyChart data={playerMplusWeeklyActivity} />
+                )}
+              </CardBody>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <CardTitle>Dungeon Breakdown</CardTitle>
+                  <p className="text-xs text-ctp-overlay1 mt-0.5">
+                    Best exported key per dungeon · cards link to Raider.IO where available
+                  </p>
+                </div>
+                {playerMplusSummary?.profile_url && (
+                  <a
+                    href={playerMplusSummary.profile_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={RAIDERIO_LINK_TITLE}
+                    className="text-xs font-mono text-ctp-mauve transition-colors hover:text-ctp-pink"
+                  >
+                    Raider.IO ↗
+                  </a>
+                )}
+              </div>
+            </CardHeader>
+            <CardBody>
+              {mplusDungeonBreakdown.loading ? (
+                <LoadingState rows={6} />
+              ) : playerMplusDungeonBreakdown.length === 0 ? (
+                <p className="py-8 text-center text-xs font-mono text-ctp-overlay0">
+                  No dungeon breakdown rows exported for this character yet.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {playerMplusDungeonBreakdown.map(row => (
+                    <DungeonBreakdownCard key={`${row.dungeon}-${row.best_completed_at}`} row={row} />
+                  ))}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </div>
+      )}
     </AppLayout>
   )
 }

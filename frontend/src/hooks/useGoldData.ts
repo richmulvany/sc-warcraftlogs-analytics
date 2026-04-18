@@ -23,6 +23,11 @@ import type {
   BestKill,
   BossMechanics,
   PlayerBossPerformance,
+  PlayerMplusSummary,
+  PlayerMplusScoreHistory,
+  PlayerMplusRunHistory,
+  PlayerMplusWeeklyActivity,
+  PlayerMplusDungeonBreakdown,
 } from '../types'
 
 export const useRaidSummary        = () => useCSV<RaidSummary>('gold_raid_summary.csv')
@@ -48,3 +53,8 @@ export const usePlayerRaidAchievements = () => useCSV<PlayerRaidAchievement>('pl
 export const useBestKills          = () => useCSV<BestKill>('gold_best_kills.csv')
 export const useBossMechanics      = () => useCSV<BossMechanics>('gold_boss_mechanics.csv')
 export const usePlayerBossPerformance = () => useCSV<PlayerBossPerformance>('gold_player_boss_performance.csv')
+export const usePlayerMplusSummary = () => useCSV<PlayerMplusSummary>('gold_player_mplus_summary.csv', { optional: true })
+export const usePlayerMplusScoreHistory = () => useCSV<PlayerMplusScoreHistory>('gold_player_mplus_score_history.csv', { optional: true })
+export const usePlayerMplusRunHistory = () => useCSV<PlayerMplusRunHistory>('gold_player_mplus_run_history.csv', { optional: true })
+export const usePlayerMplusWeeklyActivity = () => useCSV<PlayerMplusWeeklyActivity>('gold_player_mplus_weekly_activity.csv', { optional: true })
+export const usePlayerMplusDungeonBreakdown = () => useCSV<PlayerMplusDungeonBreakdown>('gold_player_mplus_dungeon_breakdown.csv', { optional: true })
