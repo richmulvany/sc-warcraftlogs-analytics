@@ -275,7 +275,8 @@ export function Raids() {
                       key={r.report_code}
                       href={getReportUrl(r.report_code)}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
+                      title="view on warcraftlogs - opens in a new tab"
                       className="bg-ctp-mauve/8 rounded-2xl border border-ctp-mauve/20 p-4 hover:border-ctp-mauve/35 hover:bg-ctp-mauve/10 hover:-translate-y-0.5 transition-all duration-200 shadow-card"
                     >
                       {/* Header row */}
@@ -367,7 +368,8 @@ export function Raids() {
                     <a
                       href={getReportUrl(r.report_code)}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
+                      title="view on warcraftlogs - opens in a new tab"
                       className="text-[10px] font-mono text-ctp-overlay0 hover:text-ctp-mauve transition-colors"
                     >
                       {r.report_code}

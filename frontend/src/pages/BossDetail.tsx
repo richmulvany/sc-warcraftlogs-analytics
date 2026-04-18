@@ -250,7 +250,8 @@ export function BossDetail() {
                       <a
                         href={`https://www.warcraftlogs.com/reports/${row.report_code}`}
                         target="_blank"
-                        rel="noreferrer"
+                        rel="noopener noreferrer"
+                        title="view on warcraftlogs - opens in a new tab"
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-ctp-text hover:text-ctp-mauve transition-colors"
                       >
                         <span className="truncate max-w-[18rem]">{row.report_title || row.report_code}</span>

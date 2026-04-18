@@ -50,6 +50,14 @@ export interface BossProgression {
   wipe_to_kill_ratio: number
 }
 
+export interface EncounterCatalog {
+  zone_id: string
+  zone_name: string
+  encounter_id: string
+  encounter_name: string
+  difficulty_names: string
+}
+
 export interface BossKillRosterRow {
   report_code: string
   fight_id: string
@@ -188,8 +196,28 @@ export interface PlayerSurvivability {
   deaths_per_kill: number
   most_common_killing_blow: string
   most_common_killing_blow_count: number
+  top_killing_blows_json?: string
   zones_died_in: string
   last_death_timestamp_ms: number
+}
+
+export interface PlayerDeathEvent {
+  report_code: string
+  fight_id: string
+  encounter_id: string
+  boss_name: string
+  zone_name: string
+  zone_id: string
+  difficulty: string
+  difficulty_label: string
+  raid_night_date: string
+  is_kill: string | boolean
+  player_name: string
+  player_class: string
+  death_timestamp_ms: number
+  overkill: number
+  killing_blow_name: string
+  killing_blow_id: string
 }
 
 export interface ProgressionTimeline {

@@ -15,8 +15,11 @@ import { PerformanceHeatmap } from '../components/charts/PerformanceHeatmap'
 import {
   usePlayerPerformance,
   usePlayerSurvivability,
+  usePlayerDeathEvents,
   usePlayerAttendance,
   useBossKillRoster,
+  useBossProgression,
+  useEncounterCatalog,
   usePlayerBossPerformance,
   useRaidSummary,
   usePlayerCharacterMedia,
@@ -30,8 +33,20 @@ import { isIncludedZoneName } from '../utils/zones'
 import type { PlayerBossPerformance, PlayerCharacterEquipment } from '../types'
 
 type DifficultyFilter = 'All' | 'Mythic' | 'Heroic' | 'Normal'
+type BossParseMode = 'average' | 'best'
 
 const DIFFICULTIES: DifficultyFilter[] = ['All', 'Mythic', 'Heroic', 'Normal']
+const BOSS_PARSE_MODES: readonly { value: BossParseMode; label: string }[] = [
+  { value: 'average', label: 'Average' },
+  { value: 'best', label: 'Best' },
+]
+const COMPLETION_DIFFICULTIES: Exclude<DifficultyFilter, 'All'>[] = ['Mythic', 'Heroic', 'Normal']
+const COMPLETION_COLORS: Record<Exclude<DifficultyFilter, 'All'>, string> = {
+  Mythic: '#cba6f7',
+  Heroic: '#89b4fa',
+  Normal: '#a6e3a1',
+}
+const WARCRAFTLOGS_LINK_TITLE = 'view on warcraftlogs - opens in a new tab'
 
 const EQUIPMENT_SLOTS = [
   { type: 'HEAD', label: 'Head', side: 'left' },
@@ -67,6 +82,21 @@ const QUALITY_COLORS: Record<string, string> = {
   Heirloom: '#94e2d5',
 }
 
+const ENCHANTABLE_SLOTS = new Set([
+  'CHEST',
+  'LEGS',
+  'FEET',
+  'FINGER_1',
+  'FINGER_2',
+  'MAIN_HAND',
+])
+
+const SOCKET_EXPECTED_SLOTS = new Set([
+  'NECK',
+  'FINGER_1',
+  'FINGER_2',
+])
+
 interface GearEnhancement {
   display_string?: string
   item_name?: string
@@ -79,6 +109,24 @@ interface GearEnhancement {
   spell_name?: string
 }
 
+interface TierCompletionBoss {
+  name: string
+  killed: boolean
+}
+
+interface TierCompletionRow {
+  difficulty: Exclude<DifficultyFilter, 'All'>
+  completed: number
+  total: number
+  pct: number
+  bosses: TierCompletionBoss[]
+}
+
+interface KillingBlowSummary {
+  name: string
+  count: number
+}
+
 function parseGearJson(value: unknown): GearEnhancement[] {
   if (typeof value !== 'string' || !value.trim()) return []
   try {
@@ -89,14 +137,132 @@ function parseGearJson(value: unknown): GearEnhancement[] {
   }
 }
 
-function ItemTooltip({ item, color }: { item: PlayerCharacterEquipment; color: string }) {
+function parseKillingBlowsJson(value: unknown): KillingBlowSummary[] {
+  if (typeof value !== 'string' || !value.trim()) return []
+  try {
+    const parsed = JSON.parse(value)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .map(row => ({
+        name: typeof row?.name === 'string' ? row.name : '',
+        count: Number(row?.count) || 0,
+      }))
+      .filter(row => row.name && row.count > 0)
+  } catch {
+    return []
+  }
+}
+
+function warcraftLogsReportUrl(reportCode: string, fightId?: string | number): string | null {
+  if (!reportCode) return null
+  const fight = fightId ? `#fight=${encodeURIComponent(String(fightId))}` : ''
+  return `https://www.warcraftlogs.com/reports/${encodeURIComponent(reportCode)}${fight}`
+}
+
+function formatRealmName(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  return value
+    .replace(/[-_]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function formatRealmSlug(value: unknown): string {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  return value
+    .replace(/([a-z])([A-Z])/g, '$1-$2')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .toLowerCase()
+    .trim()
+}
+
+function externalCharacterLinks(playerName: string, realm: unknown, fallbackRealm: unknown) {
+  const realmSlug = formatRealmSlug(realm) || formatRealmSlug(fallbackRealm)
+  if (!playerName || !realmSlug) return null
+
+  const characterSlug = playerName.toLowerCase()
+  return {
+    raiderIo: `https://raider.io/characters/eu/${encodeURIComponent(realmSlug)}/${encodeURIComponent(playerName)}`,
+    armory: `https://worldofwarcraft.blizzard.com/en-gb/character/eu/${encodeURIComponent(realmSlug)}/${encodeURIComponent(characterSlug)}`,
+  }
+}
+
+function stripBlizzardTextureTokens(value: string): string {
+  return value.replace(/\|A:[^|]*\|a/g, '').replace(/\s+/g, ' ').trim()
+}
+
+function professionQualityTier(value: string): string | null {
+  const match = value.match(/Tier(\d+)/i)
+  return match ? `ench t${match[1]}` : null
+}
+
+function enchantLabel(enchant: GearEnhancement): string {
+  const raw = enchant.display_string || enchant.source_item_name || 'Unknown enchant'
+  const clean = stripBlizzardTextureTokens(raw)
+    .replace(/^Enchanted:\s*/i, '')
+    .replace(/^Enchanted\s+/i, '')
+    .trim()
+  return clean
+}
+
+function enchantTierLabel(enchants: GearEnhancement[]): string | null {
+  for (const enchant of enchants) {
+    const raw = enchant.display_string || enchant.source_item_name || ''
+    const tier = professionQualityTier(raw)
+    if (tier) return tier
+  }
+  return null
+}
+
+function socketLabel(socket: GearEnhancement): string {
+  return stripBlizzardTextureTokens(socket.item_name || socket.display_string || socket.socket_type || 'Empty socket')
+}
+
+function parseDifficultyNames(value: unknown): Set<string> {
+  if (Array.isArray(value)) {
+    return new Set(value.map(String).filter(Boolean))
+  }
+
+  if (typeof value !== 'string' || !value.trim()) {
+    return new Set()
+  }
+
+  const matches = value.match(/Normal|Heroic|Mythic/gi) ?? []
+  return new Set(matches.map(match => match[0].toUpperCase() + match.slice(1).toLowerCase()))
+}
+
+function clampTooltipPosition(clientX: number, clientY: number) {
+  const width = 288
+  const height = 420
+  const offset = 14
+  const margin = 12
+  return {
+    left: Math.min(Math.max(clientX + offset, margin), window.innerWidth - width - margin),
+    top: Math.min(Math.max(clientY + offset, margin), window.innerHeight - height - margin),
+  }
+}
+
+function ItemTooltip({
+  item,
+  color,
+  position,
+}: {
+  item: PlayerCharacterEquipment
+  color: string
+  position: { left: number; top: number }
+}) {
   const enchants = parseGearJson(item.enchantments_json)
   const sockets = parseGearJson(item.sockets_json)
   const stats = parseGearJson(item.stats_json)
   const spells = parseGearJson(item.spells_json)
 
   return (
-    <div className="pointer-events-none absolute left-12 top-0 z-40 hidden w-72 rounded-xl border border-ctp-surface2 bg-ctp-crust/95 p-4 text-left shadow-2xl backdrop-blur group-hover:block">
+    <div
+      className="pointer-events-none fixed z-50 max-h-[calc(100vh-24px)] w-72 overflow-y-auto rounded-xl border border-ctp-surface2 bg-ctp-crust/95 p-4 text-left shadow-2xl backdrop-blur"
+      style={{ left: position.left, top: position.top }}
+    >
       <p className="text-sm font-semibold" style={{ color }}>{item.item_name}</p>
       {item.transmog_name && (
         <p className="mt-1 text-xs text-ctp-pink">Transmog: {item.transmog_name}</p>
@@ -119,7 +285,7 @@ function ItemTooltip({ item, color }: { item: PlayerCharacterEquipment; color: s
         <div className="mt-3 space-y-0.5">
           {enchants.map((enchant, index) => (
             <p key={index} className="text-xs text-ctp-green">
-              Enchanted: {enchant.display_string || enchant.source_item_name || 'Unknown enchant'}
+              Enchanted: {enchantLabel(enchant)}
             </p>
           ))}
         </div>
@@ -129,7 +295,7 @@ function ItemTooltip({ item, color }: { item: PlayerCharacterEquipment; color: s
         <div className="mt-3 space-y-1">
           {sockets.map((socket, index) => (
             <p key={index} className="text-xs text-ctp-sapphire">
-              {socket.item_name || socket.display_string || socket.socket_type || 'Empty socket'}
+              {socketLabel(socket)}
             </p>
           ))}
         </div>
@@ -150,15 +316,27 @@ function ItemTooltip({ item, color }: { item: PlayerCharacterEquipment; color: s
 }
 
 function GearSlot({ item, label, classColor }: { item?: PlayerCharacterEquipment; label: string; classColor: string }) {
+  const [tooltipPosition, setTooltipPosition] = useState<{ left: number; top: number } | null>(null)
   const qualityColor = item ? (QUALITY_COLORS[item.quality] ?? classColor) : '#45475a'
   const enchants = item ? parseGearJson(item.enchantments_json) : []
   const sockets = item ? parseGearJson(item.sockets_json) : []
+  const missingEnchant = Boolean(item && ENCHANTABLE_SLOTS.has(item.slot_type) && enchants.length === 0)
+  const missingGem = Boolean(item && SOCKET_EXPECTED_SLOTS.has(item.slot_type) && sockets.length === 0)
+  const slotBorderColor = missingEnchant ? '#f38ba8' : item ? qualityColor : '#313244'
 
   return (
-    <div className="group relative flex min-h-[54px] items-center gap-2 rounded-xl border border-ctp-surface1 bg-ctp-surface0/55 px-2 py-1.5">
+    <div
+      className="group relative flex min-h-[54px] items-center gap-2 rounded-xl border bg-ctp-surface0/55 px-2 py-1.5"
+      style={{ borderColor: missingEnchant ? '#f38ba8' : item ? `${qualityColor}88` : '#45475a' }}
+      onMouseMove={(event) => {
+        if (!item) return
+        setTooltipPosition(clampTooltipPosition(event.clientX, event.clientY))
+      }}
+      onMouseLeave={() => setTooltipPosition(null)}
+    >
       <div
         className="relative flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-ctp-crust/80"
-        style={{ borderColor: item ? qualityColor : '#313244' }}
+        style={{ borderColor: slotBorderColor }}
       >
         {item?.icon_url ? (
           <img src={item.icon_url} alt="" className="h-full w-full object-cover" />
@@ -174,16 +352,128 @@ function GearSlot({ item, label, classColor }: { item?: PlayerCharacterEquipment
         <p className="mt-0.5 truncate text-xs font-medium" style={{ color: item ? qualityColor : '#6c7086' }}>
           {item?.item_name || 'Empty'}
         </p>
-        {(enchants.length > 0 || sockets.length > 0) && (
+        {(enchants.length > 0 || sockets.length > 0 || missingEnchant || missingGem) && (
           <div className="mt-0.5 flex items-center gap-1.5">
-            {enchants.length > 0 && <span className="text-[9px] font-mono text-ctp-green">ench</span>}
+            {enchants.length > 0 && (
+              <span className="text-[9px] font-mono text-ctp-green">
+                {enchantTierLabel(enchants) ?? 'ench'}
+              </span>
+            )}
+            {missingEnchant && <span className="text-[9px] font-mono text-ctp-red">missing enchant</span>}
             {sockets.slice(0, 3).map((socket, index) => (
               <span key={index} className="h-1.5 w-1.5 rounded-full bg-ctp-sapphire" title={socket.item_name || socket.socket_type} />
             ))}
+            {missingGem && (
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono text-ctp-red">
+                <span className="h-1.5 w-1.5 rounded-full bg-ctp-red" />
+                missing gem
+              </span>
+            )}
           </div>
         )}
       </div>
-      {item && <ItemTooltip item={item} color={qualityColor} />}
+      {item && tooltipPosition && <ItemTooltip item={item} color={qualityColor} position={tooltipPosition} />}
+    </div>
+  )
+}
+
+function CompletionTooltip({
+  row,
+  position,
+}: {
+  row: TierCompletionRow
+  position: { left: number; top: number }
+}) {
+  const killed = row.bosses.filter(boss => boss.killed)
+  const missing = row.bosses.filter(boss => !boss.killed)
+
+  return (
+    <div
+      className="pointer-events-none fixed z-50 w-72 rounded-xl border border-ctp-surface2 bg-ctp-crust/95 p-4 text-left shadow-2xl backdrop-blur"
+      style={{ left: position.left, top: position.top }}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-ctp-text">{row.difficulty}</p>
+        <p className="text-xs font-mono text-ctp-subtext1">{row.completed}/{row.total || '—'}</p>
+      </div>
+
+      {row.total === 0 ? (
+        <p className="mt-3 text-xs font-mono text-ctp-overlay0">
+          No bosses are exported for this difficulty in the selected tier.
+        </p>
+      ) : (
+        <div className="mt-3 grid grid-cols-1 gap-1.5">
+          <div>
+            {killed.length > 0 ? (
+              <div className="space-y-1">
+                {killed.map(boss => (
+                  <p key={boss.name} className="truncate text-xs text-ctp-text">
+                    <span className="mr-2 text-ctp-green">✓</span>{boss.name}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs font-mono text-ctp-overlay0">None yet</p>
+            )}
+          </div>
+
+          <div>
+            {missing.length > 0 ? (
+              <div className="space-y-1">
+                {missing.map(boss => (
+                  <p key={boss.name} className="truncate text-xs text-ctp-subtext1">
+                    <span className="mr-2 text-ctp-red">×</span>{boss.name}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs font-mono text-ctp-overlay0">Complete</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CompletionRow({ row, color }: { row: TierCompletionRow; color: string }) {
+  const [tooltipPosition, setTooltipPosition] = useState<{ left: number; top: number } | null>(null)
+
+  return (
+    <div
+      className="rounded-xl border border-ctp-surface1 bg-ctp-surface0/60 px-3 py-3 transition-colors hover:border-ctp-surface2"
+      onMouseMove={(event) => setTooltipPosition(clampTooltipPosition(event.clientX, event.clientY))}
+      onMouseLeave={() => setTooltipPosition(null)}
+    >
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold" style={{ color }}>
+          {row.difficulty}
+        </p>
+        <p className="text-sm font-mono text-ctp-text">
+          {row.completed}/{row.total || '—'}
+        </p>
+      </div>
+      <ProgressBar value={row.pct} color={color} height="sm" />
+      {tooltipPosition && <CompletionTooltip row={row} position={tooltipPosition} />}
+    </div>
+  )
+}
+
+function SectionDivider({ label, subtitle }: { label: string; subtitle?: string }) {
+  return (
+    <div className="flex items-center gap-4 py-2">
+      <div className="h-px flex-1 bg-gradient-to-r from-transparent via-ctp-surface2 to-ctp-surface1" />
+      <div className="text-center">
+        <p className="text-[11px] font-mono uppercase tracking-[0.28em] text-ctp-mauve">
+          {label}
+        </p>
+        {subtitle && (
+          <p className="mt-1 text-[10px] font-mono text-ctp-overlay0">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      <div className="h-px flex-1 bg-gradient-to-l from-transparent via-ctp-surface2 to-ctp-surface1" />
     </div>
   )
 }
@@ -197,9 +487,12 @@ export function PlayerDetail() {
 
   const perf = usePlayerPerformance()
   const surv = usePlayerSurvivability()
+  const deathEvents = usePlayerDeathEvents()
   const att = usePlayerAttendance()
   const raids = useRaidSummary()
   const roster = useBossKillRoster()
+  const bossProgression = useBossProgression()
+  const encounterCatalog = useEncounterCatalog()
   const bossPf = usePlayerBossPerformance()
   const characterMedia = usePlayerCharacterMedia()
   const characterEquipment = usePlayerCharacterEquipment()
@@ -208,6 +501,7 @@ export function PlayerDetail() {
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
+  const [bossParseMode, setBossParseMode] = useState<BossParseMode>('average')
 
   function hasRealText(value: unknown): value is string {
     return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
@@ -248,6 +542,20 @@ export function PlayerDetail() {
 
   const currentTier = tierOptions[1] ?? ''
 
+  const currentRaidTier = useMemo(() => {
+    const latestProgressionTier = [...bossProgression.data]
+      .filter(row => isIncludedZoneName(row.zone_name))
+      .filter(row => hasRealText(row.zone_name))
+      .filter(row => hasRealText(row.last_attempt_date) || hasRealText(row.first_kill_date))
+      .sort((a, b) => {
+        const aDate = a.last_attempt_date || a.first_kill_date || ''
+        const bDate = b.last_attempt_date || b.first_kill_date || ''
+        return String(bDate).localeCompare(String(aDate))
+      })[0]?.zone_name
+
+    return latestProgressionTier || currentTier || tierOptions.find(option => option !== 'All') || ''
+  }, [bossProgression.data, currentTier, tierOptions])
+
   useEffect(() => {
     if (!selectedTier && currentTier) setSelectedTier(currentTier)
   }, [selectedTier, currentTier])
@@ -282,6 +590,8 @@ export function PlayerDetail() {
       throughput: Number(r.throughput_per_second),
       boss: r.boss_name,
       parse: Number(r.rank_percent) || 0,
+      reportCode: r.report_code,
+      fightId: r.fight_id,
     })),
     [scopedRosterRows]
   )
@@ -345,6 +655,34 @@ export function PlayerDetail() {
 
   const heatmapData = scopedBossPerformance.length > 0 ? scopedBossPerformance : fallbackBossPerformance
 
+  const scopedDeathRows = useMemo(() =>
+    deathEvents.data
+      .filter(row => row.player_name === name)
+      .filter(row => isIncludedZoneName(row.zone_name))
+      .filter(row =>
+        (selectedTier === 'All' || !selectedTier || row.zone_name === selectedTier) &&
+        (difficulty === 'All' || row.difficulty_label === difficulty) &&
+        (selectedBoss === 'All' || row.boss_name === selectedBoss)
+      ),
+    [deathEvents.data, name, selectedTier, difficulty, selectedBoss]
+  )
+
+  const reportHrefByBossKey = useMemo(() => {
+    const map = new Map<string, string>()
+    const latestRows = [...scopedRosterRows]
+      .filter(row => row.report_code)
+      .sort((a, b) => String(b.raid_night_date).localeCompare(String(a.raid_night_date)))
+
+    for (const row of latestRows) {
+      const key = `${row.encounter_id}-${row.difficulty}`
+      if (map.has(key)) continue
+      const href = warcraftLogsReportUrl(row.report_code, row.fight_id)
+      if (href) map.set(key, href)
+    }
+
+    return map
+  }, [scopedRosterRows])
+
   const scopedSummary = useMemo(() => {
     if (scopedRosterRows.length === 0) return null
 
@@ -367,6 +705,31 @@ export function PlayerDetail() {
       spec: scopedRosterRows[0].spec,
     }
   }, [scopedRosterRows])
+
+  const scopedSurvivability = useMemo(() => {
+    if (deathEvents.data.length === 0) return null
+
+    const killingBlowCounts = new Map<string, number>()
+    for (const row of scopedDeathRows) {
+      if (!hasRealText(row.killing_blow_name)) continue
+      killingBlowCounts.set(row.killing_blow_name, (killingBlowCounts.get(row.killing_blow_name) ?? 0) + 1)
+    }
+
+    const killingBlows = [...killingBlowCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 3)
+      .map(([name, count]) => ({ name, count }))
+
+    const kills = scopedSummary?.kills ?? scopedRosterRows.length
+    const totalDeaths = scopedDeathRows.length
+
+    return {
+      totalDeaths,
+      deathsPerKill: totalDeaths / Math.max(kills, 1),
+      killingBlows,
+      isScoped: true,
+    }
+  }, [deathEvents.data.length, scopedDeathRows, scopedRosterRows.length, scopedSummary])
 
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
@@ -425,6 +788,11 @@ export function PlayerDetail() {
     [characterMedia.data, name]
   )
 
+  const profileLinks = useMemo(
+    () => externalCharacterLinks(name, playerMedia?.realm_slug, summary?.realm),
+    [name, playerMedia?.realm_slug, summary?.realm]
+  )
+
   const playerEquipment = useMemo(() =>
     characterEquipment.data
       .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
@@ -449,6 +817,105 @@ export function PlayerDetail() {
       .sort((a, b) => Number(b.completed_timestamp) - Number(a.completed_timestamp)),
     [raidAchievements.data, name]
   )
+
+  const playerItemLevel = useMemo(() => {
+    const latestRosterRow = [...playerRosterRows]
+      .filter(row => Number.isFinite(Number(row.avg_item_level)) && Number(row.avg_item_level) > 0)
+      .sort((a, b) =>
+        String(b.raid_night_date ?? '').localeCompare(String(a.raid_night_date ?? ''))
+      )[0]
+    if (latestRosterRow) {
+      return Number(latestRosterRow.avg_item_level)
+    }
+
+    const summaryLevel = Number(summary?.avg_item_level)
+    return Number.isFinite(summaryLevel) && summaryLevel > 0 ? summaryLevel : null
+  }, [playerRosterRows, summary])
+
+  const survivabilityKillingBlows = useMemo(() => {
+    if (scopedSurvivability) return scopedSurvivability.killingBlows
+    if (!survRow) return []
+    const parsed = parseKillingBlowsJson(survRow.top_killing_blows_json)
+    if (parsed.length > 0) return parsed.slice(0, 3)
+    if (survRow.most_common_killing_blow) {
+      return [{
+        name: survRow.most_common_killing_blow,
+        count: Number(survRow.most_common_killing_blow_count) || 0,
+      }]
+    }
+    return []
+  }, [scopedSurvivability, survRow])
+
+  const displayedTotalDeaths = scopedSurvivability?.totalDeaths ?? survRow?.total_deaths ?? 0
+  const displayedDeathsPerKill = scopedSurvivability?.deathsPerKill ?? survRow?.deaths_per_kill
+  const hasSurvivabilityData = Boolean(scopedSurvivability || survRow)
+
+  const currentTierProgress = useMemo((): TierCompletionRow[] => {
+    if (!currentRaidTier) return []
+
+    return COMPLETION_DIFFICULTIES.map(diff => {
+      const catalogBossRows = encounterCatalog.data
+          .filter(row => isIncludedZoneName(row.zone_name))
+          .filter(row => row.zone_name === currentRaidTier)
+          .filter(row => hasRealText(row.encounter_name))
+          .filter(row => {
+            const difficultyNames = parseDifficultyNames(row.difficulty_names)
+            return difficultyNames.size === 0 || difficultyNames.has(diff)
+          })
+
+      const totalBosses = new Map<string, { firstSeen: string; lastSeen: string }>()
+      if (catalogBossRows.length > 0) {
+        for (const row of catalogBossRows) {
+          totalBosses.set(row.encounter_name, { firstSeen: '', lastSeen: '' })
+        }
+      } else {
+        const tierBossRows = bossProgression.data
+          .filter(row => isIncludedZoneName(row.zone_name))
+          .filter(row => row.zone_name === currentRaidTier)
+          .filter(row => hasRealText(row.boss_name))
+
+        for (const row of tierBossRows) {
+          const existing = totalBosses.get(row.boss_name)
+          const firstSeen = String(row.first_kill_date || row.last_attempt_date || '')
+          const lastSeen = String(row.last_attempt_date || row.first_kill_date || '')
+          if (!existing) {
+            totalBosses.set(row.boss_name, { firstSeen, lastSeen })
+            continue
+          }
+          if (firstSeen && (!existing.firstSeen || firstSeen < existing.firstSeen)) existing.firstSeen = firstSeen
+          if (lastSeen && (!existing.lastSeen || lastSeen > existing.lastSeen)) existing.lastSeen = lastSeen
+        }
+      }
+
+      const playerBosses = new Set(
+        playerRosterRows
+          .filter(row => row.zone_name === currentRaidTier)
+          .filter(row => row.difficulty_label === diff)
+          .map(row => row.boss_name)
+          .filter(hasRealText)
+      )
+
+      const bosses = [...totalBosses.entries()]
+        .sort((a, b) => {
+          const aSort = a[1].firstSeen || a[1].lastSeen || a[0]
+          const bSort = b[1].firstSeen || b[1].lastSeen || b[0]
+          const byDate = String(aSort).localeCompare(String(bSort))
+          return byDate === 0 ? a[0].localeCompare(b[0]) : byDate
+        })
+        .map(([bossName]) => ({
+          name: bossName,
+          killed: playerBosses.has(bossName),
+        }))
+
+      return {
+        difficulty: diff,
+        completed: playerBosses.size,
+        total: totalBosses.size,
+        pct: totalBosses.size > 0 ? (playerBosses.size / totalBosses.size) * 100 : 0,
+        bosses,
+      }
+    })
+  }, [bossProgression.data, currentRaidTier, encounterCatalog.data, playerRosterRows])
 
   function formatBlizzardTimestamp(value: unknown): string {
     const timestamp = Number(value)
@@ -530,7 +997,7 @@ export function PlayerDetail() {
                 <span className="text-ctp-overlay0 text-xs">·</span>
                 <RoleBadge role={summary.role} />
                 <span className="text-ctp-overlay0 text-xs">·</span>
-                <span className="text-xs text-ctp-overlay1 font-mono">{summary.realm}</span>
+                <span className="text-xs text-ctp-overlay1 font-mono">{formatRealmName(summary.realm)}</span>
               </div>
             </div>
 
@@ -561,6 +1028,36 @@ export function PlayerDetail() {
           <FilterTabs options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
           <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48" />
           <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52" />
+          {profileLinks && (
+            <div className="ml-auto flex items-center gap-2">
+              <a
+                href={profileLinks.raiderIo}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="view on raider.io - opens in a new tab"
+                className="group inline-flex h-10 w-10 items-center justify-center rounded-lg transition-all hover:-translate-y-0.5 hover:drop-shadow-[0_0_12px_rgba(203,166,247,0.45)]"
+              >
+                <img
+                  src="/rio-icon.png"
+                  alt="Raider.IO"
+                  className="h-8 w-8 object-contain opacity-80 transition-opacity group-hover:opacity-100"
+                />
+              </a>
+              <a
+                href={profileLinks.armory}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="view on world of warcraft - opens in a new tab"
+                className="group inline-flex h-10 w-10 items-center justify-center rounded-lg transition-all hover:-translate-y-0.5 hover:drop-shadow-[0_0_12px_rgba(137,180,250,0.45)]"
+              >
+                <img
+                  src="/wow-icon.png"
+                  alt="World of Warcraft Armory"
+                  className="h-8 w-8 object-contain opacity-80 transition-opacity group-hover:opacity-100"
+                />
+              </a>
+            </div>
+          )}
         </div>
       </div>
 
@@ -586,10 +1083,10 @@ export function PlayerDetail() {
             />
             <StatCard
               label="Deaths per Kill"
-              value={survRow?.deaths_per_kill != null ? survRow.deaths_per_kill.toFixed(1) : '—'}
-              subValue={`${survRow?.total_deaths ?? 0} total deaths · aggregate`}
+              value={displayedDeathsPerKill != null ? displayedDeathsPerKill.toFixed(1) : '—'}
+              subValue={`${displayedTotalDeaths} total deaths${scopedSurvivability ? ' in scope' : ' · aggregate'}`}
               icon="☠"
-              valueColor={survRow?.deaths_per_kill != null ? getDeathRateColor(survRow.deaths_per_kill) : undefined}
+              valueColor={displayedDeathsPerKill != null ? getDeathRateColor(displayedDeathsPerKill) : undefined}
               accent="none"
             />
             <StatCard
@@ -608,17 +1105,27 @@ export function PlayerDetail() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Card className="xl:col-span-2">
             <CardHeader>
-              <CardTitle>Equipped Gear</CardTitle>
-              <p className="text-xs text-ctp-overlay1 mt-0.5">
-                Blizzard profile snapshot
-              </p>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <CardTitle>Equipped Gear</CardTitle>
+                  <p className="text-xs text-ctp-overlay1 mt-0.5">
+                    Blizzard profile snapshot
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-mono uppercase tracking-wide text-ctp-overlay0">Item Level</p>
+                  <p className="mt-0.5 text-lg font-semibold text-ctp-text">
+                    {playerItemLevel ? playerItemLevel.toFixed(1) : '—'}
+                  </p>
+                </div>
+              </div>
             </CardHeader>
             <CardBody>
               {characterEquipment.loading ? (
                 <LoadingState rows={6} />
               ) : playerEquipment.length === 0 ? (
                 <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">
-                  No exposed equipment found for this character.
+                  No equipment found for this character.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(300px,380px)_minmax(0,1fr)]">
@@ -679,11 +1186,42 @@ export function PlayerDetail() {
             </CardBody>
           </Card>
 
+          <div className="xl:col-span-2">
+            <SectionDivider
+              label="Raid Performance"
+              subtitle="WarcraftLogs-derived raid progress, parses, deaths, and boss history"
+            />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Tier Completion</CardTitle>
+              <p className="text-xs text-ctp-overlay1 mt-0.5">
+                {currentRaidTier || 'No tier'}
+              </p>
+            </CardHeader>
+            <CardBody>
+              {roster.loading || bossProgression.loading || encounterCatalog.loading ? (
+                <LoadingState rows={3} />
+              ) : currentTierProgress.every(row => row.total === 0) ? (
+                <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">
+                  No current-tier boss completion data found for this character.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {currentTierProgress.map(row => (
+                    <CompletionRow key={row.difficulty} row={row} color={COMPLETION_COLORS[row.difficulty]} />
+                  ))}
+                </div>
+              )}
+            </CardBody>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Raid Feats</CardTitle>
               <p className="text-xs text-ctp-overlay1 mt-0.5">
-                Exposed Cutting Edge / Famed Slayer style achievements
+                Cutting Edge + Famed Slayer
               </p>
             </CardHeader>
             <CardBody>
@@ -691,7 +1229,7 @@ export function PlayerDetail() {
                 <LoadingState rows={4} />
               ) : playerRaidAchievements.length === 0 ? (
                 <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">
-                  No exposed raid feats found for this character.
+                  No raid feats found for this character.
                 </p>
               ) : (
                 <div className="space-y-2.5">
@@ -751,13 +1289,13 @@ export function PlayerDetail() {
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+      <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+        <Card className="h-full">
           <CardHeader>
             <CardTitle>Parse Breakdown by Fight</CardTitle>
             <p className="text-xs text-ctp-overlay1 mt-0.5">Individual WCL rank % per recorded fight in scope</p>
           </CardHeader>
-          <CardBody className="space-y-2.5">
+          <CardBody className="max-h-[318px] space-y-2.5 overflow-y-auto pr-3">
             {roster.loading ? (
               <LoadingState rows={6} />
             ) : dpsOverTime.length === 0 ? (
@@ -765,62 +1303,87 @@ export function PlayerDetail() {
             ) : (
               [...dpsOverTime]
                 .filter(d => d.parse > 0)
-                .sort((a, b) => b.parse - a.parse)
-                .slice(0, 12)
+                .sort((a, b) => String(b.date).localeCompare(String(a.date)))
                 .map((d, i) => (
-                  <div key={i} className="flex items-center gap-3">
+                  <a
+                    key={`${d.reportCode}-${d.fightId}-${i}`}
+                    href={warcraftLogsReportUrl(d.reportCode, d.fightId) ?? undefined}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={WARCRAFTLOGS_LINK_TITLE}
+                    className="group flex items-center gap-3 rounded-lg px-1.5 py-1 transition-colors hover:bg-ctp-surface0/70"
+                  >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-ctp-subtext1 truncate">{d.boss}</span>
+                        <span className="text-xs text-ctp-subtext1 truncate transition-colors group-hover:text-ctp-mauve">{d.boss}</span>
                         <span className="text-xs font-mono font-semibold flex-shrink-0 ml-2" style={{ color: getParseColor(d.parse) }}>
                           {d.parse.toFixed(0)}%
                         </span>
                       </div>
                       <ProgressBar value={d.parse} color={getParseColor(d.parse)} height="xs" />
                     </div>
-                    <span className="text-[10px] font-mono text-ctp-overlay0 flex-shrink-0 w-16 text-right">
-                      {formatDate(d.date)}
-                    </span>
-                  </div>
+                    <div className="flex-shrink-0 text-right">
+                      <span className="block text-[10px] font-mono text-ctp-overlay0 transition-colors group-hover:text-ctp-overlay1">
+                        {formatDate(d.date)}
+                      </span>
+                      <span className="block text-[9px] font-mono text-ctp-overlay0 opacity-0 transition-opacity group-hover:opacity-100">
+                        WCL ↗
+                      </span>
+                    </div>
+                  </a>
                 ))
             )}
           </CardBody>
         </Card>
 
-        <Card>
+        <Card className="h-full">
           <CardHeader>
             <CardTitle>Survivability</CardTitle>
-            <p className="text-xs text-ctp-overlay1 mt-0.5">Aggregate death analysis for this player</p>
+            <p className="text-xs text-ctp-overlay1 mt-0.5">
+              {scopedSurvivability ? 'Death analysis for the current page filters' : 'Aggregate death analysis for this player'}
+            </p>
           </CardHeader>
           <CardBody>
-            {surv.loading ? (
+            {surv.loading || deathEvents.loading ? (
               <LoadingState rows={4} />
-            ) : !survRow ? (
+            ) : !hasSurvivabilityData ? (
               <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No death data recorded</p>
             ) : (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-ctp-surface1/40 rounded-xl p-3">
                     <p className="section-label mb-1">Total Deaths</p>
-                    <p className="text-xl font-semibold" style={{ color: wipeColor }}>{survRow.total_deaths}</p>
+                    <p className="text-xl font-semibold" style={{ color: wipeColor }}>{displayedTotalDeaths}</p>
                   </div>
                   <div className="bg-ctp-surface1/40 rounded-xl p-3">
                     <p className="section-label mb-1">Deaths / Kill</p>
-                    <p className="text-xl font-semibold" style={{ color: getDeathRateColor(Number(survRow.deaths_per_kill) || 0) }}>
-                      {survRow.deaths_per_kill?.toFixed(1) ?? '—'}
+                    <p className="text-xl font-semibold" style={{ color: getDeathRateColor(Number(displayedDeathsPerKill) || 0) }}>
+                      {displayedDeathsPerKill != null ? displayedDeathsPerKill.toFixed(1) : '—'}
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <p className="section-label mb-2">Most Common Killing Blow</p>
-                  <div className="bg-ctp-surface1/40 rounded-xl p-3">
-                    <p className="text-sm font-medium text-ctp-text">
-                      {survRow.most_common_killing_blow || '—'}
-                    </p>
-                    <p className="text-xs text-ctp-overlay0 mt-0.5">
-                      {survRow.most_common_killing_blow_count} occurrences
-                    </p>
+                  <p className="section-label mb-2">Most Common Killing Blows</p>
+                  <div className="space-y-2">
+                    {survivabilityKillingBlows.length > 0 ? (
+                      survivabilityKillingBlows.map((blow, index) => (
+                        <div key={`${blow.name}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-ctp-surface1/40 p-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-ctp-text truncate">
+                              {blow.name}
+                            </p>
+                          </div>
+                          <p className="flex-shrink-0 text-xs font-mono text-ctp-subtext1">
+                            {blow.count} hit{blow.count !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="bg-ctp-surface1/40 rounded-xl p-3">
+                        <p className="text-sm font-medium text-ctp-text">—</p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -831,10 +1394,21 @@ export function PlayerDetail() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Performance by Boss</CardTitle>
-          <p className="text-xs text-ctp-overlay1 mt-0.5">
-            Avg WCL parse % per boss encounter in scope · colour = parse tier
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Performance by Boss</CardTitle>
+              <p className="text-xs text-ctp-overlay1 mt-0.5">
+                {bossParseMode === 'best' ? 'Best' : 'Average'} WCL parse % per boss encounter in scope · colour = parse tier
+              </p>
+            </div>
+            <FilterTabs
+              options={BOSS_PARSE_MODES}
+              value={bossParseMode}
+              onChange={setBossParseMode}
+              className="flex-shrink-0"
+              buttonClassName="px-3 py-1.5"
+            />
+          </div>
         </CardHeader>
         <CardBody>
           {bossPf.loading ? (
@@ -842,8 +1416,46 @@ export function PlayerDetail() {
           ) : error ? (
             <ErrorState message={error} />
           ) : (
-            <PerformanceHeatmap data={heatmapData} />
+            <PerformanceHeatmap
+              data={heatmapData}
+              getHref={(row) => reportHrefByBossKey.get(`${row.encounter_id}-${row.difficulty}`) ?? null}
+              externalLinkTitle={WARCRAFTLOGS_LINK_TITLE}
+              parseMode={bossParseMode}
+            />
           )}
+        </CardBody>
+      </Card>
+
+      <SectionDivider
+        label="Mythic+ Performance"
+        subtitle="Raider.IO-backed dungeon score and key history"
+      />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Mythic+ Progression</CardTitle>
+          <p className="text-xs text-ctp-overlay1 mt-0.5">
+            Planned Raider.IO API integration for score, timed keys, dungeon volume, and score history.
+          </p>
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              ['Raider.IO Score', 'current score + role/realm rank'],
+              ['Score Over Time', 'weekly score trend'],
+              ['Dungeons Completed', 'completed keys by season'],
+              ['Timed vs Untimed', 'completion quality split'],
+            ].map(([title, description]) => (
+              <div
+                key={title}
+                className="rounded-xl border border-ctp-surface1 bg-ctp-surface0/45 p-4"
+              >
+                <p className="text-xs font-semibold text-ctp-text">{title}</p>
+                <p className="mt-1.5 text-[10px] font-mono text-ctp-overlay0">{description}</p>
+                <div className="mt-4 h-12 rounded-lg border border-dashed border-ctp-surface2 bg-ctp-crust/35" />
+              </div>
+            ))}
+          </div>
         </CardBody>
       </Card>
     </AppLayout>
