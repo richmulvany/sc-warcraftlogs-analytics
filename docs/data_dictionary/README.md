@@ -326,6 +326,134 @@ Active player roster from WCL actor logs (not Blizzard) with latest class/realm 
 
 ---
 
+## Mythic+
+
+Raider.IO data is ingested into Databricks through `ingest_primary.py` and transformed by `pipeline/silver/clean_raiderio.py` and `pipeline/gold/mplus_products.py`. These tables are current-season only in v1. True score-over-time begins from the first successful Raider.IO ingestion.
+
+### gold_player_mplus_summary
+
+Latest Raider.IO Mythic+ summary per player.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `player_name` | STRING | Character name |
+| `realm_slug` | STRING | Realm slug |
+| `region` | STRING | Raider.IO region, usually `eu` |
+| `profile_url` | STRING | Raider.IO character profile URL |
+| `season` | STRING | Raider.IO season identifier |
+| `snapshot_at` | TIMESTAMP | Ingestion timestamp for the latest score snapshot |
+| `score_all` | DOUBLE | Overall Raider.IO score |
+| `score_dps` | DOUBLE | DPS role score |
+| `score_healer` | DOUBLE | Healer role score |
+| `score_tank` | DOUBLE | Tank role score |
+| `world_rank` | LONG | Overall world rank if returned by Raider.IO |
+| `region_rank` | LONG | Overall region rank |
+| `realm_rank` | LONG | Overall realm rank |
+| `total_runs` | LONG | Deduped recent/best runs exported for this character |
+| `timed_runs` | LONG | Runs completed in time |
+| `untimed_runs` | LONG | Runs not completed in time |
+| `highest_timed_level` | LONG | Highest timed key level |
+| `highest_untimed_level` | LONG | Highest untimed key level |
+| `most_common_key_level` | LONG | Most common key level in exported run payload |
+| `most_common_key_count` | LONG | Count at the most common key level |
+| `best_run_dungeon` | STRING | Dungeon for the selected best run |
+| `best_run_short_name` | STRING | Short dungeon name |
+| `best_run_level` | LONG | Key level for the selected best run |
+| `best_run_score` | DOUBLE | Raider.IO run score |
+| `best_run_timed` | BOOLEAN | Whether the selected best run was timed |
+| `best_run_completed_at` | TIMESTAMP | Completion timestamp |
+| `best_run_url` | STRING | Raider.IO run URL |
+
+### gold_player_mplus_score_history
+
+Nightly Raider.IO score snapshots for trend charts.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `player_name` | STRING | Character name |
+| `realm_slug` | STRING | Realm slug |
+| `region` | STRING | Raider.IO region |
+| `profile_url` | STRING | Raider.IO character profile URL |
+| `season` | STRING | Raider.IO season identifier |
+| `snapshot_at` | TIMESTAMP | Ingestion timestamp |
+| `snapshot_date` | DATE | Snapshot date |
+| `score_all` | DOUBLE | Overall score |
+| `score_dps` | DOUBLE | DPS role score |
+| `score_healer` | DOUBLE | Healer role score |
+| `score_tank` | DOUBLE | Tank role score |
+| `world_rank` | LONG | Overall world rank |
+| `region_rank` | LONG | Overall region rank |
+| `realm_rank` | LONG | Overall realm rank |
+| `raiderio_last_crawled_at` | STRING | Raider.IO crawl timestamp from the source payload |
+
+### gold_player_mplus_run_history
+
+Governed run-level table from Raider.IO recent/best run arrays.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `player_name` | STRING | Character name |
+| `realm_slug` | STRING | Realm slug |
+| `region` | STRING | Raider.IO region |
+| `season` | STRING | Season identifier |
+| `source` | STRING | `recent` or `best` source array |
+| `dungeon` | STRING | Dungeon name |
+| `short_name` | STRING | Short dungeon name |
+| `mythic_level` | LONG | Keystone level |
+| `score` | DOUBLE | Raider.IO run score |
+| `completed_at` | TIMESTAMP | Completion timestamp |
+| `completed_date` | DATE | Completion date |
+| `clear_time_ms` | LONG | Clear time in ms |
+| `par_time_ms` | LONG | Timer/par time in ms |
+| `num_keystone_upgrades` | LONG | Keystone upgrades awarded |
+| `timed` | BOOLEAN | Whether the run was completed in time |
+| `url` | STRING | Raider.IO run URL |
+| `snapshot_at` | TIMESTAMP | Ingestion timestamp |
+
+### gold_player_mplus_weekly_activity
+
+Weekly Mythic+ activity derived from the exported run payload.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `player_name` | STRING | Character name |
+| `realm_slug` | STRING | Realm slug |
+| `region` | STRING | Raider.IO region |
+| `season` | STRING | Season identifier |
+| `week_start` | DATE | Week start date |
+| `total_runs` | LONG | Runs in week |
+| `timed_runs` | LONG | Timed runs in week |
+| `untimed_runs` | LONG | Untimed runs in week |
+| `highest_key_level` | LONG | Highest key level completed that week |
+| `unique_dungeons` | LONG | Distinct dungeons completed that week |
+| `most_common_key_level` | LONG | Most common key level that week |
+
+### gold_player_mplus_dungeon_breakdown
+
+Per-player per-dungeon Mythic+ summary.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `player_name` | STRING | Character name |
+| `realm_slug` | STRING | Realm slug |
+| `region` | STRING | Raider.IO region |
+| `season` | STRING | Season identifier |
+| `dungeon` | STRING | Dungeon name |
+| `best_short_name` | STRING | Short dungeon name for the best run |
+| `highest_key_level` | LONG | Highest key level in exported payload |
+| `highest_timed_level` | LONG | Highest timed key level |
+| `total_runs` | LONG | Runs for this dungeon |
+| `timed_runs` | LONG | Timed runs for this dungeon |
+| `untimed_runs` | LONG | Untimed runs for this dungeon |
+| `latest_completed_at` | TIMESTAMP | Latest completion timestamp |
+| `best_key_level` | LONG | Key level for selected best run |
+| `best_score` | DOUBLE | Raider.IO best run score |
+| `best_timed` | BOOLEAN | Whether selected best run was timed |
+| `best_completed_at` | TIMESTAMP | Best run completion timestamp |
+| `best_run_url` | STRING | Raider.IO run URL |
+
+---
+
 ## Rank Reference
 
 | Rank ID | Label | Category | Is Raid Team |

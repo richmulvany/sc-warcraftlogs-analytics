@@ -1,4 +1,4 @@
-# ADR-002: Static JSON Export for Frontend Data
+# ADR-002: Static CSV Export for Frontend Data
 
 **Date:** 2025-01-01
 **Status:** Accepted
@@ -11,16 +11,16 @@ the frontend, and pre-generated static files.
 
 ## Decision
 
-Export Gold tables to static JSON files nightly via a GitHub Actions workflow.
+Export Gold tables to static CSV files via `scripts/export_gold_tables.py`.
 The frontend fetches these files directly with no backend server.
 
 ## Rationale
 
 - **No backend to maintain** — eliminates a server, a deployment, and ongoing costs
-- **Fast frontend** — static JSON served from a CDN is faster than a live database query
+- **Fast frontend** — static CSV served from a CDN is faster than a live database query
 - **Free hosting** — Vercel, Netlify, and GitHub Pages serve static files for free, with no spin-down
 - **Data is not real-time** — guild raid data updates at most once per day, so nightly export is sufficient
-- **Simplicity** — the export script is 60 lines of Python; a backend API would be 10x that
+- **Simplicity** — the export script is a batch export utility; a backend API would add deployment and auth complexity
 
 ## Alternatives Considered
 
@@ -36,5 +36,5 @@ eliminates the custom React dashboard.
 ## Consequences
 
 - Data is always up to 24 hours stale
-- The nightly export job must succeed for the frontend to reflect new data
+- The export job must succeed for the frontend to reflect new data
 - If the Gold schema changes, the frontend API layer must be updated simultaneously
