@@ -27,6 +27,10 @@ class RaiderIoNotFoundError(Exception):
     """Raised when Raider.IO has no profile for a character."""
 
 
+class RaiderIoTransientError(Exception):
+    """Raised when Raider.IO keeps returning transient errors after retries."""
+
+
 class RaiderIoAdapter:
     """Small unauthenticated adapter for Raider.IO's public character profile API."""
 
@@ -69,12 +73,14 @@ class RaiderIoAdapter:
                 "fields": fields_for_season,
             },
         )
-        if response.status_code == 404:
-            raise RaiderIoNotFoundError(f"Raider.IO profile not found for {name}-{realm_slug}")
-        if response.status_code == 429:
-            retry_after = float(response.headers.get("Retry-After") or self.request_sleep_seconds)
-            time.sleep(max(retry_after, self.request_sleep_seconds))
-            response.raise_for_status()
+        if response.status_code in {400, 404}:
+            raise RaiderIoNotFoundError(
+                f"Raider.IO profile unavailable for {name}-{realm_slug}: HTTP {response.status_code}"
+            )
+        if response.status_code == 429 or response.status_code >= 500:
+            raise RaiderIoTransientError(
+                f"Raider.IO transient error for {name}-{realm_slug}: HTTP {response.status_code}"
+            )
         response.raise_for_status()
 
         payload = cast(dict[str, Any], response.json())
@@ -90,15 +96,24 @@ class RaiderIoAdapter:
     def _get_with_retry(self, path: str, params: dict[str, str]) -> httpx.Response:
         """Retry transient transport failures without losing static typing."""
         last_error: httpx.TimeoutException | httpx.TransportError | None = None
+        last_response: httpx.Response | None = None
         for attempt in range(3):
             try:
-                return self._http.get(path, params=params)
+                response = self._http.get(path, params=params)
+                if response.status_code == 429 or response.status_code >= 500:
+                    last_response = response
+                    retry_after = float(response.headers.get("Retry-After") or 0)
+                    time.sleep(max(retry_after, self.request_sleep_seconds, min(2**attempt, 10)))
+                    continue
+                return response
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_error = exc
                 if attempt == 2:
                     break
                 time.sleep(min(2**attempt, 10))
 
+        if last_response is not None:
+            return last_response
         if last_error is not None:
             raise last_error
         raise RuntimeError("Raider.IO request retry loop exited without a response.")

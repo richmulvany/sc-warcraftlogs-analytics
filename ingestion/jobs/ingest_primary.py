@@ -53,6 +53,15 @@ server_region = (
     else "EU"
 )
 
+
+def _config_value(name: str, default: str) -> str:
+    try:
+        value = dbutils.widgets.get(name)  # noqa: F821
+    except Exception:
+        value = ""
+    return value or os.environ.get(name.upper(), default)
+
+
 logger.info(
     "Ingesting guild=%s server=%s region=%s → %s.%s",
     guild_name, server_slug, server_region, catalog, schema,
@@ -341,14 +350,13 @@ except Exception as e:
 # COMMAND ----------
 
 # DBTITLE 1,Raider.IO Character Profiles
-# Fetches current-season Mythic+ profile data for raid-team characters and lands
+# Fetches current-season Mythic+ profile data for all guild members and lands
 # the raw profile payload as opaque JSON.  DLT owns parsing and product shaping.
-RAIDER_IO_EXPORT_ENABLED = os.environ.get("RAIDER_IO_EXPORT_ENABLED", "true").lower() == "true"
-RAIDER_IO_REGION = os.environ.get("RAIDER_IO_REGION", server_region).lower()
-RAIDER_IO_SEASON = os.environ.get("RAIDER_IO_SEASON", "current")
-RAIDER_IO_PROFILE_EXPORT_CAP = int(os.environ.get("RAIDER_IO_PROFILE_EXPORT_CAP", "80"))
-RAIDER_IO_REQUEST_SLEEP_SECONDS = float(os.environ.get("RAIDER_IO_REQUEST_SLEEP_SECONDS", "0.25"))
-RAID_TEAM_RANKS = {0, 1, 2, 3, 4, 5, 8}
+RAIDER_IO_EXPORT_ENABLED = _config_value("raider_io_export_enabled", "true").lower() == "true"
+RAIDER_IO_REGION = _config_value("raider_io_region", server_region).lower()
+RAIDER_IO_SEASON = _config_value("raider_io_season", "current")
+RAIDER_IO_PROFILE_EXPORT_CAP = int(_config_value("raider_io_profile_export_cap", "0"))
+RAIDER_IO_REQUEST_SLEEP_SECONDS = float(_config_value("raider_io_request_sleep_seconds", "0.25"))
 
 
 def _realm_to_slug(value: object) -> str:
@@ -374,11 +382,11 @@ def _realm_to_slug(value: object) -> str:
 
 
 def _raiderio_candidates_from_current_roster() -> list[dict[str, str]]:
+    """All guild members from the current Blizzard API response."""
     candidates: list[dict[str, str]] = []
     for member in guild_member_records:
         name = str(member.get("name") or "").strip()
-        rank = member.get("rank")
-        if not name or rank not in RAID_TEAM_RANKS:
+        if not name:
             continue
         candidates.append(
             {
@@ -390,30 +398,66 @@ def _raiderio_candidates_from_current_roster() -> list[dict[str, str]]:
     return candidates
 
 
-def _raiderio_candidates_from_gold_raid_team() -> list[dict[str, str]]:
+def _raiderio_candidates_from_table(
+    table_name: str,
+    name_expr: str,
+    realm_expr: str,
+    where_clause: str,
+) -> list[dict[str, str]]:
+    """Seed Raider.IO candidates from a previously materialised identity table."""
     try:
         rows = spark.sql(  # noqa: F821
             f"""
-            SELECT name, COALESCE(NULLIF(realm, ''), '{server_slug}') AS realm
-            FROM `{catalog}`.`{schema}`.gold_raid_team
-            WHERE name IS NOT NULL AND name != ''
-            ORDER BY rank ASC NULLS LAST, name
-            LIMIT {RAIDER_IO_PROFILE_EXPORT_CAP}
+            SELECT
+              {name_expr} AS player_name,
+              COALESCE(NULLIF({realm_expr}, ''), '{server_slug}') AS realm_slug
+            FROM `{catalog}`.`{schema}`.{table_name}
+            WHERE {where_clause}
             """
         ).collect()
     except Exception as exc:
-        logger.info("raiderio: gold_raid_team unavailable for candidate seed: %s", exc)
+        logger.info("raiderio: %s unavailable for candidate seed: %s", table_name, exc)
         return []
 
-    return [
+    candidates = [
         {
-            "player_name": str(row["name"]).strip(),
-            "realm_slug": _realm_to_slug(row["realm"]),
+            "player_name": str(row["player_name"]).strip(),
+            "realm_slug": _realm_to_slug(row["realm_slug"]),
             "region": RAIDER_IO_REGION,
         }
         for row in rows
-        if str(row["name"] or "").strip()
+        if str(row["player_name"] or "").strip()
     ]
+    logger.info("raiderio: %s contributed %d candidate rows", table_name, len(candidates))
+    return candidates
+
+
+def _raiderio_candidates_from_existing_player_tables() -> list[dict[str, str]]:
+    """Include known active/cross-realm players that are not in Blizzard guild membership."""
+    return (
+        _raiderio_candidates_from_table(
+            table_name="silver_guild_members",
+            name_expr="name",
+            realm_expr="realm_slug",
+            where_clause="name IS NOT NULL AND name != ''",
+        )
+        + _raiderio_candidates_from_table(
+            table_name="gold_guild_roster",
+            name_expr="name",
+            realm_expr="realm",
+            where_clause="""
+              name IS NOT NULL
+              AND name != ''
+              AND COALESCE(CAST(is_active AS BOOLEAN), false) = true
+            """,
+        )
+        + _raiderio_candidates_from_table(
+            table_name="gold_raid_team",
+            name_expr="name",
+            realm_expr="realm",
+            where_clause="name IS NOT NULL AND name != ''",
+        )
+    )
 
 
 if RAIDER_IO_EXPORT_ENABLED:
@@ -421,13 +465,14 @@ if RAIDER_IO_EXPORT_ENABLED:
         from ingestion.src.adapters.raiderio.client import (  # noqa: PLC0415
             RaiderIoAdapter,
             RaiderIoNotFoundError,
+            RaiderIoTransientError,
         )
 
         seen_candidates: set[tuple[str, str, str]] = set()
         raiderio_candidates: list[dict[str, str]] = []
         for candidate in (
             _raiderio_candidates_from_current_roster()
-            + _raiderio_candidates_from_gold_raid_team()
+            + _raiderio_candidates_from_existing_player_tables()
         ):
             key = (
                 candidate["player_name"].casefold(),
@@ -439,8 +484,18 @@ if RAIDER_IO_EXPORT_ENABLED:
             seen_candidates.add(key)
             raiderio_candidates.append(candidate)
 
-        raiderio_candidates = raiderio_candidates[:RAIDER_IO_PROFILE_EXPORT_CAP]
-        logger.info("Fetching Raider.IO profiles for %d characters", len(raiderio_candidates))
+        if RAIDER_IO_PROFILE_EXPORT_CAP > 0:
+            raiderio_candidates = raiderio_candidates[:RAIDER_IO_PROFILE_EXPORT_CAP]
+            logger.info(
+                "Fetching Raider.IO profiles for %d characters (cap=%d)",
+                len(raiderio_candidates),
+                RAIDER_IO_PROFILE_EXPORT_CAP,
+            )
+        else:
+            logger.info(
+                "Fetching Raider.IO profiles for all %d guild characters",
+                len(raiderio_candidates),
+            )
 
         rio_adapter = RaiderIoAdapter(
             region=RAIDER_IO_REGION,
@@ -462,6 +517,15 @@ if RAIDER_IO_EXPORT_ENABLED:
                     )
                 except RaiderIoNotFoundError:
                     logger.info("Raider.IO profile not found for %s-%s", player_name, realm_slug)
+                    time.sleep(RAIDER_IO_REQUEST_SLEEP_SECONDS)
+                    continue
+                except RaiderIoTransientError as exc:
+                    logger.warning(
+                        "Raider.IO transient error for %s-%s after retries: %s",
+                        player_name,
+                        realm_slug,
+                        exc,
+                    )
                     time.sleep(RAIDER_IO_REQUEST_SLEEP_SECONDS)
                     continue
 

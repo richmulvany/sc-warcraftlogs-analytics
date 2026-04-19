@@ -15,17 +15,19 @@ const ACCENT_STYLES: Record<Accent, { border: string; text: string; iconBg: stri
 
 interface StatCardProps {
   label: string
-  value: string | number
+  value: ReactNode
   subValue?: string
   trend?: 'up' | 'down' | 'neutral'
   icon?: ReactNode
   accent?: Accent
   /** Override the value colour with a colourblind-aware inline colour */
   valueColor?: string
+  /** Override the subValue colour with a colourblind-aware inline colour */
+  subValueColor?: string
   className?: string
 }
 
-export function StatCard({ label, value, subValue, trend, icon, accent = 'none', valueColor, className }: StatCardProps) {
+export function StatCard({ label, value, subValue, trend, icon, accent = 'none', valueColor, subValueColor, className }: StatCardProps) {
   const style = ACCENT_STYLES[accent]
 
   return (
@@ -70,7 +72,12 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
 
       <div className="mt-auto pt-3.5 min-h-[28px]">
         {subValue && (
-          <p className="text-xs text-ctp-overlay0">{subValue}</p>
+          <p
+            className={clsx('text-xs', !subValueColor && 'text-ctp-overlay0')}
+            style={subValueColor ? { color: subValueColor } : undefined}
+          >
+            {subValue}
+          </p>
         )}
       </div>
     </div>

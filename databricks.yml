@@ -126,3 +126,8 @@ resources:
               guild_name: ${var.guild_name}
               guild_server_slug: ${var.guild_server_slug}
               guild_server_region: ${var.guild_server_region}
+              raider_io_export_enabled: "true"
+              raider_io_region: "eu"
+              raider_io_season: "current"
+              raider_io_profile_export_cap: "0"
+              raider_io_request_sleep_seconds: "0.25"

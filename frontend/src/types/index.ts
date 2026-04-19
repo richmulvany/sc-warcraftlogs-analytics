@@ -447,6 +447,8 @@ export interface PlayerMplusDungeonBreakdown {
   best_key_level: number
   best_score: number
   best_timed: string | boolean
+  best_clear_time_ms: number
+  best_par_time_ms: number
   best_completed_at: string
   best_run_url: string
 }

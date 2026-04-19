@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -38,8 +36,9 @@ import {
   usePlayerRaidAchievements,
   usePlayerMplusSummary,
   usePlayerMplusScoreHistory,
-  usePlayerMplusWeeklyActivity,
+  usePlayerMplusRunHistory,
   usePlayerMplusDungeonBreakdown,
+  useRaidTeam,
 } from '../hooks/useGoldData'
 import { formatThroughput, getClassColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -49,17 +48,22 @@ import type {
   PlayerBossPerformance,
   PlayerCharacterEquipment,
   PlayerMplusDungeonBreakdown,
+  PlayerMplusRunHistory,
   PlayerMplusScoreHistory,
-  PlayerMplusWeeklyActivity,
 } from '../types'
 
 type DifficultyFilter = 'All' | 'Mythic' | 'Heroic' | 'Normal'
 type BossParseMode = 'average' | 'best'
+type MplusHeatmapMode = 'level' | 'quantity'
 
 const DIFFICULTIES: DifficultyFilter[] = ['All', 'Mythic', 'Heroic', 'Normal']
 const BOSS_PARSE_MODES: readonly { value: BossParseMode; label: string }[] = [
   { value: 'average', label: 'Average' },
   { value: 'best', label: 'Best' },
+]
+const MPLUS_HEATMAP_MODES: readonly { value: MplusHeatmapMode; label: string }[] = [
+  { value: 'level', label: 'Key Level' },
+  { value: 'quantity', label: 'Quantity' },
 ]
 const COMPLETION_DIFFICULTIES: Exclude<DifficultyFilter, 'All'>[] = ['Mythic', 'Heroic', 'Normal']
 const COMPLETION_COLORS: Record<Exclude<DifficultyFilter, 'All'>, string> = {
@@ -69,6 +73,28 @@ const COMPLETION_COLORS: Record<Exclude<DifficultyFilter, 'All'>, string> = {
 }
 const WARCRAFTLOGS_LINK_TITLE = 'view on warcraftlogs - opens in a new tab'
 const RAIDERIO_LINK_TITLE = 'view on raider.io - opens in a new tab'
+
+const HEATMAP_WEEKS = 53
+const HEATMAP_CELL = 15
+const HEATMAP_GAP = 4
+
+const HEATMAP_EMPTY_CELL = '#262735'
+
+function getMplusCellColor(level: number): string {
+  if (level === 0) return HEATMAP_EMPTY_CELL
+  if (level < 10) return '#1f3f66'
+  if (level < 15) return '#2f5f9f'
+  if (level < 20) return '#5f8fdb'
+  return '#89b4fa'
+}
+
+function getMplusQuantityCellColor(count: number): string {
+  if (count === 0) return HEATMAP_EMPTY_CELL
+  if (count === 1) return '#2d4f48'
+  if (count === 2) return '#3f7d68'
+  if (count === 3) return '#74c7a5'
+  return '#a6e3a1'
+}
 
 const EQUIPMENT_SLOTS = [
   { type: 'HEAD', label: 'Head', side: 'left' },
@@ -190,9 +216,57 @@ function formatNumber(value: unknown, digits = 0): string {
   })
 }
 
+function rankToParseScale(rank: number, total: number): number {
+  if (total <= 1) return 100
+  return Math.round(((total - rank) / (total - 1)) * 100)
+}
+
+function getSurvivabilityRankColor(rank: number, total: number, getParseColor: (rank: number) => string, worstColor: string): string {
+  const scaledRank = rankToParseScale(rank, total)
+  return scaledRank < 25 ? worstColor : getParseColor(scaledRank)
+}
+
 function formatKeyLevel(value: unknown): string {
   const number = Number(value)
   return Number.isFinite(number) && number > 0 ? `+${number}` : '—'
+}
+
+function formatRunTime(valueMs: unknown): string {
+  const ms = Number(valueMs)
+  if (!Number.isFinite(ms) || ms <= 0) return '—'
+  const totalSeconds = Math.round(ms / 1000)
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
+
+function timerUsedPct(clearTimeMs: unknown, parTimeMs: unknown): number | null {
+  const clearMs = Number(clearTimeMs)
+  const parMs = Number(parTimeMs)
+  if (!Number.isFinite(clearMs) || !Number.isFinite(parMs) || clearMs <= 0 || parMs <= 0) return null
+  return (clearMs / parMs) * 100
+}
+
+function isTimed(value: unknown): boolean {
+  return value === true || String(value).toLowerCase() === 'true'
+}
+
+function dateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function dateFromKey(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, (month || 1) - 1, day || 1)
+}
+
+function addDays(date: Date, days: number): Date {
+  const next = new Date(date)
+  next.setDate(next.getDate() + days)
+  return next
 }
 
 function formatRealmName(value: unknown): string {
@@ -548,43 +622,222 @@ function MplusScoreChart({ data }: { data: PlayerMplusScoreHistory[] }) {
   )
 }
 
-function MplusWeeklyChart({ data }: { data: PlayerMplusWeeklyActivity[] }) {
-  const chartData = data.map(row => ({
-    week: row.week_start,
-    timed: Number(row.timed_runs) || 0,
-    untimed: Number(row.untimed_runs) || 0,
-  }))
+function MplusActivityHeatmap({
+  data,
+  mode,
+}: {
+  data: PlayerMplusRunHistory[]
+  mode: MplusHeatmapMode
+}) {
+  const byDate = useMemo(() => {
+    const map = new Map<string, { runs: number; highestLevel: number; timed: number }>()
+    for (const run of data) {
+      const date =
+        typeof run.completed_date === 'string' && run.completed_date
+          ? run.completed_date
+          : typeof run.completed_at === 'string'
+            ? run.completed_at.slice(0, 10)
+            : null
+      if (!date) continue
+      const entry = map.get(date) ?? { runs: 0, highestLevel: 0, timed: 0 }
+      entry.runs++
+      const level = Number(run.mythic_level) || 0
+      if (level > entry.highestLevel) entry.highestLevel = level
+      if (String(run.timed) === 'true') entry.timed++
+      map.set(date, entry)
+    }
+    return map
+  }, [data])
 
-  if (chartData.length === 0) {
+  const { weeks, monthLabels } = useMemo(() => {
+    const todayDate = new Date()
+    const currentSunday = addDays(todayDate, -todayDate.getDay())
+    const start = addDays(currentSunday, -(HEATMAP_WEEKS - 1) * 7)
+
+    const weekList: string[][] = Array.from({ length: HEATMAP_WEEKS }, (_, weekIndex) =>
+      Array.from({ length: 7 }, (_, dayIndex) => dateKey(addDays(start, weekIndex * 7 + dayIndex)))
+    )
+
+    const months: { label: string; weekIndex: number }[] = []
+    const seenMonths = new Set<string>()
+    weekList.forEach((week, weekIndex) => {
+      const firstOfMonth = week
+        .map(dateFromKey)
+        .find(date => date.getDate() === 1)
+      if (!firstOfMonth) return
+
+      const monthKey = `${firstOfMonth.getFullYear()}-${firstOfMonth.getMonth()}`
+      if (seenMonths.has(monthKey)) return
+      seenMonths.add(monthKey)
+      months.push({
+        label: firstOfMonth.toLocaleString('en', { month: 'short' }),
+        weekIndex,
+      })
+    })
+
+    return { weeks: weekList, monthLabels: months }
+  }, [data])
+
+  if (data.length === 0) {
     return (
-      <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-ctp-surface2 bg-ctp-crust/35 px-6 text-center">
-        <p className="text-xs font-mono text-ctp-overlay0">No Mythic+ run activity has been exported for this character yet.</p>
+      <div className="flex h-36 items-center justify-center rounded-xl border border-dashed border-ctp-mauve/20">
+        <p className="text-xs font-mono text-ctp-overlay0">No run history exported yet.</p>
       </div>
     )
   }
 
+  const todayStr = dateKey(new Date())
+  const DAY_LABEL_W = 24
+  const weekWidth = HEATMAP_CELL + HEATMAP_GAP
+  const gridWidth = DAY_LABEL_W + HEATMAP_GAP + (weeks.length * weekWidth)
+  const legendValues = mode === 'level' ? [0, 7, 12, 17, 20] : [0, 1, 2, 3, 4]
+
   return (
-    <div className="h-56">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={chartData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
-          <CartesianGrid stroke="#313244" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="week" tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
-          <YAxis allowDecimals={false} tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
-          <Tooltip
-            contentStyle={{ background: '#11111b', border: '1px solid #45475a', borderRadius: 12 }}
-            labelStyle={{ color: '#cdd6f4' }}
+    <div className="flex justify-center">
+      <div className="max-w-full overflow-x-auto pb-1">
+        <div className="mx-auto shrink-0" style={{ width: gridWidth, minWidth: gridWidth }}>
+          {/* Month labels — offset by day-label column width */}
+          <div className="relative mb-1 h-4" style={{ paddingLeft: DAY_LABEL_W + HEATMAP_GAP }}>
+            {monthLabels.map(({ label, weekIndex }) => (
+              <span
+                key={label + weekIndex}
+                className="absolute text-[10px] font-mono text-ctp-overlay0"
+                style={{ left: DAY_LABEL_W + HEATMAP_GAP + weekIndex * weekWidth }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+          {/* Grid */}
+          <div className="flex items-start" style={{ gap: HEATMAP_GAP, width: gridWidth }}>
+            {/* Day labels */}
+            <div className="flex flex-col text-right shrink-0" style={{ width: DAY_LABEL_W, gap: HEATMAP_GAP }}>
+              {['', 'Mon', '', 'Wed', '', 'Fri', ''].map((label, i) => (
+                <div
+                  key={i}
+                  className="text-[10px] font-mono text-ctp-overlay0"
+                  style={{ height: HEATMAP_CELL, lineHeight: `${HEATMAP_CELL}px` }}
+                >
+                  {label}
+                </div>
+              ))}
+            </div>
+            {/* Week columns */}
+            <div className="flex shrink-0" style={{ gap: HEATMAP_GAP }}>
+              {weeks.map((week, wi) => (
+                <div key={wi} className="flex flex-col shrink-0" style={{ gap: HEATMAP_GAP }}>
+                  {week.map((dateStr, di) => {
+                    const entry = byDate.get(dateStr)
+                    const level = entry?.highestLevel ?? 0
+                    const count = entry?.runs ?? 0
+                    const isFuture = dateStr > todayStr
+                    const tooltip = entry
+                      ? `${dateStr}: ${entry.runs} run${entry.runs !== 1 ? 's' : ''}, best +${level}${entry.timed > 0 ? `, ${entry.timed} timed` : ''}`
+                      : dateStr
+                    const backgroundColor = mode === 'level'
+                      ? getMplusCellColor(level)
+                      : getMplusQuantityCellColor(count)
+                    return (
+                      <div
+                        key={di}
+                        title={tooltip}
+                        style={{
+                          width: HEATMAP_CELL,
+                          height: HEATMAP_CELL,
+                          borderRadius: 3,
+                          backgroundColor: isFuture ? 'transparent' : backgroundColor,
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Legend */}
+          <div className="mt-2 flex items-center justify-end gap-1.5">
+            <span className="text-[10px] font-mono text-ctp-overlay0">
+              {mode === 'level' ? 'Low' : '0'}
+            </span>
+            {legendValues.map(value => (
+              <div
+                key={value}
+                title={mode === 'level' ? (value === 0 ? 'No runs' : `+${value}`) : `${value}${value === 4 ? '+' : ''} runs`}
+                style={{
+                  width: HEATMAP_CELL,
+                  height: HEATMAP_CELL,
+                  borderRadius: 3,
+                  backgroundColor: mode === 'level' ? getMplusCellColor(value) : getMplusQuantityCellColor(value),
+                }}
+              />
+            ))}
+            <span className="text-[10px] font-mono text-ctp-overlay0">
+              {mode === 'level' ? '+20' : '4+'}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DungeonTimerBar({
+  clearTimeMs,
+  parTimeMs,
+  timed,
+  theme = 'timed',
+}: {
+  clearTimeMs: unknown
+  parTimeMs: unknown
+  timed: boolean
+  theme?: 'best' | 'timed' | 'overtime'
+}) {
+  const pct = timerUsedPct(clearTimeMs, parTimeMs)
+  const visualMax = pct == null ? 100 : Math.min(Math.max(pct, 100), 140)
+  const timerMarkerPct = (100 / visualMax) * 100
+  const clearPct = pct == null ? 0 : Math.min((pct / visualMax) * 100, 100)
+  const inTimePct = Math.min(clearPct, timerMarkerPct)
+  const overtimePct = Math.max(0, clearPct - timerMarkerPct)
+  const inTimeColorClass = timed
+    ? theme === 'best' ? 'bg-ctp-mauve' : 'bg-ctp-green'
+    : 'bg-ctp-surface2'
+  const textClass = timed
+    ? theme === 'best' ? 'text-ctp-mauve' : 'text-ctp-green'
+    : 'text-ctp-red'
+
+  return (
+    <div className="mt-3">
+      <div className="relative h-2.5 rounded-full bg-ctp-crust/80">
+        <div
+          className={`absolute left-0 top-0 h-full rounded-l-full transition-all ${inTimeColorClass}`}
+          style={{ width: `${inTimePct}%` }}
+        />
+        {overtimePct > 0 && (
+          <div
+            className="absolute top-0 h-full rounded-r-full bg-ctp-red/75"
+            style={{ left: `${timerMarkerPct}%`, width: `${overtimePct}%` }}
           />
-          <Bar dataKey="timed" stackId="runs" fill="#a6e3a1" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="untimed" stackId="runs" fill="#f38ba8" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+        )}
+        <div
+          className="absolute inset-y-[-3px] border-r border-dashed border-ctp-overlay1/80"
+          style={{ left: `${timerMarkerPct}%` }}
+        />
+      </div>
+      <div className="mt-2 flex min-w-0 items-center justify-between gap-2 text-[10px] font-mono">
+        <span className={`min-w-0 truncate ${pct == null ? 'text-ctp-overlay0' : textClass}`}>
+          {pct == null ? 'Timer unavailable' : `${Math.round(pct)}% of timer`}
+        </span>
+        <span className={`shrink-0 whitespace-nowrap ${pct == null ? 'text-ctp-overlay0' : textClass}`}>
+          {formatRunTime(clearTimeMs)} / {formatRunTime(parTimeMs)}
+        </span>
+      </div>
     </div>
   )
 }
 
 function DungeonBreakdownCard({ row }: { row: PlayerMplusDungeonBreakdown }) {
-  const timedPct = Number(row.total_runs) > 0 ? (Number(row.timed_runs) / Number(row.total_runs)) * 100 : 0
   const href = row.best_run_url || undefined
+  const timed = isTimed(row.best_timed)
 
   return (
     <a
@@ -592,24 +845,68 @@ function DungeonBreakdownCard({ row }: { row: PlayerMplusDungeonBreakdown }) {
       target={href ? '_blank' : undefined}
       rel={href ? 'noopener noreferrer' : undefined}
       title={href ? RAIDERIO_LINK_TITLE : undefined}
-      className="group rounded-xl border border-ctp-surface1 bg-ctp-surface0/55 p-3 transition-all hover:border-ctp-mauve/50 hover:bg-ctp-surface0"
+      className="group block min-w-0 overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-surface0/55 p-3 transition-all hover:border-ctp-mauve/50 hover:bg-ctp-surface0"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ctp-text transition-colors group-hover:text-ctp-mauve">{row.dungeon}</p>
-          <p className="mt-0.5 text-[10px] font-mono text-ctp-overlay0">
+          <p className="truncate text-sm font-semibold text-ctp-mauve transition-colors group-hover:text-ctp-pink">{row.dungeon}</p>
+          <p className="mt-0.5 truncate text-[10px] font-mono text-ctp-overlay0">
             {Number(row.total_runs) || 0} runs · {Number(row.timed_runs) || 0} timed
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-lg font-semibold text-ctp-mauve">{formatKeyLevel(row.best_key_level)}</p>
-          <p className="text-[10px] font-mono text-ctp-overlay0">{formatNumber(row.best_score, 1)} score</p>
+        <div className="shrink-0 text-right">
+          <p className="text-lg font-semibold text-ctp-pink">
+            {formatKeyLevel(row.best_key_level)}
+          </p>
+          <p className="whitespace-nowrap text-[10px] font-mono text-ctp-pink">{formatNumber(row.best_score, 1)} score</p>
         </div>
       </div>
-      <ProgressBar value={timedPct} color="#a6e3a1" height="xs" className="mt-3" />
-      <p className="mt-2 text-[10px] font-mono text-ctp-overlay0">
+      <DungeonTimerBar clearTimeMs={row.best_clear_time_ms} parTimeMs={row.best_par_time_ms} timed={timed} theme="best" />
+      <p className="mt-2 truncate text-[10px] font-mono text-ctp-overlay0">
         Latest: {row.latest_completed_at ? formatDate(row.latest_completed_at) : '—'}
       </p>
+    </a>
+  )
+}
+
+function RecentDungeonRunCard({ row, isNewBest }: { row: PlayerMplusRunHistory; isNewBest: boolean }) {
+  const href = row.url || undefined
+  const timed = isTimed(row.timed)
+  const theme = isNewBest ? 'best' : timed ? 'timed' : 'overtime'
+  const titleClass = isNewBest
+    ? 'text-ctp-mauve group-hover:text-ctp-pink'
+    : timed
+      ? 'text-ctp-green group-hover:text-ctp-teal'
+      : 'text-ctp-overlay1 group-hover:text-ctp-red'
+  const metaClass = isNewBest ? 'text-ctp-mauve/75' : timed ? 'text-ctp-green/75' : 'text-ctp-overlay0'
+  const keyClass = isNewBest ? 'text-ctp-pink' : timed ? 'text-ctp-green' : 'text-ctp-red'
+  const hoverClass = isNewBest ? 'hover:border-ctp-mauve/50' : timed ? 'hover:border-ctp-green/45' : 'hover:border-ctp-red/45'
+
+  return (
+    <a
+      href={href}
+      target={href ? '_blank' : undefined}
+      rel={href ? 'noopener noreferrer' : undefined}
+      title={href ? RAIDERIO_LINK_TITLE : undefined}
+      className={`group block min-w-0 overflow-hidden rounded-xl border border-ctp-surface1 bg-ctp-surface0/55 p-3 transition-all hover:bg-ctp-surface0 ${hoverClass}`}
+    >
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`truncate text-sm font-semibold transition-colors ${titleClass}`}>{row.dungeon}</p>
+          <p className={`mt-0.5 truncate text-[10px] font-mono ${metaClass}`}>
+            {row.completed_at ? formatDate(row.completed_at) : '—'} · {isNewBest ? 'new best' : timed ? 'timed' : 'over timer'}
+          </p>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className={`text-lg font-semibold ${keyClass}`}>
+            {formatKeyLevel(row.mythic_level)}
+          </p>
+          <p className={`whitespace-nowrap text-[10px] font-mono ${isNewBest ? 'text-ctp-pink' : timed ? 'text-ctp-green/80' : 'text-ctp-overlay0'}`}>
+            {formatNumber(row.score, 1)} score
+          </p>
+        </div>
+      </div>
+      <DungeonTimerBar clearTimeMs={row.clear_time_ms} parTimeMs={row.par_time_ms} timed={timed} theme={theme} />
     </a>
   )
 }
@@ -633,15 +930,17 @@ export function PlayerDetail() {
   const characterMedia = usePlayerCharacterMedia()
   const characterEquipment = usePlayerCharacterEquipment()
   const raidAchievements = usePlayerRaidAchievements()
+  const raidTeam = useRaidTeam()
   const mplusSummary = usePlayerMplusSummary()
   const mplusScoreHistory = usePlayerMplusScoreHistory()
-  const mplusWeeklyActivity = usePlayerMplusWeeklyActivity()
+  const mplusRunHistory = usePlayerMplusRunHistory()
   const mplusDungeonBreakdown = usePlayerMplusDungeonBreakdown()
 
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
   const [bossParseMode, setBossParseMode] = useState<BossParseMode>('average')
+  const [mplusHeatmapMode, setMplusHeatmapMode] = useState<MplusHeatmapMode>('quantity')
 
   function hasRealText(value: unknown): value is string {
     return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
@@ -807,6 +1106,78 @@ export function PlayerDetail() {
     [deathEvents.data, name, selectedTier, difficulty, selectedBoss]
   )
 
+  const teamDeathRank = useMemo(() => {
+    const raidTeamNames = new Set(
+      raidTeam.data
+        .map(row => row.name)
+        .filter(hasRealText)
+        .map(player => player.toLowerCase())
+    )
+
+    const scopedParticipants = new Set(
+      roster.data
+        .filter(row => isIncludedZoneName(row.zone_name))
+        .filter(row =>
+          (selectedTier === 'All' || !selectedTier || row.zone_name === selectedTier) &&
+          (difficulty === 'All' || row.difficulty_label === difficulty) &&
+          (selectedBoss === 'All' || row.boss_name === selectedBoss)
+        )
+        .map(row => row.player_name)
+        .filter(hasRealText)
+        .filter(player => raidTeamNames.size === 0 || raidTeamNames.has(player.toLowerCase()))
+    )
+
+    const targetName = name.toLowerCase()
+    if (scopedParticipants.size === 0 || !scopedParticipants.has(name)) return null
+
+    const playerStats = new Map<string, { deaths: number; kills: number }>()
+    scopedParticipants.forEach(player => playerStats.set(player.toLowerCase(), { deaths: 0, kills: 0 }))
+
+    for (const row of roster.data) {
+      if (!hasRealText(row.player_name)) continue
+      const playerKey = row.player_name.toLowerCase()
+      const stats = playerStats.get(playerKey)
+      if (!stats) continue
+      if (!isIncludedZoneName(row.zone_name)) continue
+      if (selectedTier !== 'All' && selectedTier && row.zone_name !== selectedTier) continue
+      if (difficulty !== 'All' && row.difficulty_label !== difficulty) continue
+      if (selectedBoss !== 'All' && row.boss_name !== selectedBoss) continue
+      stats.kills += 1
+    }
+
+    for (const row of deathEvents.data) {
+      if (!hasRealText(row.player_name)) continue
+      const playerKey = row.player_name.toLowerCase()
+      const stats = playerStats.get(playerKey)
+      if (!stats) continue
+      if (!isIncludedZoneName(row.zone_name)) continue
+      if (selectedTier !== 'All' && selectedTier && row.zone_name !== selectedTier) continue
+      if (difficulty !== 'All' && row.difficulty_label !== difficulty) continue
+      if (selectedBoss !== 'All' && row.boss_name !== selectedBoss) continue
+      stats.deaths += 1
+    }
+
+    const rankedStats = [...playerStats.values()]
+      .filter(stats => stats.kills > 0)
+      .map(stats => ({
+        ...stats,
+        deathsPerKill: stats.deaths / stats.kills,
+      }))
+      .sort((a, b) => a.deathsPerKill - b.deathsPerKill)
+
+    const playerStatsForRank = playerStats.get(targetName)
+    if (!playerStatsForRank || playerStatsForRank.kills === 0) return null
+
+    const playerDeathsPerKill = playerStatsForRank.deaths / playerStatsForRank.kills
+    return {
+      rank: rankedStats.findIndex(stats => stats.deathsPerKill === playerDeathsPerKill) + 1,
+      total: rankedStats.length,
+      deaths: playerStatsForRank.deaths,
+      kills: playerStatsForRank.kills,
+      deathsPerKill: playerDeathsPerKill,
+    }
+  }, [deathEvents.data, difficulty, name, raidTeam.data, roster.data, selectedBoss, selectedTier])
+
   const reportHrefByBossKey = useMemo(() => {
     const map = new Map<string, string>()
     const latestRows = [...scopedRosterRows]
@@ -938,6 +1309,15 @@ export function PlayerDetail() {
     [mplusSummary.data, name]
   )
 
+  const guildMplusRank = useMemo(() => {
+    const scored = mplusSummary.data
+      .filter(row => Number(row.score_all) > 0)
+      .sort((a, b) => Number(b.score_all) - Number(a.score_all))
+    const idx = scored.findIndex(row => row.player_name.toLowerCase() === name.toLowerCase())
+    if (idx === -1 || !playerMplusSummary || !Number(playerMplusSummary.score_all)) return null
+    return { rank: idx + 1, total: scored.length }
+  }, [mplusSummary.data, name, playerMplusSummary])
+
   const playerMplusScoreHistory = useMemo(
     () => [...mplusScoreHistory.data]
       .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
@@ -945,11 +1325,18 @@ export function PlayerDetail() {
     [mplusScoreHistory.data, name]
   )
 
-  const playerMplusWeeklyActivity = useMemo(
-    () => [...mplusWeeklyActivity.data]
+  const playerMplusRunHistory = useMemo(
+    () => [...mplusRunHistory.data]
       .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
-      .sort((a, b) => String(a.week_start).localeCompare(String(b.week_start))),
-    [mplusWeeklyActivity.data, name]
+      .sort((a, b) => String(a.completed_at).localeCompare(String(b.completed_at))),
+    [mplusRunHistory.data, name]
+  )
+
+  const recentMplusRuns = useMemo(
+    () => [...playerMplusRunHistory]
+      .sort((a, b) => String(b.completed_at).localeCompare(String(a.completed_at)))
+      .slice(0, 8),
+    [playerMplusRunHistory]
   )
 
   const playerMplusDungeonBreakdown = useMemo(
@@ -963,10 +1350,42 @@ export function PlayerDetail() {
     [mplusDungeonBreakdown.data, name]
   )
 
+  const bestMplusRunKeys = useMemo(() => {
+    const keys = new Set<string>()
+    for (const row of playerMplusDungeonBreakdown) {
+      if (row.best_run_url) keys.add(`url:${row.best_run_url}`)
+      keys.add([
+        row.dungeon,
+        row.best_completed_at,
+        Number(row.best_key_level) || 0,
+      ].join('|').toLowerCase())
+    }
+    return keys
+  }, [playerMplusDungeonBreakdown])
+
+  const bestTimedDungeon = useMemo(
+    () => [...playerMplusDungeonBreakdown]
+      .filter(d => Number(d.highest_timed_level) > 0)
+      .sort((a, b) => Number(b.highest_timed_level) - Number(a.highest_timed_level))[0] ?? null,
+    [playerMplusDungeonBreakdown]
+  )
+
+  const mplusRunsThisYear = useMemo(() => {
+    const year = new Date().getFullYear()
+    return playerMplusRunHistory.filter(run => {
+      const date = typeof run.completed_date === 'string' && run.completed_date
+        ? run.completed_date
+        : typeof run.completed_at === 'string'
+          ? run.completed_at.slice(0, 10)
+          : ''
+      return date.startsWith(`${year}-`)
+    }).length
+  }, [playerMplusRunHistory])
+
   const hasMplusData = Boolean(
     playerMplusSummary ||
     playerMplusScoreHistory.length > 0 ||
-    playerMplusWeeklyActivity.length > 0 ||
+    playerMplusRunHistory.length > 0 ||
     playerMplusDungeonBreakdown.length > 0
   )
 
@@ -1527,7 +1946,7 @@ export function PlayerDetail() {
               <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No death data recorded</p>
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div className="bg-ctp-surface1/40 rounded-xl p-3">
                     <p className="section-label mb-1">Total Deaths</p>
                     <p className="text-xl font-semibold" style={{ color: wipeColor }}>{displayedTotalDeaths}</p>
@@ -1536,6 +1955,29 @@ export function PlayerDetail() {
                     <p className="section-label mb-1">Deaths / Kill</p>
                     <p className="text-xl font-semibold" style={{ color: getDeathRateColor(Number(displayedDeathsPerKill) || 0) }}>
                       {displayedDeathsPerKill != null ? displayedDeathsPerKill.toFixed(1) : '—'}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-mono text-ctp-overlay0">
+                      {displayedDeathsPerKill != null
+                        ? `lower = better`
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="bg-ctp-surface1/40 rounded-xl p-3">
+                    <p className="section-label mb-1">Team Rank</p>
+                    <p
+                      className="text-xl font-semibold"
+                      style={{
+                        color: teamDeathRank
+                          ? getSurvivabilityRankColor(teamDeathRank.rank, teamDeathRank.total, getParseColor, wipeColor)
+                          : undefined,
+                      }}
+                    >
+                      {teamDeathRank ? `#${teamDeathRank.rank}` : '—'}
+                    </p>
+                    <p className="mt-0.5 text-[10px] font-mono text-ctp-overlay0">
+                      {teamDeathRank
+                        ? `out of ${teamDeathRank.total} raiders`
+                        : 'No scoped team data'}
                     </p>
                   </div>
                 </div>
@@ -1608,7 +2050,7 @@ export function PlayerDetail() {
         subtitle="Raider.IO-backed dungeon score and key history"
       />
 
-      {!hasMplusData && !mplusSummary.loading && !mplusScoreHistory.loading ? (
+      {!hasMplusData && !mplusSummary.loading && !mplusRunHistory.loading ? (
         <Card>
           <CardHeader>
             <CardTitle>Mythic+ Progression</CardTitle>
@@ -1623,7 +2065,16 @@ export function PlayerDetail() {
             <StatCard
               label="Raider.IO Score"
               value={formatNumber(playerMplusSummary?.score_all, 1)}
-              subValue={playerMplusSummary?.world_rank ? `World #${formatNumber(playerMplusSummary.world_rank)}` : 'Current season'}
+              subValue={
+                guildMplusRank
+                  ? `Guild #${guildMplusRank.rank} of ${guildMplusRank.total}`
+                  : 'Current season'
+              }
+              subValueColor={
+                guildMplusRank
+                  ? getParseColor(100 - ((guildMplusRank.rank - 1) / guildMplusRank.total) * 100)
+                  : undefined
+              }
               icon="◆"
               valueColor="#cba6f7"
               accent="none"
@@ -1631,14 +2082,20 @@ export function PlayerDetail() {
             <StatCard
               label="Best Timed Key"
               value={formatKeyLevel(playerMplusSummary?.highest_timed_level)}
-              subValue={playerMplusSummary?.best_run_dungeon || 'No timed key exported'}
+              subValue={bestTimedDungeon?.dungeon || (playerMplusSummary ? 'No timed keys' : '—')}
               icon="⏱"
-              valueColor="#a6e3a1"
+              valueColor="#89b4fa"
               accent="none"
             />
             <StatCard
               label="Timed / Untimed"
-              value={`${Number(playerMplusSummary?.timed_runs) || 0} / ${Number(playerMplusSummary?.untimed_runs) || 0}`}
+              value={(
+                <>
+                  <span className="text-ctp-green">{Number(playerMplusSummary?.timed_runs) || 0}</span>
+                  <span className="mx-1 text-ctp-overlay0">/</span>
+                  <span className="text-ctp-red">{Number(playerMplusSummary?.untimed_runs) || 0}</span>
+                </>
+              )}
               subValue={`${Number(playerMplusSummary?.total_runs) || 0} exported runs`}
               icon="◒"
               accent="blue"
@@ -1653,78 +2110,118 @@ export function PlayerDetail() {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle>Key Activity</CardTitle>
+                  <p className="text-xs text-ctp-overlay1 mt-0.5">
+                    <span className="font-semibold text-ctp-mauve">{mplusRunsThisYear}</span> keys completed this year
+                  </p>
+                </div>
+                <FilterTabs
+                  options={MPLUS_HEATMAP_MODES}
+                  value={mplusHeatmapMode}
+                  onChange={setMplusHeatmapMode}
+                  className="flex-shrink-0"
+                  buttonClassName="px-3 py-1.5"
+                />
+              </div>
+            </CardHeader>
+            <CardBody>
+              {mplusRunHistory.loading ? (
+                <LoadingState rows={5} />
+              ) : (
+                <MplusActivityHeatmap data={playerMplusRunHistory} mode={mplusHeatmapMode} />
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Score Over Time</CardTitle>
+              <p className="text-xs text-ctp-overlay1 mt-0.5">
+                Nightly Raider.IO score snapshots from Databricks ingestion
+              </p>
+            </CardHeader>
+            <CardBody>
+              {mplusScoreHistory.loading ? (
+                <LoadingState rows={5} />
+              ) : (
+                <MplusScoreChart data={playerMplusScoreHistory} />
+              )}
+            </CardBody>
+          </Card>
+
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Score Over Time</CardTitle>
-                <p className="text-xs text-ctp-overlay1 mt-0.5">
-                  Nightly Raider.IO score snapshots from Databricks ingestion
-                </p>
+                <CardTitle>Recent Dungeon Runs</CardTitle>
               </CardHeader>
               <CardBody>
-                {mplusScoreHistory.loading ? (
-                  <LoadingState rows={5} />
+                {mplusRunHistory.loading ? (
+                  <LoadingState rows={6} />
+                ) : recentMplusRuns.length === 0 ? (
+                  <p className="py-8 text-center text-xs font-mono text-ctp-overlay0">
+                    No recent dungeon runs exported for this character yet.
+                  </p>
                 ) : (
-                  <MplusScoreChart data={playerMplusScoreHistory} />
+                  <div className="max-h-[36rem] space-y-3 overflow-y-auto pr-2">
+                    {recentMplusRuns.map(row => {
+                      const isNewBest = Boolean(row.url && bestMplusRunKeys.has(`url:${row.url}`)) ||
+                        bestMplusRunKeys.has([
+                          row.dungeon,
+                          row.completed_at,
+                          Number(row.mythic_level) || 0,
+                        ].join('|').toLowerCase())
+
+                      return (
+                        <RecentDungeonRunCard
+                          key={`${row.dungeon}-${row.completed_at}-${row.mythic_level}`}
+                          row={row}
+                          isNewBest={isNewBest}
+                        />
+                      )
+                    })}
+                  </div>
                 )}
               </CardBody>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Dungeon Activity</CardTitle>
-                <p className="text-xs text-ctp-overlay1 mt-0.5">
-                  Weekly completed keys from recent/best Raider.IO runs
-                </p>
+                <div className="flex items-start justify-between gap-4">
+                  <CardTitle>Best by Dungeon</CardTitle>
+                  {playerMplusSummary?.profile_url && (
+                    <a
+                      href={playerMplusSummary.profile_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={RAIDERIO_LINK_TITLE}
+                      className="text-xs font-mono text-ctp-mauve transition-colors hover:text-ctp-pink"
+                    >
+                      Raider.IO ↗
+                    </a>
+                  )}
+                </div>
               </CardHeader>
               <CardBody>
-                {mplusWeeklyActivity.loading ? (
-                  <LoadingState rows={5} />
+                {mplusDungeonBreakdown.loading ? (
+                  <LoadingState rows={6} />
+                ) : playerMplusDungeonBreakdown.length === 0 ? (
+                  <p className="py-8 text-center text-xs font-mono text-ctp-overlay0">
+                    No dungeon breakdown rows exported for this character yet.
+                  </p>
                 ) : (
-                  <MplusWeeklyChart data={playerMplusWeeklyActivity} />
+                  <div className="max-h-[36rem] space-y-3 overflow-y-auto pr-2">
+                    {playerMplusDungeonBreakdown.map(row => (
+                      <DungeonBreakdownCard key={`${row.dungeon}-${row.best_completed_at}`} row={row} />
+                    ))}
+                  </div>
                 )}
               </CardBody>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <CardTitle>Dungeon Breakdown</CardTitle>
-                  <p className="text-xs text-ctp-overlay1 mt-0.5">
-                    Best exported key per dungeon · cards link to Raider.IO where available
-                  </p>
-                </div>
-                {playerMplusSummary?.profile_url && (
-                  <a
-                    href={playerMplusSummary.profile_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={RAIDERIO_LINK_TITLE}
-                    className="text-xs font-mono text-ctp-mauve transition-colors hover:text-ctp-pink"
-                  >
-                    Raider.IO ↗
-                  </a>
-                )}
-              </div>
-            </CardHeader>
-            <CardBody>
-              {mplusDungeonBreakdown.loading ? (
-                <LoadingState rows={6} />
-              ) : playerMplusDungeonBreakdown.length === 0 ? (
-                <p className="py-8 text-center text-xs font-mono text-ctp-overlay0">
-                  No dungeon breakdown rows exported for this character yet.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {playerMplusDungeonBreakdown.map(row => (
-                    <DungeonBreakdownCard key={`${row.dungeon}-${row.best_completed_at}`} row={row} />
-                  ))}
-                </div>
-              )}
-            </CardBody>
-          </Card>
         </div>
       )}
     </AppLayout>

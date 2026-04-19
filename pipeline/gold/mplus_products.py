@@ -283,6 +283,8 @@ def gold_player_mplus_dungeon_breakdown():
             F.col("mythic_level").alias("best_key_level"),
             F.col("score").alias("best_score"),
             F.col("timed").alias("best_timed"),
+            F.col("clear_time_ms").alias("best_clear_time_ms"),
+            F.col("par_time_ms").alias("best_par_time_ms"),
             F.col("completed_at").alias("best_completed_at"),
             F.col("url").alias("best_run_url"),
         )
@@ -320,6 +322,8 @@ def gold_player_mplus_dungeon_breakdown():
             "best_key_level",
             F.round("best_score", 1).alias("best_score"),
             "best_timed",
+            "best_clear_time_ms",
+            "best_par_time_ms",
             "best_completed_at",
             "best_run_url",
         )

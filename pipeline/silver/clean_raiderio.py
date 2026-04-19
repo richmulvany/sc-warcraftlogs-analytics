@@ -98,7 +98,7 @@ def silver_raiderio_player_scores():
             F.col("realm_slug"),
             F.lower(F.coalesce(F.col("region"), F.col("_profile.region"))).alias("region"),
             F.coalesce(F.col("profile_url"), F.col("_profile.profile_url")).alias("profile_url"),
-            F.coalesce(F.col("_season_row.season"), F.lit("current")).alias("season"),
+            F.lit("current").alias("season"),
             F.col("_season_row.scores.`all`").alias("score_all"),
             F.col("_season_row.scores.dps").alias("score_dps"),
             F.col("_season_row.scores.healer").alias("score_healer"),
@@ -155,7 +155,9 @@ def silver_raiderio_player_runs():
             F.col("_run.zone_id").alias("zone_id"),
             F.col("_run.score").alias("score"),
             F.col("_run.url").alias("url"),
-            F.when(
+            # best_runs from Raider.IO are always timed by definition; trust source tag first
+            F.when(F.col("source") == "best", F.lit(True))
+            .when(
                 (F.col("_run.clear_time_ms").isNotNull())
                 & (F.col("_run.par_time_ms").isNotNull())
                 & (F.col("_run.clear_time_ms") <= F.col("_run.par_time_ms")),

@@ -139,6 +139,7 @@ sc-warcraftlogs-analytics/
 - **Endpoint**: `/api/v1/characters/profile`
 - **Fields used**: current-season Mythic+ scores, ranks, recent runs, best runs
 - **Landing**: `landing/raiderio_character_profiles/`
+- **Scope**: all guild characters from Blizzard roster, with prior `silver_guild_members` as a fallback seed
 - 404 per character is non-fatal; score history starts from the first successful nightly ingestion
 
 ---

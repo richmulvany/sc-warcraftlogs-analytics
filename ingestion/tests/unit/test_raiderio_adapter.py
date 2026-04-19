@@ -5,7 +5,11 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from ingestion.src.adapters.raiderio.client import RaiderIoAdapter, RaiderIoNotFoundError
+from ingestion.src.adapters.raiderio.client import (
+    RaiderIoAdapter,
+    RaiderIoNotFoundError,
+    RaiderIoTransientError,
+)
 
 
 def test_fetch_character_profile_returns_payload() -> None:
@@ -61,4 +65,64 @@ def test_fetch_character_profile_raises_not_found() -> None:
     with pytest.raises(RaiderIoNotFoundError):
         adapter.fetch_character_profile(name="Missing", realm_slug="twisting-nether")
 
+    adapter.close()
+
+
+def test_fetch_character_profile_treats_bad_request_as_profile_unavailable() -> None:
+    def handler(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json={"message": "Could not find character"})
+
+    adapter = RaiderIoAdapter()
+    adapter.close()
+    adapter._http = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="https://raider.io/api/v1"
+    )  # noqa: SLF001
+
+    with pytest.raises(RaiderIoNotFoundError):
+        adapter.fetch_character_profile(name="Stalecharacter", realm_slug="twisting-nether")
+
+    adapter.close()
+
+
+def test_fetch_character_profile_retries_then_raises_transient_error() -> None:
+    requests = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        return httpx.Response(502, json={"message": "bad gateway"})
+
+    adapter = RaiderIoAdapter(request_sleep_seconds=0)
+    adapter.close()
+    adapter._http = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="https://raider.io/api/v1"
+    )  # noqa: SLF001
+
+    with pytest.raises(RaiderIoTransientError):
+        adapter.fetch_character_profile(name="Alzaria", realm_slug="twisting-nether")
+
+    assert requests == 3
+    adapter.close()
+
+
+def test_fetch_character_profile_recovers_from_transient_error() -> None:
+    requests = 0
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        nonlocal requests
+        requests += 1
+        if requests == 1:
+            return httpx.Response(502, json={"message": "bad gateway"})
+        return httpx.Response(200, json={"name": "Alzaria"})
+
+    adapter = RaiderIoAdapter(request_sleep_seconds=0)
+    adapter.close()
+    adapter._http = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="https://raider.io/api/v1"
+    )  # noqa: SLF001
+
+    result = adapter.fetch_character_profile(name="Alzaria", realm_slug="twisting-nether")
+
+    assert requests == 2
+    assert result.records[0]["name"] == "Alzaria"
     adapter.close()
