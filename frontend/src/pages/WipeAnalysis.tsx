@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, Legend,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
 import { AppLayout } from '../components/layout/AppLayout'
 import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
@@ -12,16 +12,11 @@ import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot } from '../components/ui/ClassLabel'
-import { useBossMechanics, usePlayerSurvivability, useBossWipeAnalysis, useBossKillRoster } from '../hooks/useGoldData'
+import { useBossMechanics, usePlayerDeathEvents, useBossWipeAnalysis, useBossKillRoster } from '../hooks/useGoldData'
 import { formatDate, formatNumber, formatPct } from '../utils/format'
 import { isIncludedZoneName } from '../utils/zones'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
-
-function hasTierScope(zones: string, tier: string): boolean {
-  if (tier === 'All') return true
-  return zones?.toLowerCase().includes(tier.toLowerCase()) ?? false
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CtpTooltip({ active, payload, label }: any) {
@@ -39,11 +34,29 @@ function CtpTooltip({ active, payload, label }: any) {
 }
 
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
+type SurvivabilityBasis = 'kill' | 'pull'
+type SurvivabilitySortKey = 'deathRate' | 'deaths' | 'attempts'
+type SortDirection = 'asc' | 'desc'
+const SURVIVABILITY_BASIS_OPTIONS: readonly { value: SurvivabilityBasis; label: string }[] = [
+  { value: 'kill', label: 'Kills' },
+  { value: 'pull', label: 'Pulls' },
+]
+
+interface ScopedSurvivabilityRow {
+  player_name: string
+  player_class: string
+  total_deaths: number
+  kills_tracked: number
+  pulls_tracked: number
+  deaths_per_kill: number | null
+  deaths_per_pull: number | null
+  most_common_killing_blow: string
+}
 
 export function WipeAnalysis() {
   const { wipeColor, phaseColors, chartColors, getDeathRateColor, getParseColor, topTierColor } = useColourBlind()
   const mechs = useBossMechanics()
-  const survival = usePlayerSurvivability()
+  const deathEvents = usePlayerDeathEvents()
   const wipes = useBossWipeAnalysis()
   const roster = useBossKillRoster()
 
@@ -51,6 +64,11 @@ export function WipeAnalysis() {
   const [selectedTier, setSelectedTier] = useState('All')
   const [selectedBoss, setSelectedBoss] = useState('All')
   const [search, setSearch] = useState('')
+  const [survivabilityBasis, setSurvivabilityBasis] = useState<SurvivabilityBasis>('kill')
+  const [survivabilitySort, setSurvivabilitySort] = useState<{ key: SurvivabilitySortKey; direction: SortDirection }>({
+    key: 'deathRate',
+    direction: 'asc',
+  })
 
   const tierOptions = useMemo(() => {
     const values = [...wipes.data]
@@ -126,26 +144,89 @@ export function WipeAnalysis() {
     )
   }, [filteredWipes, roster.data, selectedTier, selectedBoss, search])
 
-  const filteredSurvival = useMemo(() =>
-    survival.data
-      .filter(row => Number(row.total_deaths) > 0)
-      .filter(row => hasTierScope(row.zones_died_in, selectedTier)),
-    [survival.data, selectedTier]
+  const scopedDeathRows = useMemo(() =>
+    deathEvents.data
+      .filter(row => diff === 'All' || row.difficulty_label === diff)
+      .filter(row => isIncludedZoneName(row.zone_name))
+      .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+      .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
+      .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase())),
+    [deathEvents.data, diff, selectedTier, selectedBoss, search]
   )
 
-  const scopedSurvival = useMemo(() => {
-    if (scopedPlayerNames.size === 0) return []
-    return filteredSurvival.filter(row => scopedPlayerNames.has(row.player_name))
-  }, [filteredSurvival, scopedPlayerNames])
+  const scopedSurvivability = useMemo((): ScopedSurvivabilityRow[] => {
+    const playerNames = new Set(scopedPlayerNames)
+    for (const row of scopedDeathRows) {
+      if (row.player_name) playerNames.add(row.player_name)
+    }
+
+    const rows = new Map<string, ScopedSurvivabilityRow>()
+    const killingBlowsByPlayer = new Map<string, Map<string, number>>()
+
+    function ensurePlayer(playerName: string, playerClass = 'Unknown') {
+      const existing = rows.get(playerName)
+      if (existing) {
+        if (existing.player_class === 'Unknown' && playerClass) existing.player_class = playerClass
+        return existing
+      }
+      const row: ScopedSurvivabilityRow = {
+        player_name: playerName,
+        player_class: playerClass || 'Unknown',
+        total_deaths: 0,
+        kills_tracked: 0,
+        pulls_tracked: 0,
+        deaths_per_kill: null,
+        deaths_per_pull: null,
+        most_common_killing_blow: '',
+      }
+      rows.set(playerName, row)
+      return row
+    }
+
+    for (const row of roster.data) {
+      if (!playerNames.has(row.player_name)) continue
+      if (!isIncludedZoneName(row.zone_name)) continue
+      if (selectedTier !== 'All' && row.zone_name !== selectedTier) continue
+      if (diff !== 'All' && row.difficulty_label !== diff) continue
+      if (selectedBoss !== 'All' && row.boss_name !== selectedBoss) continue
+      if (search.trim() && !row.boss_name.toLowerCase().includes(search.toLowerCase())) continue
+      ensurePlayer(row.player_name, row.player_class).kills_tracked += 1
+    }
+
+    for (const row of scopedDeathRows) {
+      const player = ensurePlayer(row.player_name, row.player_class)
+      player.total_deaths += 1
+      player.pulls_tracked += 1
+      if (!row.killing_blow_name) continue
+      if (!killingBlowsByPlayer.has(row.player_name)) killingBlowsByPlayer.set(row.player_name, new Map())
+      const playerBlows = killingBlowsByPlayer.get(row.player_name)!
+      playerBlows.set(row.killing_blow_name, (playerBlows.get(row.killing_blow_name) ?? 0) + 1)
+    }
+
+    killingBlowsByPlayer.forEach((counts, playerName) => {
+      const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]
+      const row = rows.get(playerName)
+      if (row && top) row.most_common_killing_blow = top[0]
+    })
+
+    return [...rows.values()].map(row => ({
+      ...row,
+      deaths_per_kill: row.kills_tracked > 0 ? row.total_deaths / row.kills_tracked : null,
+      pulls_tracked: row.kills_tracked + row.pulls_tracked,
+      deaths_per_pull: (row.kills_tracked + row.pulls_tracked) > 0
+        ? row.total_deaths / (row.kills_tracked + row.pulls_tracked)
+        : null,
+    }))
+  }, [scopedPlayerNames, scopedDeathRows, roster.data, selectedTier, diff, selectedBoss, search])
 
   const playersWithTrackedKills = useMemo(() =>
-    scopedSurvival.filter(row => Number(row.kills_tracked) > 0),
-    [scopedSurvival]
+    scopedSurvivability.filter(row => Number(row.kills_tracked) > 0),
+    [scopedSurvivability]
   )
 
   const stats = useMemo(() => {
     const totalWipes = filteredWipes.reduce((sum, row) => sum + Number(row.total_wipes), 0)
-    const totalDeaths = scopedSurvival.reduce((sum, row) => sum + Number(row.total_deaths), 0)
+    const totalDeaths = scopedDeathRows.length
     const earlyWipes = filteredMechanics.reduce((sum, row) => sum + Number(row.wipes_lt_1min), 0)
     const closestPull = [...filteredWipes]
       .filter(row => Number(row.best_wipe_pct) > 0)
@@ -153,7 +234,7 @@ export function WipeAnalysis() {
     const topBlocker = [...filteredWipes]
       .sort((a, b) => Number(b.total_wipes) - Number(a.total_wipes))[0]
     const avgDeathsPerKill = playersWithTrackedKills.length
-      ? playersWithTrackedKills.reduce((sum, row) => sum + Number(row.deaths_per_kill), 0) / playersWithTrackedKills.length
+      ? playersWithTrackedKills.reduce((sum, row) => sum + Number(row.deaths_per_kill ?? 0), 0) / playersWithTrackedKills.length
       : 0
 
     return {
@@ -165,7 +246,7 @@ export function WipeAnalysis() {
       closestPull,
       topBlocker,
     }
-  }, [filteredWipes, filteredMechanics, scopedSurvival, playersWithTrackedKills])
+  }, [filteredWipes, filteredMechanics, scopedDeathRows, playersWithTrackedKills])
 
   const durationBuckets = useMemo(() => {
     const totals = { lt1: 0, one3: 0, three5: 0, gt5: 0 }
@@ -212,12 +293,18 @@ export function WipeAnalysis() {
     [filteredWipes, mechanicsMap]
   )
 
+  const progressCurrentColor = topTierColor
+  const progressPreviousColor = chartColors.secondary !== progressCurrentColor
+    ? chartColors.secondary
+    : chartColors.primary !== progressCurrentColor
+      ? chartColors.primary
+      : '#89b4fa'
+
   const killingBlows = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const row of scopedSurvival) {
-      if (!row.most_common_killing_blow) continue
-      const count = Number(row.most_common_killing_blow_count) || 0
-      counts.set(row.most_common_killing_blow, (counts.get(row.most_common_killing_blow) ?? 0) + count)
+    for (const row of scopedDeathRows) {
+      if (!row.killing_blow_name) continue
+      counts.set(row.killing_blow_name, (counts.get(row.killing_blow_name) ?? 0) + 1)
     }
 
     return [...counts.entries()]
@@ -228,17 +315,37 @@ export function WipeAnalysis() {
         fullName: name,
         count,
       }))
-  }, [scopedSurvival])
+  }, [scopedDeathRows])
 
-  const playerRows = useMemo(() =>
-    [...scopedSurvival]
-      .sort((a, b) => Number(b.total_deaths) - Number(a.total_deaths))
-      .slice(0, 15),
-    [scopedSurvival]
-  )
+  const playerRows = useMemo(() => {
+    const direction = survivabilitySort.direction === 'asc' ? 1 : -1
+    return [...scopedSurvivability]
+      .sort((a, b) => {
+        const av = survivabilitySort.key === 'deathRate'
+          ? ((survivabilityBasis === 'kill' ? a.deaths_per_kill : a.deaths_per_pull) ?? Number.POSITIVE_INFINITY)
+          : survivabilitySort.key === 'deaths'
+            ? a.total_deaths
+            : survivabilityBasis === 'kill' ? a.kills_tracked : a.pulls_tracked
+        const bv = survivabilitySort.key === 'deathRate'
+          ? ((survivabilityBasis === 'kill' ? b.deaths_per_kill : b.deaths_per_pull) ?? Number.POSITIVE_INFINITY)
+          : survivabilitySort.key === 'deaths'
+            ? b.total_deaths
+            : survivabilityBasis === 'kill' ? b.kills_tracked : b.pulls_tracked
+        return ((av - bv) * direction) || a.player_name.localeCompare(b.player_name)
+      })
+      .slice(0, 5)
+  }, [scopedSurvivability, survivabilitySort, survivabilityBasis])
 
-  const loading = mechs.loading || survival.loading || wipes.loading || roster.loading
-  const error = mechs.error || survival.error || wipes.error || roster.error
+  function sortSurvivabilityBy(key: SurvivabilitySortKey) {
+    setSurvivabilitySort(current =>
+      current.key === key
+        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'asc' }
+    )
+  }
+
+  const loading = mechs.loading || deathEvents.loading || wipes.loading || roster.loading
+  const error = mechs.error || deathEvents.error || wipes.error || roster.error
   const hasBossData = filteredWipes.length > 0
 
   return (
@@ -318,13 +425,14 @@ export function WipeAnalysis() {
               </CardHeader>
               <CardBody>
                 {wipes.loading ? <LoadingState rows={4} /> : (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={topWipeBosses} margin={{ top: 4, right: 8, left: -20, bottom: 36 }}>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={topWipeBosses} margin={{ top: 4, right: 8, left: -20, bottom: 68 }}>
                       <XAxis
                         dataKey="boss"
                         tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
                         axisLine={false}
                         tickLine={false}
+                        tickMargin={10}
                         angle={-35}
                         textAnchor="end"
                         interval={0}
@@ -425,14 +533,26 @@ export function WipeAnalysis() {
               </CardHeader>
               <CardBody>
                 {wipes.loading ? <LoadingState rows={4} /> : (
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={progressRows} margin={{ top: 4, right: 8, left: -20, bottom: 36 }}>
+                  <>
+                    <div className="mb-3 flex flex-wrap items-center justify-end gap-4 text-[11px] font-mono">
+                      <span className="inline-flex items-center gap-1.5" style={{ color: progressPreviousColor }}>
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: progressPreviousColor }} />
+                        Last Week Avg %
+                      </span>
+                      <span className="inline-flex items-center gap-1.5" style={{ color: progressCurrentColor }}>
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: progressCurrentColor }} />
+                        Current Avg %
+                      </span>
+                    </div>
+                    <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={progressRows} margin={{ top: 4, right: 8, left: -20, bottom: 70 }}>
                       <XAxis
                         dataKey="boss_name"
                         tickFormatter={(value: string) => value.length > 14 ? `${value.slice(0, 13)}…` : value}
                         tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
                         axisLine={false}
                         tickLine={false}
+                        tickMargin={10}
                         angle={-35}
                         textAnchor="end"
                         interval={0}
@@ -444,19 +564,11 @@ export function WipeAnalysis() {
                         tickLine={false}
                       />
                       <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                      <Legend
-                        iconType="circle"
-                        iconSize={7}
-                        formatter={(value: string, entry: { color?: string }) => (
-                          <span style={{ fontSize: 11, color: entry.color ?? '#a6adc8', fontFamily: 'IBM Plex Mono' }}>
-                            {value}
-                          </span>
-                        )}
-                      />
-                      <Bar dataKey="lastWeek" name="Last Week Avg %" radius={[4, 4, 0, 0]} fill={chartColors.secondary} fillOpacity={0.4} />
-                      <Bar dataKey="avgBossPct" name="Current Avg %" radius={[4, 4, 0, 0]} fill={wipeColor} fillOpacity={0.9} />
+                      <Bar dataKey="lastWeek" name="Last Week Avg %" radius={[4, 4, 0, 0]} fill={progressPreviousColor} fillOpacity={0.45} />
+                      <Bar dataKey="avgBossPct" name="Current Avg %" radius={[4, 4, 0, 0]} fill={progressCurrentColor} fillOpacity={0.9} />
                     </BarChart>
                   </ResponsiveContainer>
+                  </>
                 )}
               </CardBody>
             </Card>
@@ -514,11 +626,11 @@ export function WipeAnalysis() {
               <CardHeader>
                 <CardTitle>Most Common Killing Blows</CardTitle>
                 <p className="text-xs text-ctp-overlay1 mt-0.5">
-                  Player-level survivability for raiders present in the current boss scope{selectedTier !== 'All' ? ` within ${selectedTier}` : ''}. Values are still aggregate by player, not per encounter.
+                  Death events in the current filter scope only.
                 </p>
               </CardHeader>
               <CardBody>
-                {survival.loading ? <LoadingState rows={5} /> : killingBlows.length > 0 ? (
+                {deathEvents.loading ? <LoadingState rows={5} /> : killingBlows.length > 0 ? (
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={killingBlows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                       <XAxis
@@ -547,21 +659,56 @@ export function WipeAnalysis() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Player Survivability</CardTitle>
-                <p className="text-xs text-ctp-overlay1 mt-0.5">
-                  Sorted by total deaths so low-kill outliers do not dominate the table. Deaths/kill is only coloured when the player has recorded kills.
-                </p>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>Player Survivability</CardTitle>
+                    <p className="text-xs text-ctp-overlay1 mt-0.5">
+                      Top 5 in the current filter scope. Click metric headers to change order.
+                    </p>
+                  </div>
+                  <FilterTabs
+                    options={SURVIVABILITY_BASIS_OPTIONS}
+                    value={survivabilityBasis}
+                    onChange={setSurvivabilityBasis}
+                    className="flex-shrink-0"
+                    buttonClassName="px-3 py-1.5"
+                  />
+                </div>
               </CardHeader>
-              {survival.loading ? (
+              {deathEvents.loading || roster.loading ? (
                 <CardBody><LoadingState rows={6} /></CardBody>
               ) : (
                 <Table>
                   <THead>
                     <tr>
                       <Th>Player</Th>
-                      <Th right>Deaths</Th>
-                      <Th right>Kills</Th>
-                      <Th right>Deaths/Kill</Th>
+                      <Th right>
+                        <button
+                          type="button"
+                          onClick={() => sortSurvivabilityBy('deaths')}
+                          className="transition-colors hover:text-ctp-mauve"
+                        >
+                          Deaths{survivabilitySort.key === 'deaths' ? (survivabilitySort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                        </button>
+                      </Th>
+                      <Th right>
+                        <button
+                          type="button"
+                          onClick={() => sortSurvivabilityBy('attempts')}
+                          className="transition-colors hover:text-ctp-mauve"
+                        >
+                          {survivabilityBasis === 'kill' ? 'Kills' : 'Pulls'}{survivabilitySort.key === 'attempts' ? (survivabilitySort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                        </button>
+                      </Th>
+                      <Th right>
+                        <button
+                          type="button"
+                          onClick={() => sortSurvivabilityBy('deathRate')}
+                          className="transition-colors hover:text-ctp-mauve"
+                        >
+                          Deaths/{survivabilityBasis === 'kill' ? 'Kill' : 'Pull'}{survivabilitySort.key === 'deathRate' ? (survivabilitySort.direction === 'asc' ? ' ↑' : ' ↓') : ''}
+                        </button>
+                      </Th>
                       <Th>Most Killed By</Th>
                     </tr>
                   </THead>
@@ -575,14 +722,20 @@ export function WipeAnalysis() {
                           </div>
                         </Td>
                         <Td right mono style={{ color: wipeColor }}>{formatNumber(row.total_deaths)}</Td>
-                        <Td right mono className="text-ctp-overlay1">{formatNumber(row.kills_tracked)}</Td>
+                        <Td right mono className="text-ctp-overlay1">
+                          {formatNumber(survivabilityBasis === 'kill' ? row.kills_tracked : row.pulls_tracked)}
+                        </Td>
                         <Td
                           right
                           mono
-                          style={Number(row.kills_tracked) > 0 ? { color: getDeathRateColor(Number(row.deaths_per_kill)) } : undefined}
-                          className={Number(row.kills_tracked) === 0 ? 'text-ctp-overlay0' : undefined}
+                          style={(survivabilityBasis === 'kill' ? row.deaths_per_kill : row.deaths_per_pull) != null
+                            ? { color: getDeathRateColor((survivabilityBasis === 'kill' ? row.deaths_per_kill : row.deaths_per_pull) ?? 0) }
+                            : undefined}
+                          className={(survivabilityBasis === 'kill' ? row.deaths_per_kill : row.deaths_per_pull) == null ? 'text-ctp-overlay0' : undefined}
                         >
-                          {Number(row.kills_tracked) > 0 ? Number(row.deaths_per_kill).toFixed(1) : '—'}
+                          {(survivabilityBasis === 'kill' ? row.deaths_per_kill : row.deaths_per_pull) != null
+                            ? ((survivabilityBasis === 'kill' ? row.deaths_per_kill : row.deaths_per_pull) ?? 0).toFixed(1)
+                            : '—'}
                         </Td>
                         <Td className="text-[10px] font-mono text-ctp-overlay0 max-w-[180px] truncate">
                           {row.most_common_killing_blow || '—'}

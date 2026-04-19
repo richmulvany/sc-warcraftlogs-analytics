@@ -289,7 +289,7 @@ export function Bosses() {
       </Card>
 
       {!prog.loading && !prog.error && !wipeAnalysis.loading && !wipeAnalysis.error && (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[36rem] overflow-y-auto pr-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[36rem] overflow-y-auto px-1 pt-1 pb-2">
           {filtered.map(b => {
             const killed = b.is_killed === 'True' || b.is_killed === (true as unknown as string)
             const bestHpRemaining = killed ? 0 : (bestHpMap.get(`${b.encounter_id}-${b.difficulty}`) ?? 100)

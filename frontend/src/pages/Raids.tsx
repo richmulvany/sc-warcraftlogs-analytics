@@ -263,7 +263,7 @@ export function Raids() {
       ) : raids.error ? (
         <ErrorState message={raids.error} />
       ) : (
-        <div className="space-y-8 max-h-[42rem] overflow-y-auto pr-2">
+        <div className="space-y-8 max-h-[42rem] overflow-y-auto px-1 pt-1 pb-2">
           {Object.entries(byZone).map(([zoneName, zoneRaids]) => (
             <div key={zoneName}>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
