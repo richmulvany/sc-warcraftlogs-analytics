@@ -163,6 +163,7 @@ def gold_player_death_events():
             "difficulty_label",
             F.col("raid_night_date").alias("_raid_night_date"),
             "is_kill",
+            F.col("fight_start_ms").alias("_fight_start_ms"),
         )
         .dropDuplicates(["_report_code", "_fight_id"])
     )
@@ -191,6 +192,7 @@ def gold_player_death_events():
             "player_name",
             "player_class",
             "death_timestamp_ms",
+            F.col("_fight_start_ms").alias("fight_start_ms"),
             "overkill",
             "killing_blow_name",
             "killing_blow_id",

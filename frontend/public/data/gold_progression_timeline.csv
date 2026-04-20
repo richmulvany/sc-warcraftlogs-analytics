@@ -175,10 +175,10 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,cum
 3177,Vorasius,VS / DR / MQD,4,Heroic,2026-04-01,88
 3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic,2026-04-01,89
 3181,Crown of the Cosmos,VS / DR / MQD,4,Heroic,2026-04-01,90
-3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,2026-04-01,91
-3178,Vaelgor & Ezzorak,VS / DR / MQD,4,Heroic,2026-04-01,92
-3180,Lightblinded Vanguard,VS / DR / MQD,4,Heroic,2026-04-01,93
-3182,"Belo'ren, Child of Al'ar",VS / DR / MQD,4,Heroic,2026-04-08,94
+3178,Vaelgor & Ezzorak,VS / DR / MQD,4,Heroic,2026-04-01,91
+3180,Lightblinded Vanguard,VS / DR / MQD,4,Heroic,2026-04-01,92
+3182,"Belo'ren, Child of Al'ar",VS / DR / MQD,4,Heroic,2026-04-08,93
+3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,2026-04-15,94
 2383,Hungering Destroyer,Castle Nathria,5,Mythic,2021-02-17,1
 2418,Huntsman Altimor,Castle Nathria,5,Mythic,2021-02-17,2
 2398,Shriekwing,Castle Nathria,5,Mythic,2021-02-17,3
@@ -247,6 +247,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,cum
 3134,Nexus-King Salhadaar,Manaforge Omega,5,Mythic,2025-11-05,66
 2922,Queen Ansurek,Manaforge Omega,5,Mythic,2026-01-26,67
 3135,"Dimensius, the All-Devouring",Manaforge Omega,5,Mythic,2026-02-02,68
-3177,Vorasius,VS / DR / MQD,5,Mythic,2026-04-06,69
-3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2026-04-06,70
+3177,Vorasius,VS / DR / MQD,5,Mythic,2026-04-15,69
+3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2026-04-15,70
 3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2026-04-15,71

@@ -215,6 +215,7 @@ export interface PlayerDeathEvent {
   player_name: string
   player_class: string
   death_timestamp_ms: number
+  fight_start_ms: number
   overkill: number
   killing_blow_name: string
   killing_blow_id: string

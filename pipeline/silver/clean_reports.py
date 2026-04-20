@@ -75,6 +75,7 @@ def silver_fight_events():
             F.col("fight.encounterID").alias("encounter_id"),
             F.col("fight.kill").cast("boolean").alias("is_kill"),
             F.col("fight.difficulty").alias("difficulty"),
+            F.col("fight.startTime").alias("fight_start_ms"),
             ((F.col("fight.endTime") - F.col("fight.startTime")) / 1000)
             .cast("integer")
             .alias("duration_seconds"),
