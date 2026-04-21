@@ -274,3 +274,4 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,best_kill_seconds,a
 3129,Plexus Sentinel,Manaforge Omega,3,Normal,126,235.0,3,2025-08-13,2025-11-23,2m 06s
 2553,Artificer Xy'mox,Sepulcher of the First Ones,3,Normal,275,288.6666666666667,3,2022-03-06,2022-03-16,4m 35s
 2423,The Tarragrue,Sanctum of Domination,3,Normal,200,241.5,6,2021-07-07,2021-09-02,3m 20s
+3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,365,365.0,1,2026-04-20,2026-04-20,6m 05s

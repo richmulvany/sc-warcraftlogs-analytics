@@ -4,7 +4,6 @@ Bigboiples,twisting-nether,18254,Cutting Edge: Scalecommander Sarkareth,16970558
 Bigboiples,twisting-nether,41625,"Cutting Edge: Dimensius, the All-Devouring",1768948332000
 Bigboiples,twisting-nether,41297,Cutting Edge: Chrome King Gallywix,1752698464000
 Bigboiples,twisting-nether,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776110164000
-Bileplume,twisting-nether,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776279601000
 Everrin,twisting-nether,17108,Cutting Edge: Raszageth the Storm-Eater,1682367360000
 Everrin,twisting-nether,41625,"Cutting Edge: Dimensius, the All-Devouring",1768948320000
 Everrin,twisting-nether,41297,Cutting Edge: Chrome King Gallywix,1753988580000
@@ -17,6 +16,7 @@ Hobbyalkis,twisting-nether,18254,Cutting Edge: Scalecommander Sarkareth,16970558
 Hobbyalkis,twisting-nether,41625,"Cutting Edge: Dimensius, the All-Devouring",1768948332000
 Hobbyalkis,twisting-nether,41297,Cutting Edge: Chrome King Gallywix,1752698464000
 Hobbyalkis,twisting-nether,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776110164000
+Imogen,twisting-nether,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776110164000
 Jadsrune,twisting-nether,15135,Cutting Edge: Sylvanas Windrunner,1645566600000
 Jadsrune,twisting-nether,17108,Cutting Edge: Raszageth the Storm-Eater,1682367360000
 Jadsrune,twisting-nether,18254,Cutting Edge: Scalecommander Sarkareth,1697055840000
@@ -49,7 +49,6 @@ Turbohot,twisting-nether,15135,Cutting Edge: Sylvanas Windrunner,1645566600000
 Turbohot,twisting-nether,41625,"Cutting Edge: Dimensius, the All-Devouring",1768948332000
 Turbohot,twisting-nether,41297,Cutting Edge: Chrome King Gallywix,1752698464000
 Turbohot,twisting-nether,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776110164000
-Typ,ravencrest,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776110165000
 Yearning,twisting-nether,41297,Cutting Edge: Chrome King Gallywix,1752698464000
 Yearning,twisting-nether,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776110164000
 Yevie,twisting-nether,15135,Cutting Edge: Sylvanas Windrunner,1645566600000
@@ -58,6 +57,8 @@ Yevie,twisting-nether,18254,Cutting Edge: Scalecommander Sarkareth,1697055840000
 Yevie,twisting-nether,41625,"Cutting Edge: Dimensius, the All-Devouring",1768948320000
 Yevie,twisting-nether,41297,Cutting Edge: Chrome King Gallywix,1752698460000
 Yevie,twisting-nether,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776110164000
+Bileplume,twisting-nether,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776279601000
+Typ,ravencrest,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776110165000
 Zren,ravencrest,15135,Cutting Edge: Sylvanas Windrunner,1645566600000
 Zren,ravencrest,61492,"Cutting Edge: Chimaerus, the Undreamt God",1776279601000
 Budgetgoku,twisting-nether,11191,Cutting Edge: Xavius,1480017720000
@@ -162,6 +163,9 @@ Zerodrama,twisting-nether,15135,Cutting Edge: Sylvanas Windrunner,1645566600000
 Momobamie,twisting-nether,15135,Cutting Edge: Sylvanas Windrunner,1645566600000
 Momobamie,twisting-nether,17108,Cutting Edge: Raszageth the Storm-Eater,1681326120000
 Momobamie,twisting-nether,18254,Cutting Edge: Scalecommander Sarkareth,1697055840000
+Bamie,twisting-nether,15135,Cutting Edge: Sylvanas Windrunner,1645566600000
+Bamie,twisting-nether,17108,Cutting Edge: Raszageth the Storm-Eater,1681326120000
+Bamie,twisting-nether,18254,Cutting Edge: Scalecommander Sarkareth,1697055840000
 Beanus,twisting-nether,15135,Cutting Edge: Sylvanas Windrunner,1645566600000
 Beanus,twisting-nether,17108,Cutting Edge: Raszageth the Storm-Eater,1681326120000
 Beanus,twisting-nether,18254,Cutting Edge: Scalecommander Sarkareth,1697055840000
@@ -269,26 +273,3 @@ Olegrip,draenor,40254,Cutting Edge: Queen Ansurek,1731868740000
 Olegrip,draenor,41297,Cutting Edge: Chrome King Gallywix,1750019305000
 Olegrip,draenor,41625,"Cutting Edge: Dimensius, the All-Devouring",1758572557000
 Olegrip,draenor,61492,"Cutting Edge: Chimaerus, the Undreamt God",1774810020000
-Oyder,kazzak,9442,Cutting Edge: Imperator's Fall,1422911340000
-Oyder,kazzak,9443,Cutting Edge: Blackhand's Crucible,1428958080000
-Oyder,kazzak,8401,Cutting Edge: Garrosh Hellscream (25 player),1393274760000
-Oyder,kazzak,8260,Cutting Edge: Ra-den,1378840500000
-Oyder,kazzak,8238,Cutting Edge: Lei Shen,1378762440000
-Oyder,kazzak,10045,Cutting Edge: The Black Gate,1457207504000
-Oyder,kazzak,11191,Cutting Edge: Xavius,1483905451000
-Oyder,kazzak,14069,Cutting Edge: N'Zoth the Corruptor,1587323160000
-Oyder,kazzak,11875,Cutting Edge: Kil'jaeden,1509900420000
-Oyder,kazzak,12111,Cutting Edge: Argus the Unmaker,1518993420000
-Oyder,kazzak,12535,Cutting Edge: G'huun,1539554640000
-Oyder,kazzak,13785,Cutting Edge: Queen Azshara,1572205560000
-Oyder,kazzak,13323,Cutting Edge: Lady Jaina Proudmoore,1556137620000
-Oyder,kazzak,13419,"Cutting Edge: Uu'nat, Harbinger of the Void",1558906200000
-Oyder,kazzak,15135,Cutting Edge: Sylvanas Windrunner,1629228720000
-Oyder,kazzak,14461,Cutting Edge: Sire Denathrius,1615931760000
-Oyder,kazzak,15471,Cutting Edge: The Jailer,1655665200000
-Oyder,kazzak,17108,Cutting Edge: Raszageth the Storm-Eater,1679264280000
-Oyder,kazzak,18254,Cutting Edge: Scalecommander Sarkareth,1690311720000
-Oyder,kazzak,19351,Cutting Edge: Fyrakk the Blazing,1705263600000
-Oyder,kazzak,40254,Cutting Edge: Queen Ansurek,1731011160000
-Oyder,kazzak,41625,"Cutting Edge: Dimensius, the All-Devouring",1768948332000
-Oyder,kazzak,41297,Cutting Edge: Chrome King Gallywix,1744576680000

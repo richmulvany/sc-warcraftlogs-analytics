@@ -19,9 +19,11 @@ import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot } from '../components/ui/ClassLabel'
 import {
+  useRaidSummary,
   useBossMechanics,
   usePlayerDeathEvents,
   useBossWipeAnalysis,
+  useBossPullHistory,
   useBossKillRoster,
 } from '../hooks/useGoldData'
 import { formatDate, formatNumber, formatPct } from '../utils/format'
@@ -31,14 +33,15 @@ import { useColourBlind } from '../context/ColourBlindContext'
 
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal'] as const
 
-type SurvivabilityBasis = 'kill' | 'pull'
-type SurvivabilitySortKey = 'deathRate' | 'deaths' | 'wipeDeath' | 'attempts'
+type SurvivabilitySortKey =
+  | 'deathsPerKill'
+  | 'deathsPerPull'
+  | 'deaths'
+  | 'wipeDeath'
+  | 'killDeath'
+  | 'kills'
+  | 'pulls'
 type SortDirection = 'asc' | 'desc'
-
-const SURVIVABILITY_BASIS_OPTIONS: readonly { value: SurvivabilityBasis; label: string }[] = [
-  { value: 'kill', label: 'Kills' },
-  { value: 'pull', label: 'Pulls' },
-]
 
 interface ScopedSurvivabilityRow {
   player_name: string
@@ -143,6 +146,8 @@ function DeathTimingBoxPlot({
   const q3Pos = pct(summary.q3)
   const upper = pct(summary.upperWhisker)
   const boxW = Math.max(q3Pos - q1Pos, 1.5)
+  const boxLeft = q1Pos
+  const boxRight = q1Pos + boxW
 
   return (
     <div className="w-full">
@@ -164,51 +169,60 @@ function DeathTimingBoxPlot({
         <line
           x1={lower}
           y1="22"
+          x2={boxLeft}
+          y2="22"
+          stroke={lineColor}
+          strokeOpacity="0.48"
+          strokeWidth="0.55"
+        />
+        <line
+          x1={boxRight}
+          y1="22"
           x2={upper}
           y2="22"
           stroke={lineColor}
-          strokeOpacity="0.55"
-          strokeWidth="1.0"
+          strokeOpacity="0.48"
+          strokeWidth="0.55"
         />
         <line
           x1={lower}
-          y1="16"
+          y1="18"
           x2={lower}
-          y2="28"
+          y2="26"
           stroke={lineColor}
-          strokeOpacity="0.65"
-          strokeWidth="0.9"
+          strokeOpacity="0.58"
+          strokeWidth="0.55"
         />
         <line
           x1={upper}
-          y1="16"
+          y1="18"
           x2={upper}
-          y2="28"
+          y2="26"
           stroke={lineColor}
-          strokeOpacity="0.65"
-          strokeWidth="0.9"
+          strokeOpacity="0.58"
+          strokeWidth="0.55"
         />
 
         <rect
           x={q1Pos}
-          y="13"
+          y="16"
           width={boxW}
-          height="18"
-          rx="1.8"
+          height="12"
+          rx="1.2"
           fill={boxColor}
-          fillOpacity="0.14"
+          fillOpacity="0.1"
           stroke={boxColor}
-          strokeOpacity="0.6"
-          strokeWidth="0.9"
+          strokeOpacity="0.58"
+          strokeWidth="0.55"
         />
 
         <line
           x1={medPos}
-          y1="9"
+          y1="13"
           x2={medPos}
-          y2="35"
+          y2="31"
           stroke={boxColor}
-          strokeWidth="2"
+          strokeWidth="1.1"
           strokeLinecap="round"
         />
 
@@ -285,7 +299,7 @@ function sectionTotal<T extends { [k: string]: unknown }>(rows: T[], key: keyof 
 }
 
 function getDefaultSortDirection(key: SurvivabilitySortKey): SortDirection {
-  return key === 'deathRate' ? 'asc' : 'desc'
+  return key === 'deathsPerKill' || key === 'deathsPerPull' ? 'asc' : 'desc'
 }
 
 function MiniNote({ children }: { children: ReactNode }) {
@@ -295,13 +309,17 @@ function MiniNote({ children }: { children: ReactNode }) {
 function StatusPill({
   label,
   active = false,
+  compact = false,
 }: {
   label: string
   active?: boolean
+  compact?: boolean
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.18em] ${
+      className={`inline-flex items-center rounded-full border font-mono uppercase ${
+        compact ? 'px-1.5 py-0.5 text-[9px] tracking-[0.1em]' : 'px-2.5 py-1 text-[10px] tracking-[0.18em]'
+      } ${
         active
           ? 'border-ctp-mauve/30 bg-ctp-mauve/10 text-ctp-mauve'
           : 'border-ctp-surface2 bg-ctp-surface1/50 text-ctp-overlay0'
@@ -330,6 +348,172 @@ function SignalTile({
       </p>
       <div className={`text-sm font-semibold leading-tight ${accentClass}`}>{value}</div>
       <p className="mt-1 text-[10px] font-mono leading-relaxed text-ctp-overlay0">{detail}</p>
+    </div>
+  )
+}
+
+interface ProgressSnapshotDatum {
+  boss_name: string
+  difficulty_label?: string | null
+  label: string
+  subLabel: string
+  open: number
+  close: number
+  high: number
+  low: number
+  currentNight: string
+  previousNight: string | null
+  pullCount: number
+}
+
+function clampPct(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(100, value))
+}
+
+function shortDateLabel(date: string) {
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return date
+  return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
+function ProgressSnapshotCandles({
+  data,
+  improvedColor,
+  worseColor,
+  neutralColor,
+}: {
+  data: ProgressSnapshotDatum[]
+  improvedColor: string
+  worseColor: string
+  neutralColor: string
+}) {
+  const width = 720
+  const chartHeight = 220
+  const chartTop = 12
+  const chartBottom = 46
+  const plotHeight = chartHeight - chartTop - chartBottom
+  const leftPad = 36
+  const rightPad = 18
+  const slotWidth = (width - leftPad - rightPad) / Math.max(data.length, 1)
+  const candleWidth = Math.max(3, Math.min(18, slotWidth * 0.46))
+  const wickWidth = data.length > 24 ? 1 : 1.5
+  const labelEvery = data.length <= 10 ? 1 : Math.ceil(data.length / 10)
+  const yForPct = (value: number) => chartTop + ((100 - clampPct(value)) / 100) * plotHeight
+  const ticks = [100, 75, 50, 25, 0]
+
+  return (
+    <div className="pb-1">
+      <svg
+        viewBox={`0 0 ${width} ${chartHeight}`}
+        className="h-[250px] w-full"
+        role="img"
+        aria-label="Progress snapshot candle chart"
+        preserveAspectRatio="none"
+      >
+        {ticks.map(tick => {
+          const y = yForPct(tick)
+          return (
+            <g key={tick}>
+              <line
+                x1={leftPad}
+                x2={width - rightPad}
+                y1={y}
+                y2={y}
+                stroke="#45475a"
+                strokeDasharray={tick === 0 ? undefined : '4 6'}
+                strokeOpacity={tick === 0 ? 0.55 : 0.42}
+              />
+              <text
+                x={leftPad - 10}
+                y={y + 3}
+                textAnchor="end"
+                className="fill-ctp-overlay0 font-mono text-[10px]"
+              >
+                {tick}%
+              </text>
+            </g>
+          )
+        })}
+
+        {data.map((row, index) => {
+          const x = leftPad + index * slotWidth + slotWidth / 2
+          const open = clampPct(Number(row.open))
+          const close = clampPct(Number(row.close))
+          const high = clampPct(Number(row.high))
+          const low = clampPct(Number(row.low))
+          const highY = yForPct(high)
+          const lowY = yForPct(low)
+          const openY = yForPct(open)
+          const closeY = yForPct(close)
+          const bodyTop = Math.min(openY, closeY)
+          const bodyHeight = Math.max(7, Math.abs(openY - closeY))
+          const improved = close < open
+          const regressed = close > open
+          const bodyColor = improved ? improvedColor : regressed ? worseColor : neutralColor
+          const showLabel = index % labelEvery === 0 || index === data.length - 1
+          const tooltip = [
+            `${row.boss_name}${row.difficulty_label ? ` (${row.difficulty_label})` : ''}`,
+            row.currentNight,
+            row.previousNight ? `Open (${row.previousNight} final pull): ${open.toFixed(1)}%` : `Open: ${open.toFixed(1)}%`,
+            `Close (${row.currentNight} final pull): ${close.toFixed(1)}%`,
+            `High: ${high.toFixed(1)}%`,
+            `Low: ${low.toFixed(1)}%`,
+            `Pulls: ${formatNumber(row.pullCount)}`,
+          ]
+            .filter(Boolean)
+            .join('\n')
+
+          return (
+            <g key={`${row.boss_name}-${row.difficulty_label ?? 'unknown'}-${row.currentNight}-${index}`}>
+              <title>{tooltip}</title>
+              <line
+                x1={x}
+                x2={x}
+                y1={highY}
+                y2={lowY}
+                stroke={bodyColor}
+                strokeWidth={wickWidth}
+                strokeLinecap="round"
+                opacity={0.95}
+              />
+              <rect
+                x={x - candleWidth / 2}
+                y={bodyTop}
+                width={candleWidth}
+                height={bodyHeight}
+                rx={1.5}
+                fill={bodyColor}
+                fillOpacity={improved ? 0.04 : regressed ? 0.78 : 0.18}
+                stroke={bodyColor}
+                strokeWidth={1.5}
+              />
+              {showLabel ? (
+                <>
+                  <text
+                    x={x}
+                    y={chartHeight - 27}
+                    textAnchor="middle"
+                    className="fill-ctp-subtext1 font-mono text-[10px]"
+                  >
+                    {row.label}
+                  </text>
+                  {data.length <= 14 ? (
+                    <text
+                      x={x}
+                      y={chartHeight - 12}
+                      textAnchor="middle"
+                      className="fill-ctp-overlay0 font-mono text-[9px]"
+                    >
+                      {row.subLabel}
+                    </text>
+                  ) : null}
+                </>
+              ) : null}
+            </g>
+          )
+        })}
+      </svg>
     </div>
   )
 }
@@ -414,23 +598,25 @@ export function WipeAnalysis() {
   const mechs = useBossMechanics()
   const deathEvents = usePlayerDeathEvents()
   const wipes = useBossWipeAnalysis()
+  const pullHistory = useBossPullHistory()
   const roster = useBossKillRoster()
+  const raidSummary = useRaidSummary()
 
   const [diff, setDiff] = useState<string>('Mythic')
   const [selectedTier, setSelectedTier] = useState<string>('All')
   const [selectedBoss, setSelectedBoss] = useState<string>('All')
   const [search, setSearch] = useState('')
-  const [survivabilityBasis, setSurvivabilityBasis] = useState<SurvivabilityBasis>('kill')
   const [survivabilitySort, setSurvivabilitySort] = useState<{
     key: SurvivabilitySortKey
     direction: SortDirection
   }>({
-    key: 'deathRate',
-    direction: 'asc',
+    key: 'deathsPerPull',
+    direction: 'desc',
   })
 
-  const loading = mechs.loading || deathEvents.loading || wipes.loading || roster.loading
-  const error = mechs.error || deathEvents.error || wipes.error || roster.error
+  const loading =
+    mechs.loading || deathEvents.loading || wipes.loading || pullHistory.loading || roster.loading || raidSummary.loading
+  const error = mechs.error || deathEvents.error || wipes.error || pullHistory.error || roster.error || raidSummary.error
 
   const tierOptions = useMemo(() => {
     const values = [...wipes.data]
@@ -511,6 +697,17 @@ export function WipeAnalysis() {
     [deathEvents.data, diff, selectedTier, selectedBoss, search]
   )
 
+  const scopedRaidSummaryByReport = useMemo(() => {
+    const map = new Map<string, (typeof raidSummary.data)[number]>()
+    for (const row of raidSummary.data) {
+      if (!isIncludedZoneName(row.zone_name)) continue
+      if (selectedTier !== 'All' && row.zone_name !== selectedTier) continue
+      if (diff !== 'All' && row.primary_difficulty !== diff) continue
+      map.set(row.report_code, row)
+    }
+    return map
+  }, [raidSummary.data, selectedTier, diff])
+
   const killedEncounterKeys = useMemo(
     () =>
       new Set(
@@ -552,6 +749,7 @@ export function WipeAnalysis() {
 
     const rows = new Map<string, ScopedSurvivabilityRow>()
     const killingBlowsByPlayer = new Map<string, Map<string, number>>()
+    const attendedReportsByPlayer = new Map<string, Set<string>>()
 
     function ensurePlayer(playerName: string, playerClass = 'Unknown') {
       const existing = rows.get(playerName)
@@ -585,12 +783,15 @@ export function WipeAnalysis() {
       if (selectedBoss !== 'All' && row.boss_name !== selectedBoss) continue
       if (search.trim() && !row.boss_name.toLowerCase().includes(search.toLowerCase())) continue
       ensurePlayer(row.player_name, row.player_class).kills_tracked += 1
+      if (!attendedReportsByPlayer.has(row.player_name)) {
+        attendedReportsByPlayer.set(row.player_name, new Set())
+      }
+      attendedReportsByPlayer.get(row.player_name)!.add(row.report_code)
     }
 
     for (const row of scopedDeathRows) {
       const player = ensurePlayer(row.player_name, row.player_class)
       player.total_deaths += 1
-      player.pulls_tracked += 1
 
       if (isKillRow(row)) player.kill_deaths += 1
       else player.wipe_deaths += 1
@@ -613,7 +814,12 @@ export function WipeAnalysis() {
     })
 
     return [...rows.values()].map(row => {
-      const totalPulls = row.kills_tracked + row.pulls_tracked
+      const participatedWipes = [...(attendedReportsByPlayer.get(row.player_name) ?? new Set<string>())]
+        .reduce((sum, reportCode) => {
+          const report = scopedRaidSummaryByReport.get(reportCode)
+          return sum + Number(report?.total_wipes ?? 0)
+        }, 0)
+      const totalPulls = row.kills_tracked + participatedWipes
       return {
         ...row,
         pulls_tracked: totalPulls,
@@ -621,7 +827,16 @@ export function WipeAnalysis() {
         deaths_per_pull: totalPulls > 0 ? row.total_deaths / totalPulls : null,
       }
     })
-  }, [scopedPlayerNames, scopedDeathRows, roster.data, selectedTier, diff, selectedBoss, search])
+  }, [
+    scopedPlayerNames,
+    scopedDeathRows,
+    roster.data,
+    selectedTier,
+    diff,
+    selectedBoss,
+    search,
+    scopedRaidSummaryByReport,
+  ])
 
   const playersWithTrackedKills = useMemo(
     () => scopedSurvivability.filter(row => Number(row.kills_tracked) > 0),
@@ -704,6 +919,16 @@ export function WipeAnalysis() {
     ]
   }, [filteredMechanics, phaseColors])
 
+  const dominantDurationBucket = useMemo(() => {
+    if (stats.totalWipes <= 0) return null
+
+    const bucket = [...durationBuckets].sort((a, b) => b.wipes - a.wipes)[0]
+    if (!bucket || bucket.wipes <= 0) return null
+
+    const rate = bucket.wipes / stats.totalWipes
+    return rate >= 0.4 ? { ...bucket, rate } : null
+  }, [durationBuckets, stats.totalWipes])
+
   const topWipeBosses = useMemo(
     () =>
       filteredWipes.slice(0, 10).map(row => {
@@ -759,13 +984,76 @@ export function WipeAnalysis() {
     [unresolvedWipes, mechanicsMap]
   )
 
-  const progressCurrentColor = topTierColor
-  const progressPreviousColor =
-    chartColors.secondary !== progressCurrentColor
-      ? chartColors.secondary
-      : chartColors.primary !== progressCurrentColor
-        ? chartColors.primary
-        : '#89b4fa'
+  const currentProgressTarget = activeProgressRows[0] ?? null
+  const currentProgressTargetKey = currentProgressTarget
+    ? `${currentProgressTarget.encounter_id}-${currentProgressTarget.difficulty}`
+    : null
+
+  const progressCandles = useMemo(() => {
+    if (!currentProgressTarget || !currentProgressTargetKey) return []
+
+    const matchingPulls = pullHistory.data.filter(row => {
+      const key = `${row.encounter_id}-${row.difficulty}`
+      if (key !== currentProgressTargetKey) return false
+      if (!isIncludedZoneName(row.zone_name)) return false
+      if (selectedTier !== 'All' && row.zone_name !== selectedTier) return false
+      return true
+    })
+    const ordered = [...matchingPulls].sort((a, b) => {
+      const date = String(a.raid_night_date).localeCompare(String(b.raid_night_date))
+      if (date !== 0) return date
+      const start = String(a.start_time_utc ?? '').localeCompare(String(b.start_time_utc ?? ''))
+      if (start !== 0) return start
+      return Number(a.fight_id) - Number(b.fight_id)
+    })
+    const byNight = new Map<string, typeof pullHistory.data>()
+
+    for (const pull of ordered) {
+      const night = String(pull.raid_night_date)
+      if (!night) continue
+      const rows = byNight.get(night) ?? []
+      rows.push(pull)
+      byNight.set(night, rows)
+    }
+
+    const candles: ProgressSnapshotDatum[] = []
+    let previousClosePull: (typeof pullHistory.data)[number] | null = null
+
+    for (const [currentNight, currentPulls] of byNight.entries()) {
+      const openPull = previousClosePull ?? currentPulls[0]
+      const closePull = currentPulls[currentPulls.length - 1]
+      if (!openPull || !closePull) continue
+
+      const currentValues = currentPulls
+        .map(row => clampPct(Number(row.boss_hp_remaining ?? row.boss_percentage)))
+        .filter(Number.isFinite)
+      const open = clampPct(Number(openPull.boss_hp_remaining ?? openPull.boss_percentage))
+      const close = clampPct(Number(closePull.boss_hp_remaining ?? closePull.boss_percentage))
+      const rangeValues = [...currentValues, open]
+
+      candles.push({
+        boss_name: closePull.boss_name,
+        difficulty_label: closePull.difficulty_label,
+        label: shortDateLabel(currentNight),
+        subLabel: `${currentPulls.length} pull${currentPulls.length === 1 ? '' : 's'}`,
+        open,
+        close,
+        high: Math.max(...rangeValues),
+        low: Math.min(...rangeValues),
+        currentNight,
+        previousNight: previousClosePull ? String(previousClosePull.raid_night_date) : null,
+        pullCount: currentPulls.length,
+      })
+
+      previousClosePull = closePull
+    }
+
+    return candles
+  }, [pullHistory.data, currentProgressTarget, currentProgressTargetKey, selectedTier])
+
+  const progressImprovedColor = '#a6e3a1'
+  const progressWorseColor = '#f38ba8'
+  const progressNeutralColor = '#9399b2'
 
   const killingBlows = useMemo(() => {
     const counts = new Map<string, number>()
@@ -1120,36 +1408,34 @@ export function WipeAnalysis() {
   const playerRows = useMemo(() => {
     return [...scopedSurvivability]
       .sort((a, b) => {
-        const av =
-          survivabilitySort.key === 'deathRate'
-            ? ((survivabilityBasis === 'kill' ? a.deaths_per_kill : a.deaths_per_pull) ??
-              Number.NEGATIVE_INFINITY)
-            : survivabilitySort.key === 'deaths'
-              ? a.total_deaths
-              : survivabilitySort.key === 'wipeDeath'
-                ? a.wipe_deaths
-                : survivabilityBasis === 'kill'
-                  ? a.kills_tracked
-                  : a.pulls_tracked
+        const valueFor = (row: ScopedSurvivabilityRow) => {
+          switch (survivabilitySort.key) {
+            case 'deathsPerKill':
+              return row.deaths_per_kill ?? Number.NEGATIVE_INFINITY
+            case 'deathsPerPull':
+              return row.deaths_per_pull ?? Number.NEGATIVE_INFINITY
+            case 'deaths':
+              return row.total_deaths
+            case 'wipeDeath':
+              return row.kill_deaths
+            case 'killDeath':
+              return row.wipe_deaths
+            case 'kills':
+              return row.kills_tracked
+            case 'pulls':
+              return row.pulls_tracked
+          }
+        }
 
-        const bv =
-          survivabilitySort.key === 'deathRate'
-            ? ((survivabilityBasis === 'kill' ? b.deaths_per_kill : b.deaths_per_pull) ??
-              Number.NEGATIVE_INFINITY)
-            : survivabilitySort.key === 'deaths'
-              ? b.total_deaths
-              : survivabilitySort.key === 'wipeDeath'
-                ? b.wipe_deaths
-                : survivabilityBasis === 'kill'
-                  ? b.kills_tracked
-                  : b.pulls_tracked
+        const av = valueFor(a)
+        const bv = valueFor(b)
 
         const comparison = survivabilitySort.direction === 'asc' ? av - bv : bv - av
 
         return comparison || a.player_name.localeCompare(b.player_name)
       })
       .slice(0, 10)
-  }, [scopedSurvivability, survivabilitySort, survivabilityBasis])
+  }, [scopedSurvivability, survivabilitySort])
 
   function sortSurvivabilityBy(key: SurvivabilitySortKey) {
     setSurvivabilitySort(current =>
@@ -1391,18 +1677,19 @@ export function WipeAnalysis() {
                 ) : (
                   <>
                     <ResponsiveContainer width="100%" height={280}>
-                      <BarChart data={topWipeBosses} margin={{ top: 4, right: 8, left: -20, bottom: 68 }}>
+                      <BarChart data={topWipeBosses} margin={{ top: 4, right: 8, left: -20, bottom: 48 }}>
                         <XAxis
                           dataKey="boss"
                           tick={{
                             fontSize: 10,
                             fill: '#6c7086',
                             fontFamily: 'IBM Plex Mono, monospace',
+                            dx: 24,
                           }}
                           axisLine={false}
                           tickLine={false}
-                          tickMargin={10}
-                          angle={-35}
+                          tickMargin={6}
+                          angle={-25}
                           textAnchor="end"
                           interval={0}
                         />
@@ -1575,13 +1862,17 @@ export function WipeAnalysis() {
                       ))}
                     </div>
 
-                    <div className="mt-auto pt-3">
+                    <div className="mt-0 pt-3">
                       <MiniNote>
-                        {stats.earlyWipeRate >= 0.3
-                          ? `${(stats.earlyWipeRate * 100).toFixed(0)}% of wipes end before 1 minute — opener and positioning problems are a meaningful theme.`
-                          : stats.lateWipeRate >= 0.3
-                            ? `${(stats.lateWipeRate * 100).toFixed(0)}% of wipes last beyond 5 minutes — the bigger problem is likely later-phase consistency.`
-                            : 'Wipes are spread across the pull rather than concentrated in a single timing window.'}
+                        {dominantDurationBucket
+                          ? dominantDurationBucket.label === '<1 min'
+                            ? `${(dominantDurationBucket.rate * 100).toFixed(0)}% of wipes end before 1 minute — opener and positioning problems are a meaningful theme.`
+                            : dominantDurationBucket.label === '1–3 min'
+                              ? `${(dominantDurationBucket.rate * 100).toFixed(0)}% of wipes land in the 1–3 minute window — early mechanics and first transition consistency are likely the pressure point.`
+                              : dominantDurationBucket.label === '3–5 min'
+                                ? `${(dominantDurationBucket.rate * 100).toFixed(0)}% of wipes land in the 3–5 minute window — mid-fight execution is the main concentration.`
+                                : `${(dominantDurationBucket.rate * 100).toFixed(0)}% of wipes last beyond 5 minutes — the bigger problem is likely later-phase consistency.`
+                          : 'Wipes are spread across the pull rather than concentrated in a single timing window.'}
                       </MiniNote>
                     </div>
                   </>
@@ -1593,17 +1884,19 @@ export function WipeAnalysis() {
               <CardHeader>
                 <CardTitle>Progress Snapshot</CardTitle>
                 <p className="mt-0.5 text-xs text-ctp-overlay1">
-                  Lower boss HP is better. This chart only includes unresolved progression targets.
+                  {currentProgressTarget
+                    ? `${currentProgressTarget.boss_name} ${currentProgressTarget.difficulty_label} across all available raid nights. Lower boss HP is better.`
+                    : 'Lower boss HP is better. Candles show progression across raid nights.'}
                 </p>
               </CardHeader>
               <CardBody className="flex h-full flex-col">
-                {wipes.loading ? (
+                {wipes.loading || pullHistory.loading ? (
                   <LoadingState rows={4} />
-                ) : activeProgressRows.length === 0 ? (
+                ) : progressCandles.length === 0 ? (
                   <div className="rounded-2xl border border-ctp-surface1 bg-ctp-surface1/30 p-4">
                     <p className="text-sm font-semibold text-ctp-text">Nothing left to progress here</p>
                     <p className="mt-2 text-xs text-ctp-overlay0">
-                      All bosses in this filter scope already have recorded kills, so week-over-week progression is not shown.
+                      No unresolved bosses in this filter scope have enough pull history for a raid-night candle.
                     </p>
                   </div>
                 ) : (
@@ -1611,69 +1904,41 @@ export function WipeAnalysis() {
                     <div className="mb-3 flex flex-wrap items-center justify-end gap-4 text-[11px] font-mono">
                       <span
                         className="inline-flex items-center gap-1.5"
-                        style={{ color: progressPreviousColor }}
+                        style={{ color: progressNeutralColor }}
                       >
                         <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: progressPreviousColor }}
+                          className="h-px w-4"
+                          style={{ backgroundColor: progressNeutralColor }}
                         />
-                        Last Week Avg %
+                        Open
                       </span>
-                      <span className="inline-flex items-center gap-1.5" style={{ color: progressCurrentColor }}>
+                      <span className="inline-flex items-center gap-1.5" style={{ color: progressImprovedColor }}>
                         <span
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: progressCurrentColor }}
+                          className="h-2.5 w-3 rounded-[3px] border"
+                          style={{ borderColor: progressImprovedColor, backgroundColor: 'transparent' }}
                         />
-                        Current Avg %
+                        Improved Close
+                      </span>
+                      <span className="inline-flex items-center gap-1.5" style={{ color: progressWorseColor }}>
+                        <span
+                          className="h-2.5 w-3 rounded-[3px]"
+                          style={{ backgroundColor: progressWorseColor }}
+                        />
+                        Regressed Close
                       </span>
                     </div>
 
-                    <ResponsiveContainer width="100%" height={260}>
-                      <BarChart data={activeProgressRows} margin={{ top: 4, right: 8, left: -20, bottom: 70 }}>
-                        <XAxis
-                          dataKey="boss_name"
-                          tickFormatter={(value: string) =>
-                            value.length > 14 ? `${value.slice(0, 13)}…` : value
-                          }
-                          tick={{
-                            fontSize: 10,
-                            fill: '#6c7086',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                          }}
-                          axisLine={false}
-                          tickLine={false}
-                          tickMargin={10}
-                          angle={-35}
-                          textAnchor="end"
-                          interval={0}
-                        />
-                        <YAxis
-                          tickFormatter={value => `${value}%`}
-                          tick={{
-                            fontSize: 10,
-                            fill: '#6c7086',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                          }}
-                          axisLine={false}
-                          tickLine={false}
-                        />
-                        <Tooltip content={<CtpTooltip />} cursor={{ fill: 'rgba(255,255,255,0.03)' }} />
-                        <Bar
-                          dataKey="lastWeek"
-                          name="Last Week Avg %"
-                          radius={[4, 4, 0, 0]}
-                          fill={progressPreviousColor}
-                          fillOpacity={0.45}
-                        />
-                        <Bar
-                          dataKey="avgBossPct"
-                          name="Current Avg %"
-                          radius={[4, 4, 0, 0]}
-                          fill={progressCurrentColor}
-                          fillOpacity={0.9}
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
+                    <ProgressSnapshotCandles
+                      key={
+                        currentProgressTarget
+                          ? `${currentProgressTarget.zone_name}-${currentProgressTarget.encounter_id}-${currentProgressTarget.difficulty}`
+                          : 'no-progress-target'
+                      }
+                      data={progressCandles}
+                      improvedColor={progressImprovedColor}
+                      worseColor={progressWorseColor}
+                      neutralColor={progressNeutralColor}
+                    />
                   </>
                 )}
               </CardBody>
@@ -1683,79 +1948,98 @@ export function WipeAnalysis() {
           <Card>
             <CardHeader>
               <CardTitle>Boss Progress Table</CardTitle>
-              <p className="mt-0.5 text-xs text-ctp-overlay1">
-                Best pull, average wipe HP, phase reached, duration, trend, and raid-night spread. Cleared bosses stay visible here as historical context.
-              </p>
             </CardHeader>
             {wipes.loading ? (
               <CardBody>
                 <LoadingState rows={8} />
               </CardBody>
             ) : (
-              <CardBody className="overflow-x-auto">
-                <Table>
-                  <THead>
+              <CardBody>
+                <div className="table-row-hover">
+                  <table className="w-full table-fixed border-collapse text-xs">
+                    <colgroup>
+                      <col className="w-[25%]" />
+                      <col className="w-[7%]" />
+                      <col className="w-[7%]" />
+                      <col className="w-[6%]" />
+                      <col className="w-[7%]" />
+                      <col className="w-[7%]" />
+                      <col className="w-[6%]" />
+                      <col className="w-[9%]" />
+                      <col className="w-[7%]" />
+                      <col className="w-[6%]" />
+                      <col className="w-[13%]" />
+                    </colgroup>
+                  <thead className="border-b border-ctp-surface1">
                     <tr>
-                      <Th>Boss</Th>
-                      <Th>Zone</Th>
-                      <Th>Diff</Th>
-                      <Th>Status</Th>
-                      <Th right>Wipes</Th>
-                      <Th right>Best %</Th>
-                      <Th right>Avg %</Th>
-                      <Th right>Max Phase</Th>
-                      <Th right>Avg Duration</Th>
-                      <Th right>Trend</Th>
-                      <Th right>Nights</Th>
-                      <Th>Last Wipe</Th>
+                      <th className="px-1.5 py-2 text-left font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Boss</th>
+                      <th className="px-1.5 py-2 text-left font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Diff</th>
+                      <th className="px-1.5 py-2 text-left font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Status</th>
+                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Wipes</th>
+                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Best</th>
+                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Avg</th>
+                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Phase</th>
+                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Dur</th>
+                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Trend</th>
+                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Nights</th>
+                      <th className="px-1.5 py-2 text-left font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Last</th>
                     </tr>
-                  </THead>
-                  <TBody>
-                    {historicalProgressRows.map(row => (
-                      <Tr key={`${row.encounter_id}-${row.difficulty}`}>
-                        <Td className="font-medium text-ctp-text">{row.boss_name}</Td>
-                        <Td className="max-w-[150px] truncate text-xs text-ctp-overlay1">{row.zone_name}</Td>
-                        <Td>
+                  </thead>
+                  <tbody className="divide-y divide-ctp-surface0">
+                    {historicalProgressRows.map(row => {
+                      const bestProgressPct = row.isCleared ? 0 : Number(row.best_wipe_pct)
+
+                      return (
+                      <tr key={`${row.encounter_id}-${row.difficulty}`} className="transition-colors duration-100">
+                        <td className="min-w-0 px-1.5 py-2.5">
+                          <div className="truncate font-medium text-ctp-text">{row.boss_name}</div>
+                          <div className="truncate text-[10px] text-ctp-overlay0">{row.zone_name}</div>
+                        </td>
+                        <td className="overflow-hidden px-1.5 py-2.5">
                           <DiffBadge label={row.difficulty_label} />
-                        </Td>
-                        <Td>
-                          <StatusPill label={row.isCleared ? 'Cleared' : 'Active'} active={!row.isCleared} />
-                        </Td>
-                        <Td right mono style={{ color: wipeColor }}>
+                        </td>
+                        <td className="overflow-hidden px-1.5 py-2.5">
+                          <StatusPill
+                            label={row.isCleared ? 'Done' : 'Active'}
+                            active={!row.isCleared}
+                            compact
+                          />
+                        </td>
+                        <td className="px-1.5 py-2.5 text-right font-mono" style={{ color: wipeColor }}>
                           {formatNumber(row.total_wipes)}
-                        </Td>
-                        <Td
-                          right
-                          mono
-                          style={{ color: getParseColor(100 - Number(row.best_wipe_pct)) }}
+                        </td>
+                        <td
+                          className="px-1.5 py-2.5 text-right font-mono"
+                          style={{ color: getParseColor(100 - bestProgressPct) }}
                         >
-                          {formatPct(row.best_wipe_pct)}
-                        </Td>
-                        <Td right mono className="text-ctp-overlay1">
+                          {formatPct(bestProgressPct)}
+                        </td>
+                        <td className="px-1.5 py-2.5 text-right font-mono text-ctp-overlay1">
                           {formatPct(row.avgBossPct)}
-                        </Td>
-                        <Td right mono className="text-ctp-overlay1">
+                        </td>
+                        <td className="px-1.5 py-2.5 text-right font-mono text-ctp-overlay1">
                           {row.maxPhase || '—'}
-                        </Td>
-                        <Td right mono className="text-ctp-overlay1">
+                        </td>
+                        <td className="px-1.5 py-2.5 text-right font-mono text-ctp-overlay1">
                           {formatDuration(Number(row.avg_wipe_duration_seconds))}
-                        </Td>
-                        <Td
-                          right
-                          mono
+                        </td>
+                        <td
+                          className="px-1.5 py-2.5 text-right font-mono"
                           style={{ color: Number(row.trend) < 0 ? topTierColor : wipeColor }}
                         >
                           {Number(row.trend) > 0 ? '+' : ''}
                           {Number(row.trend).toFixed(1)}%
-                        </Td>
-                        <Td right mono className="text-ctp-overlay1">
+                        </td>
+                        <td className="px-1.5 py-2.5 text-right font-mono text-ctp-overlay1">
                           {formatNumber(row.raid_nights_attempted)}
-                        </Td>
-                        <Td className="text-xs text-ctp-overlay0">{formatDate(row.latest_wipe_date)}</Td>
-                      </Tr>
-                    ))}
-                  </TBody>
-                </Table>
+                        </td>
+                        <td className="truncate px-1.5 py-2.5 text-xs text-ctp-overlay0">{formatDate(row.latest_wipe_date)}</td>
+                      </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+                </div>
               </CardBody>
             )}
           </Card>
@@ -1974,14 +2258,14 @@ export function WipeAnalysis() {
                   </p>
                 ) : (
                   <>
-                    <div className="space-y-2.5">
+                    <div className="mt-2.5 flex min-h-[248px] flex-col justify-evenly gap-2">
                       {firstDeathLeaders.slice(0, 10).map((row, i) => {
                         const max = firstDeathLeaders[0].count
                         const pct = max > 0 ? (row.count / max) * 100 : 0
                         return (
                           <div
                             key={row.player_name}
-                            className="grid grid-cols-[24px_18px_minmax(0,100px)_1fr_48px] items-center gap-3"
+                            className="grid min-h-[20px] grid-cols-[24px_18px_minmax(0,100px)_1fr_48px] items-center gap-3"
                           >
                             <span className="text-right font-mono text-[10px] text-ctp-overlay0">
                               {i + 1}
@@ -2228,21 +2512,10 @@ export function WipeAnalysis() {
 
           <Card>
             <CardHeader>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <CardTitle>Player Survivability</CardTitle>
-                  <p className="mt-0.5 text-xs text-ctp-overlay1">
-                    Top 10 in the current scope. Wipe deaths matter more than kill deaths when reading this table.
-                  </p>
-                </div>
-                <FilterTabs
-                  options={SURVIVABILITY_BASIS_OPTIONS}
-                  value={survivabilityBasis}
-                  onChange={setSurvivabilityBasis}
-                  className="flex-shrink-0"
-                  buttonClassName="px-3 py-1.5"
-                />
-              </div>
+              <CardTitle>Player Survivability</CardTitle>
+              <p className="mt-0.5 text-xs text-ctp-overlay1">
+                Top 10 in the current scope. Wipe deaths matter more than kill deaths when reading this table.
+              </p>
             </CardHeader>
 
             {deathEvents.loading || roster.loading ? (
@@ -2272,6 +2545,20 @@ export function WipeAnalysis() {
                       <Th right>
                         <button
                           type="button"
+                          onClick={() => sortSurvivabilityBy('killDeath')}
+                          className="transition-colors hover:text-ctp-mauve"
+                        >
+                          On Kills
+                          {survivabilitySort.key === 'killDeath'
+                            ? survivabilitySort.direction === 'asc'
+                              ? ' ↑'
+                              : ' ↓'
+                            : ''}
+                        </button>
+                      </Th>
+                      <Th right>
+                        <button
+                          type="button"
                           onClick={() => sortSurvivabilityBy('wipeDeath')}
                           className="transition-colors hover:text-ctp-mauve"
                         >
@@ -2286,11 +2573,11 @@ export function WipeAnalysis() {
                       <Th right>
                         <button
                           type="button"
-                          onClick={() => sortSurvivabilityBy('attempts')}
+                          onClick={() => sortSurvivabilityBy('kills')}
                           className="transition-colors hover:text-ctp-mauve"
                         >
-                          {survivabilityBasis === 'kill' ? 'Kills' : 'Pulls'}
-                          {survivabilitySort.key === 'attempts'
+                          Kills
+                          {survivabilitySort.key === 'kills'
                             ? survivabilitySort.direction === 'asc'
                               ? ' ↑'
                               : ' ↓'
@@ -2300,11 +2587,39 @@ export function WipeAnalysis() {
                       <Th right>
                         <button
                           type="button"
-                          onClick={() => sortSurvivabilityBy('deathRate')}
+                          onClick={() => sortSurvivabilityBy('pulls')}
                           className="transition-colors hover:text-ctp-mauve"
                         >
-                          Deaths/{survivabilityBasis === 'kill' ? 'Kill' : 'Pull'}
-                          {survivabilitySort.key === 'deathRate'
+                          Pulls
+                          {survivabilitySort.key === 'pulls'
+                            ? survivabilitySort.direction === 'asc'
+                              ? ' ↑'
+                              : ' ↓'
+                            : ''}
+                        </button>
+                      </Th>
+                      <Th right>
+                        <button
+                          type="button"
+                          onClick={() => sortSurvivabilityBy('deathsPerKill')}
+                          className="transition-colors hover:text-ctp-mauve"
+                        >
+                          Deaths/Kill
+                          {survivabilitySort.key === 'deathsPerKill'
+                            ? survivabilitySort.direction === 'asc'
+                              ? ' ↑'
+                              : ' ↓'
+                            : ''}
+                        </button>
+                      </Th>
+                      <Th right>
+                        <button
+                          type="button"
+                          onClick={() => sortSurvivabilityBy('deathsPerPull')}
+                          className="transition-colors hover:text-ctp-mauve"
+                        >
+                          Deaths/Pull
+                          {survivabilitySort.key === 'deathsPerPull'
                             ? survivabilitySort.direction === 'asc'
                               ? ' ↑'
                               : ' ↓'
@@ -2317,8 +2632,10 @@ export function WipeAnalysis() {
 
                   <TBody>
                     {playerRows.map(row => {
-                      const rate =
-                        survivabilityBasis === 'kill' ? row.deaths_per_kill : row.deaths_per_pull
+                      const deathPerKill = row.deaths_per_kill
+                      const deathPerPull = row.deaths_per_pull
+                      const onWipesDeaths = row.kill_deaths
+                      const onKillsDeaths = row.wipe_deaths
 
                       return (
                         <Tr key={row.player_name}>
@@ -2335,31 +2652,56 @@ export function WipeAnalysis() {
 
                           <Td right mono>
                             <span
-                              style={{ color: row.wipe_deaths > 0 ? wipeColor : undefined }}
-                              className={row.wipe_deaths === 0 ? 'text-ctp-overlay0' : undefined}
+                              style={{ color: onWipesDeaths > 0 ? wipeColor : undefined }}
+                              className={onWipesDeaths === 0 ? 'text-ctp-overlay0' : undefined}
                             >
-                              {formatNumber(row.wipe_deaths)}
+                              {formatNumber(onWipesDeaths)}
                             </span>
                             {row.total_deaths > 0 ? (
                               <span className="ml-1 text-[10px] text-ctp-overlay0">
-                                ({((row.wipe_deaths / row.total_deaths) * 100).toFixed(0)}%)
+                                ({((onWipesDeaths / row.total_deaths) * 100).toFixed(0)}%)
+                              </span>
+                            ) : null}
+                          </Td>
+
+                          <Td right mono>
+                            <span
+                              style={{ color: onKillsDeaths > 0 ? topTierColor : undefined }}
+                              className={onKillsDeaths === 0 ? 'text-ctp-overlay0' : undefined}
+                            >
+                              {formatNumber(onKillsDeaths)}
+                            </span>
+                            {row.total_deaths > 0 ? (
+                              <span className="ml-1 text-[10px] text-ctp-overlay0">
+                                ({((onKillsDeaths / row.total_deaths) * 100).toFixed(0)}%)
                               </span>
                             ) : null}
                           </Td>
 
                           <Td right mono className="text-ctp-overlay1">
-                            {formatNumber(
-                              survivabilityBasis === 'kill' ? row.kills_tracked : row.pulls_tracked
-                            )}
+                            {formatNumber(row.kills_tracked)}
+                          </Td>
+
+                          <Td right mono className="text-ctp-overlay1">
+                            {formatNumber(row.pulls_tracked)}
                           </Td>
 
                           <Td
                             right
                             mono
-                            style={rate != null ? { color: getDeathRateColor(rate) } : undefined}
-                            className={rate == null ? 'text-ctp-overlay0' : undefined}
+                            style={deathPerKill != null ? { color: getDeathRateColor(deathPerKill) } : undefined}
+                            className={deathPerKill == null ? 'text-ctp-overlay0' : undefined}
                           >
-                            {rate != null ? rate.toFixed(1) : '—'}
+                            {deathPerKill != null ? deathPerKill.toFixed(1) : '—'}
+                          </Td>
+
+                          <Td
+                            right
+                            mono
+                            style={deathPerPull != null ? { color: getDeathRateColor(deathPerPull) } : undefined}
+                            className={deathPerPull == null ? 'text-ctp-overlay0' : undefined}
+                          >
+                            {deathPerPull != null ? deathPerPull.toFixed(1) : '—'}
                           </Td>
 
                           <Td className="max-w-[220px] font-mono text-[10px] text-ctp-overlay0">

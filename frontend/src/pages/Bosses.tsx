@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Swords, Trophy } from 'lucide-react'
 import clsx from 'clsx'
@@ -13,19 +13,60 @@ import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { BossProgressHistoryChart } from '../components/charts/BossProgressHistoryChart'
-import { useBossProgression, useBestKills, useBossWipeAnalysis, useBossPullHistory, useGuildZoneRanks } from '../hooks/useGoldData'
-import { formatNumber, formatDate } from '../utils/format'
+import { useBossProgression, useBestKills, useBossWipeAnalysis, useBossPullHistory, useGuildZoneRanks, useBossMechanics } from '../hooks/useGoldData'
+import { formatNumber, formatDate, formatPct } from '../utils/format'
 import { DIFFICULTY_ORDER, formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { isIncludedZoneName } from '../utils/zones'
 
+function MiniNote({ children }: { children: ReactNode }) {
+  return <p className="text-[10px] font-mono text-ctp-overlay0">{children}</p>
+}
+
+function StatusPill({ label, active = false }: { label: string; active?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.18em] ${
+        active
+          ? 'border-ctp-mauve/30 bg-ctp-mauve/10 text-ctp-mauve'
+          : 'border-ctp-surface2 bg-ctp-surface1/50 text-ctp-overlay0'
+      }`}
+    >
+      {label}
+    </span>
+  )
+}
+
+function SignalTile({
+  label,
+  value,
+  detail,
+  accentClass = 'text-ctp-text',
+}: {
+  label: string
+  value: ReactNode
+  detail: ReactNode
+  accentClass?: string
+}) {
+  return (
+    <div className="rounded-2xl border border-ctp-surface1/60 bg-ctp-surface1/30 p-3.5">
+      <p className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-ctp-overlay0">
+        {label}
+      </p>
+      <div className={`text-sm font-semibold leading-tight ${accentClass}`}>{value}</div>
+      <p className="mt-1 text-[10px] font-mono leading-relaxed text-ctp-overlay0">{detail}</p>
+    </div>
+  )
+}
+
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal']
 
 export function Bosses() {
-  const { getDifficultyColor, killColor, wipeColor, topTierColor } = useColourBlind()
+  const { getDifficultyColor, killColor, wipeColor, topTierColor, chartColors, getParseColor } = useColourBlind()
   const prog = useBossProgression()
   const best = useBestKills()
   const wipeAnalysis = useBossWipeAnalysis()
+  const mechanics = useBossMechanics()
   const history = useBossPullHistory()
   const zoneRanks = useGuildZoneRanks()
 
@@ -168,6 +209,119 @@ export function Bosses() {
     return m
   }, [wipeAnalysis.data, canonicalZoneByEncounter])
 
+  const isKilledRow = (b: { is_killed: string }) =>
+    b.is_killed === 'True' || (b.is_killed as unknown) === true
+
+  const mechanicsMap = useMemo(() => {
+    const m = new Map<string, typeof mechanics.data[0]>()
+    mechanics.data.forEach(r => { m.set(`${r.encounter_id}-${r.difficulty}`, r) })
+    return m
+  }, [mechanics.data])
+
+  const bossSpotlight = useMemo(() => {
+    const unresolvedKeys = new Set(
+      filtered.filter(b => !isKilledRow(b)).map(b => `${b.encounter_id}-${b.difficulty}`)
+    )
+    const row = [...wipeAnalysis.data]
+      .filter(w =>
+        unresolvedKeys.has(`${w.encounter_id}-${w.difficulty}`) &&
+        canonicalZoneByEncounter.get(String(w.encounter_id)) === w.zone_name
+      )
+      .filter(w => Number(w.best_wipe_pct) > 0)
+      .sort((a, b) => Number(a.best_wipe_pct) - Number(b.best_wipe_pct))[0]
+    if (!row) return null
+    const mech = mechanicsMap.get(`${row.encounter_id}-${row.difficulty}`)
+    const trend = Number(mech?.progress_trend ?? 0)
+    const trendDirection = trend < 0 ? 'improving' : trend > 0 ? 'regressing' : 'flat'
+    return { ...row, trend, trendDirection }
+  }, [filtered, wipeAnalysis.data, mechanicsMap, canonicalZoneByEncounter])
+
+  const progressionSignals = useMemo(() => {
+    const totalPulls = filtered.reduce((s, b) => s + Number(b.total_pulls), 0)
+    const totalKills = filtered.reduce((s, b) => s + Number(b.total_kills), 0)
+    const killRatePct = totalPulls > 0 ? (totalKills / totalPulls) * 100 : 0
+
+    const killedBosses = filtered.filter(isKilledRow)
+    const avgPullsToKill =
+      killedBosses.length > 0
+        ? killedBosses.reduce((s, b) => s + Number(b.total_pulls), 0) / killedBosses.length
+        : 0
+
+    const unresolvedBosses = filtered.filter(b => !isKilledRow(b))
+    const unresolvedPulls = unresolvedBosses.reduce((s, b) => s + Number(b.total_pulls), 0)
+    const topWipeWall = [...unresolvedBosses].sort(
+      (a, b) => Number(b.total_wipes) - Number(a.total_wipes)
+    )[0] ?? null
+
+    const unresolvedKeys = new Set(unresolvedBosses.map(b => `${b.encounter_id}-${b.difficulty}`))
+    const closestUnresolved = [...wipeAnalysis.data]
+      .filter(w =>
+        unresolvedKeys.has(`${w.encounter_id}-${w.difficulty}`) &&
+        canonicalZoneByEncounter.get(String(w.encounter_id)) === w.zone_name
+      )
+      .filter(w => Number(w.best_wipe_pct) > 0)
+      .sort((a, b) => Number(a.best_wipe_pct) - Number(b.best_wipe_pct))[0] ?? null
+
+    const filteredBestKeys = new Set(filtered.map(b => `${b.encounter_id}-${b.difficulty}`))
+    const fastestKill = [...best.data]
+      .filter(b =>
+        filteredBestKeys.has(`${b.encounter_id}-${b.difficulty}`) &&
+        canonicalZoneByEncounter.get(String(b.encounter_id)) === b.zone_name
+      )
+      .sort((a, b) => Number(a.best_kill_seconds) - Number(b.best_kill_seconds))[0] ?? null
+
+    return [
+      {
+        label: 'Kill rate',
+        value: totalPulls > 0 ? `${killRatePct.toFixed(0)}% of pulls end in a kill` : 'No pulls in scope',
+        detail: totalPulls > 0
+          ? `${formatNumber(totalKills)} kills across ${formatNumber(totalPulls)} total pulls`
+          : 'Adjust the filters to see data',
+        accentClass: 'text-ctp-text',
+      },
+      {
+        label: 'Biggest wipe wall',
+        value: topWipeWall ? topWipeWall.boss_name : 'Nothing unresolved',
+        detail: topWipeWall
+          ? `${formatNumber(Number(topWipeWall.total_wipes))} wipes · still in progress`
+          : 'All bosses cleared in scope',
+        accentClass: topWipeWall ? 'text-ctp-peach' : 'text-ctp-overlay1',
+      },
+      {
+        label: 'Closest to a kill',
+        value: closestUnresolved ? closestUnresolved.boss_name : 'Nothing unresolved',
+        detail: closestUnresolved
+          ? `Best pull: ${formatPct(closestUnresolved.best_wipe_pct)} HP remaining`
+          : 'All bosses in scope are cleared',
+        accentClass: closestUnresolved ? 'text-ctp-mauve' : 'text-ctp-overlay1',
+      },
+      {
+        label: 'Record kill time',
+        value: fastestKill ? fastestKill.boss_name : 'No kills in scope',
+        detail: fastestKill
+          ? `${fastestKill.best_kill_mm_ss || formatDuration(Number(fastestKill.best_kill_seconds))} · fastest in scope`
+          : 'Adjust the filters to see data',
+        accentClass: fastestKill ? 'text-ctp-text' : 'text-ctp-overlay1',
+      },
+      {
+        label: 'Avg pulls per cleared boss',
+        value: killedBosses.length > 0 ? `${avgPullsToKill.toFixed(1)} pulls` : '—',
+        detail: killedBosses.length > 0
+          ? `Across ${killedBosses.length} cleared boss${killedBosses.length !== 1 ? 'es' : ''} in scope`
+          : 'No cleared bosses in scope',
+        accentClass: 'text-ctp-text',
+      },
+      {
+        label: 'Unresolved pull investment',
+        value: unresolvedBosses.length > 0 ? `${formatNumber(unresolvedPulls)} pulls` : 'Nothing unresolved',
+        detail: unresolvedBosses.length > 0
+          ? `Across ${unresolvedBosses.length} unresolved boss${unresolvedBosses.length !== 1 ? 'es' : ''} in scope`
+          : 'All bosses in scope are cleared',
+        accentClass: unresolvedBosses.length > 0 ? 'text-ctp-text' : 'text-ctp-overlay1',
+      },
+    ]
+  }, [filtered, wipeAnalysis.data, best.data, canonicalZoneByEncounter])
+
   const focusBoss = useMemo(() => {
     const inProgress = [...filtered]
       .filter(b => !(b.is_killed === 'True' || b.is_killed === (true as unknown as string)))
@@ -237,6 +391,123 @@ export function Bosses() {
             className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-44"
           />
         </div>
+      </div>
+
+      {/* Signal Board + Boss Spotlight */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <Card className="h-full xl:col-span-2">
+          <CardHeader>
+            <CardTitle>Signal Board</CardTitle>
+            <p className="mt-0.5 text-xs text-ctp-overlay1">Compact reads from the current scope.</p>
+          </CardHeader>
+          <CardBody className="h-full">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {progressionSignals.map(signal => (
+                <SignalTile
+                  key={signal.label}
+                  label={signal.label}
+                  value={signal.value}
+                  detail={signal.detail}
+                  accentClass={signal.accentClass}
+                />
+              ))}
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="h-full">
+          <CardHeader>
+            <CardTitle>Boss Spotlight</CardTitle>
+            <p className="mt-0.5 text-xs text-ctp-overlay1">
+              The unresolved boss currently closest to becoming a kill.
+            </p>
+          </CardHeader>
+          <CardBody className="flex h-full flex-col space-y-4">
+            {!bossSpotlight ? (
+              <div className="rounded-2xl border border-ctp-surface1 bg-ctp-surface1/30 p-4">
+                <p className="text-sm font-semibold text-ctp-text">No active progression target</p>
+                <p className="mt-2 text-xs text-ctp-overlay0">
+                  All bosses in this scope already have recorded kills, so the spotlight is intentionally blank.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-2xl border border-ctp-surface1 bg-ctp-surface1/35 p-3.5">
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="section-label">Target</p>
+                    <StatusPill label="Active" active />
+                  </div>
+                  <p className="text-base font-semibold text-ctp-text">{bossSpotlight.boss_name}</p>
+                  <p className="mt-1 text-xs text-ctp-overlay0">
+                    {bossSpotlight.difficulty_label} · {formatNumber(bossSpotlight.total_wipes)} wipes
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-ctp-surface1 bg-ctp-surface1/35 p-3">
+                    <p className="section-label mb-1">Best Pull</p>
+                    <p
+                      className="text-base font-semibold"
+                      style={{ color: getParseColor(100 - Number(bossSpotlight.best_wipe_pct)) }}
+                    >
+                      {formatPct(bossSpotlight.best_wipe_pct)}
+                    </p>
+                    <MiniNote>boss HP remaining</MiniNote>
+                  </div>
+
+                  <div className="rounded-2xl border border-ctp-surface1 bg-ctp-surface1/35 p-3">
+                    <p className="section-label mb-1">Trend</p>
+                    <p
+                      className="text-base font-semibold"
+                      style={{
+                        color:
+                          bossSpotlight.trendDirection === 'improving'
+                            ? topTierColor
+                            : bossSpotlight.trendDirection === 'regressing'
+                              ? wipeColor
+                              : chartColors.secondary,
+                      }}
+                    >
+                      {bossSpotlight.trendDirection}
+                    </p>
+                    <MiniNote>
+                      {Number(bossSpotlight.trend) > 0 ? '+' : ''}
+                      {Number(bossSpotlight.trend).toFixed(1)}% vs last week
+                    </MiniNote>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-ctp-surface1 bg-ctp-surface1/35 p-3.5">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="section-label">Kill proximity</p>
+                    <p
+                      className="text-sm font-semibold"
+                      style={{ color: getParseColor(100 - Number(bossSpotlight.best_wipe_pct)) }}
+                    >
+                      {Math.max(0, 100 - Number(bossSpotlight.best_wipe_pct)).toFixed(0)}%
+                    </p>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-ctp-surface0">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${Math.max(4, 100 - Number(bossSpotlight.best_wipe_pct))}%`,
+                        backgroundColor: getParseColor(100 - Number(bossSpotlight.best_wipe_pct)),
+                      }}
+                    />
+                  </div>
+                  <p className="mt-3 text-xs text-ctp-subtext1">
+                    {Number(bossSpotlight.best_wipe_pct) <= 10
+                      ? 'This boss is close. The biggest gains are likely consistency and fewer preventable deaths.'
+                      : Number(bossSpotlight.best_wipe_pct) <= 30
+                        ? 'This is a real progression target now. Study later-phase failures and repeat killer mechanics.'
+                        : 'This boss is still some distance away. Early pull stability and cleaner openings should move the needle most.'}
+                  </p>
+                </div>
+              </>
+            )}
+          </CardBody>
+        </Card>
       </div>
 
       <Card>

@@ -75,7 +75,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,total_wipes,best_wi
 2433,The Eye of the Jailer,Sanctum of Domination,3,Normal,2,12.76,55.59,1.0,1,136.5,227,2021-07-07,2021-08-08,2,55.6
 2684,Echo of Neltharion,"Aberrus, the Shadowed Crucible",3,Normal,4,20.74,47.5325,1.75,3,175.0,291,2023-05-10,2023-05-28,3,47.5
 2917,The Bloodbound Horror,Nerub-ar Palace,5,Mythic,23,3.69,46.95434782608696,0.0,0,167.17391304347825,298,2024-10-07,2024-11-06,6,47.0
-3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,8,16.02,40.2925,1.0,1,229.875,340,2026-04-15,2026-04-15,1,40.3
 2543,Lords of Dread,Sepulcher of the First Ones,4,Heroic,13,11.54,43.54,0.0,0,270.84615384615387,465,2022-03-28,2022-09-12,4,43.5
 2687,The Amalgamation Chamber,"Aberrus, the Shadowed Crucible",5,Mythic,24,7.27,48.93416666666667,1.5,2,176.16666666666666,382,2023-05-29,2024-05-06,7,48.9
 2434,Soulrender Dormazain,Sanctum of Domination,4,Heroic,12,3.87,27.959999999999997,0.0,0,325.25,491,2021-07-14,2021-07-28,3,28.0
@@ -213,3 +212,5 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,total_wipes,best_wi
 2922,Queen Ansurek,Manaforge Omega,5,Mythic,3,19.94,24.2,2.3333333333333335,3,159.0,183,2026-01-26,2026-01-26,1,24.2
 3129,Plexus Sentinel,Manaforge Omega,3,Normal,1,77.59,77.59,1.0,1,38.0,38,2025-11-23,2025-11-23,1,77.6
 2423,The Tarragrue,Sanctum of Domination,3,Normal,1,30.73,30.73,1.0,1,312.0,312,2021-07-07,2021-07-07,1,30.7
+3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,15,2.97,32.650666666666666,1.0666666666666667,2,266.6666666666667,382,2026-04-15,2026-04-20,2,32.7
+3178,Vaelgor & Ezzorak,VS / DR / MQD,5,Mythic,20,51.87,70.1375,1.1,2,147.05,267,2026-04-20,2026-04-20,1,70.1
