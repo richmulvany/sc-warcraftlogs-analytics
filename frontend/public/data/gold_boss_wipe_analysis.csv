@@ -59,7 +59,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,total_wipes,best_wi
 2614,Broodkeeper Diurna,Vault of the Incarnates,5,Mythic,96,3.79,65.10531250000001,1.2604166666666667,2,220.20833333333334,574,2023-02-20,2023-04-19,6,65.1
 2433,The Eye of the Jailer,Sanctum of Domination,5,Mythic,30,0.64,52.417666666666676,1.0,1,242.7,520,2021-08-16,2021-09-22,7,52.4
 2786,"Tindral Sageswift, Seer of the Flame","Amirdrassil, the Dream's Hope",3,Normal,1,4.26,4.26,3.0,3,400.0,400,2023-11-15,2023-11-15,1,4.3
-3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,15,51.52,68.82533333333335,1.7333333333333334,2,164.4,255,2026-04-08,2026-04-15,2,68.8
 2786,"Tindral Sageswift, Seer of the Flame","Amirdrassil, the Dream's Hope",4,Heroic,17,0.07,47.5035294117647,1.7647058823529411,3,202.23529411764707,405,2023-11-27,2024-05-29,7,47.5
 3178,Vaelgor & Ezzorak,VS / DR / MQD,4,Heroic,11,0.32,51.622727272727275,1.0909090909090908,2,260.8181818181818,570,2026-03-23,2026-03-25,2,51.6
 2682,Assault of the Zaqali,"Aberrus, the Shadowed Crucible",5,Mythic,5,6.52,18.674,1.8,2,302.4,344,2023-05-31,2023-07-05,4,18.7
@@ -212,5 +211,6 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,total_wipes,best_wi
 2922,Queen Ansurek,Manaforge Omega,5,Mythic,3,19.94,24.2,2.3333333333333335,3,159.0,183,2026-01-26,2026-01-26,1,24.2
 3129,Plexus Sentinel,Manaforge Omega,3,Normal,1,77.59,77.59,1.0,1,38.0,38,2025-11-23,2025-11-23,1,77.6
 2423,The Tarragrue,Sanctum of Domination,3,Normal,1,30.73,30.73,1.0,1,312.0,312,2021-07-07,2021-07-07,1,30.7
-3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,15,2.97,32.650666666666666,1.0666666666666667,2,266.6666666666667,382,2026-04-15,2026-04-20,2,32.7
-3178,Vaelgor & Ezzorak,VS / DR / MQD,5,Mythic,20,51.87,70.1375,1.1,2,147.05,267,2026-04-20,2026-04-20,1,70.1
+3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,18,43.81,65.02333333333334,1.7222222222222223,2,180.16666666666666,277,2026-04-08,2026-04-22,3,65.0
+3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,18,0.65,34.10388888888889,1.0555555555555556,2,258.22222222222223,385,2026-04-15,2026-04-22,3,34.1
+3178,Vaelgor & Ezzorak,VS / DR / MQD,5,Mythic,31,33.31,65.29903225806451,1.096774193548387,2,174.38709677419354,361,2026-04-20,2026-04-22,2,65.3

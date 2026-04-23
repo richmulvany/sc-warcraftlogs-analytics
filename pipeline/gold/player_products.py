@@ -2,8 +2,6 @@
 # Gold layer — player-focused data products
 #
 # gold_player_attendance        — per-player attendance rates across all raids
-# gold_weekly_activity          — raid frequency and boss kills by ISO week
-# gold_roster                   — active player roster with class and realm
 # gold_player_performance_summary — aggregated throughput per player across kills
 # gold_boss_kill_roster         — per-player stats on every boss kill
 # gold_player_boss_performance  — per-player per-boss performance aggregated across kills
@@ -11,7 +9,6 @@
 import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
-
 
 # ── Player Attendance Summary ──────────────────────────────────────────────────
 # "Who is turning up to raids and how often?"
@@ -47,104 +44,6 @@ def gold_player_attendance():
             ),
         )
         .orderBy(F.col("attendance_rate_pct").desc(), F.col("player_name"))
-    )
-
-
-# ── Weekly Raid Activity ───────────────────────────────────────────────────────
-# "How many raids did we run each week and how much progress did we make?"
-
-@dlt.table(
-    name="gold_weekly_activity",
-    comment="Raid count and boss kill totals grouped by ISO week.",
-    table_properties={"quality": "gold"},
-)
-def gold_weekly_activity():
-    reports = dlt.read("silver_guild_reports")
-    fights = dlt.read("silver_fight_events")
-
-    fight_stats = fights.groupBy("report_code").agg(
-        F.sum(F.col("is_kill").cast("integer")).alias("boss_kills"),
-        F.sum((~F.col("is_kill")).cast("integer")).alias("total_wipes"),
-        F.count("*").alias("total_pulls"),
-        F.sum("duration_seconds").alias("total_time_seconds"),
-        F.collect_set("zone_name").alias("zones_raided"),
-    )
-
-    return (
-        reports
-        .join(fight_stats, reports.code == fight_stats.report_code, "left")
-        .select(
-            F.date_trunc("week", F.col("start_time_utc")).alias("week_start"),
-            F.col("code"),
-            F.coalesce(F.col("boss_kills"), F.lit(0)).alias("boss_kills"),
-            F.coalesce(F.col("total_wipes"), F.lit(0)).alias("total_wipes"),
-            F.coalesce(F.col("total_pulls"), F.lit(0)).alias("total_pulls"),
-            F.coalesce(F.col("total_time_seconds"), F.lit(0)).alias("total_time_seconds"),
-            F.col("zones_raided"),
-        )
-        .groupBy("week_start")
-        .agg(
-            F.count("code").alias("raid_nights"),
-            F.sum("boss_kills").alias("total_boss_kills"),
-            F.sum("total_wipes").alias("total_wipes"),
-            F.sum("total_pulls").alias("total_pulls"),
-            F.sum("total_time_seconds").alias("total_raid_seconds"),
-            F.flatten(F.collect_list("zones_raided")).alias("zones_raided_flat"),
-        )
-        .withColumn("zones_raided", F.array_distinct(F.col("zones_raided_flat")))
-        .drop("zones_raided_flat")
-        .orderBy("week_start")
-    )
-
-
-# ── Guild Roster ───────────────────────────────────────────────────────────────
-# "Who is in the guild? What class/realm is each player?"
-
-@dlt.table(
-    name="gold_roster",
-    comment=(
-        "Active guild roster derived from masterData actor logs and attendance records. "
-        "One row per player with latest-seen class, realm, and attendance summary."
-    ),
-    table_properties={
-        "quality": "gold",
-        "pipelines.autoOptimize.zOrderCols": "player_name",
-    },
-)
-def gold_roster():
-    actors = dlt.read("silver_actor_roster")
-    attendance = dlt.read("silver_raid_attendance")
-
-    # Most-recent class/realm snapshot per player from actor logs
-    w = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
-    latest_actor = (
-        actors
-        .withColumn("_rn", F.row_number().over(w))
-        .filter(F.col("_rn") == 1)
-        .select("player_name", "player_class", "realm")
-    )
-
-    att_summary = (
-        attendance
-        .groupBy("player_name")
-        .agg(
-            F.count("*").alias("total_raids_tracked"),
-            F.sum(F.when(F.col("presence") == 1, 1).otherwise(0)).alias("raids_present"),
-            F.max("raid_night_date").alias("last_seen"),
-            F.min("raid_night_date").alias("first_seen"),
-        )
-        .withColumn(
-            "attendance_rate_pct",
-            F.round(
-                F.col("raids_present") / F.greatest(F.col("total_raids_tracked"), F.lit(1)) * 100, 1
-            ),
-        )
-    )
-
-    return (
-        latest_actor
-        .join(att_summary, "player_name", "left")
-        .orderBy(F.col("last_seen").desc(), F.col("player_name"))
     )
 
 

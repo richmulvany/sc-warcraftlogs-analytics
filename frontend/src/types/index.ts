@@ -94,6 +94,75 @@ export interface PlayerAttendance {
   attendance_rate_pct: number
 }
 
+export interface PlayerUtilityByPull {
+  report_code: string
+  fight_id: string
+  encounter_id: string
+  boss_name: string
+  zone_name: string
+  difficulty: string
+  difficulty_label: string
+  raid_night_date: string
+  is_kill: string | boolean
+  player_name: string
+  player_class: string
+  health_potion_uses: number
+  healthstone_casts: number
+  defensive_casts: number
+  defensive_abilities: string
+}
+
+export interface WipeSurvivalEvent {
+  report_code: string
+  fight_id: string
+  encounter_id: string
+  boss_name: string
+  zone_name: string
+  zone_id: string
+  difficulty: string
+  difficulty_label: string
+  raid_night_date: string
+  player_name: string
+  player_class: string
+  spec_id: string | number
+  death_timestamp_ms: number
+  fight_start_ms: number
+  killing_blow_name: string
+  killing_blow_id: string
+  defensive_active_at_death: number
+  defensive_available_at_death: number
+  available_defensive_unused_at_death: number
+  last_defensive_cast_before_death_ms: number
+  active_defensives: string
+  available_defensives: string
+  healthstone_before_death: number
+  health_potion_before_death: number
+}
+
+export interface WipeCooldownUtilization {
+  report_code: string
+  fight_id: string
+  encounter_id: string
+  boss_name: string
+  zone_name: string
+  difficulty: string
+  difficulty_label: string
+  raid_night_date: string
+  duration_seconds: number
+  player_name: string
+  player_class: string
+  spec_id: string | number
+  cooldown_category: 'personal' | 'personal_spec' | 'raid' | 'external'
+  ability_id: string
+  ability_name: string
+  cooldown_seconds: number
+  active_seconds: number
+  possible_casts: number
+  actual_casts: number
+  missed_casts: number
+  cast_efficiency_pct: number
+}
+
 export interface GuildRoster {
   name: string
   player_class: string
@@ -430,6 +499,37 @@ export interface PlayerMplusWeeklyActivity {
   highest_key_level: number
   unique_dungeons: number
   most_common_key_level: number
+}
+
+export interface PlayerConsumables {
+  player_name: string
+  player_class: string
+  role: string
+  kills_tracked: number
+  kills_with_potion: number
+  kills_with_healthstone: number
+  potion_use_rate: number
+  healthstone_use_rate: number
+  boss_consumable_details: string
+}
+
+export interface PlayerCombatStats {
+  player_name: string
+  player_class: string
+  role: string
+  spec: string
+  kills_tracked: number
+  latest_avg_item_level: number
+  latest_crit_rating: number
+  latest_haste_rating: number
+  latest_mastery_rating: number
+  latest_versatility_rating: number
+  avg_item_level: number
+  avg_crit_rating: number
+  avg_haste_rating: number
+  avg_mastery_rating: number
+  avg_versatility_rating: number
+  latest_kill_date: string
 }
 
 export interface PlayerMplusDungeonBreakdown {

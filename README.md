@@ -4,7 +4,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-A production-grade **Databricks medallion pipeline** that ingests WoW raid data from the [WarcraftLogs v2 GraphQL API](https://www.warcraftlogs.com/api/docs), [Blizzard Profile API](https://develop.battle.net/documentation), and [Raider.IO API](https://raider.io/api), processes it through a Bronze → Silver → Gold architecture, and serves it to a React dashboard.
+A production-grade **Databricks medallion pipeline** that ingests WoW raid data from the [WarcraftLogs v2 GraphQL API](https://www.warcraftlogs.com/api/docs), [Blizzard Profile API](https://develop.battle.net/documentation), and [Raider.IO API](https://raider.io/api), processes it through a Bronze → Silver → Gold architecture, and serves it to a React dashboard through static CSV exports.
 
 Built to run on **Databricks Free Edition** (serverless DLT).
 
@@ -20,6 +20,7 @@ Pulls data from WarcraftLogs, Blizzard, and Raider.IO nightly, transforms it int
 - **Roster** — guild rank structure, active raid team, alt detection
 - **Survivability** — who's dying, to what, how often
 - **Preparation** — consumable usage rates, combat stat distributions per player
+- **Wipe diagnosis** — first deaths, repeat deaths, wipe survival discipline, raid cooldown capacity, healer external capacity
 - **Mythic+** — Raider.IO score snapshots, timed/untimed keys, dungeon breakdowns
 - **Character profiles** — Blizzard profile portraits, standing renders, equipped gear, enchants, gems, raid feats
 
@@ -36,7 +37,7 @@ WarcraftLogs API          Blizzard Profile API          Raider.IO API
                    ▼
         ┌──────────────────────┐
         │   ingest_primary.py  │  Databricks Workflow Job
-        │   8+ ingestion steps │  JSONL → Unity Catalog Volume
+        │   9+ ingestion steps │  JSONL → Unity Catalog Volume
         └──────────┬───────────┘
                    │ /Volumes/{catalog}/{schema}/landing/
                    ▼
@@ -72,7 +73,7 @@ WarcraftLogs API          Blizzard Profile API          Raider.IO API
 sc-warcraftlogs-analytics/
 ├── ingestion/
 │   ├── jobs/
-│   │   └── ingest_primary.py     # 7-step ingestion orchestrator (Databricks job)
+│   │   └── ingest_primary.py     # ingestion orchestrator (Databricks job)
 │   ├── src/
 │   │   ├── adapters/
 │   │   │   ├── base.py           # Abstract BaseAdapter interface
@@ -84,12 +85,12 @@ sc-warcraftlogs-analytics/
 │       ├── source_config.yml     # API endpoints, rate limits
 │       └── rank_config.yml       # Guild rank definitions
 ├── pipeline/
-│   ├── bronze/raw_source.py      # 10 Auto Loader table definitions
+│   ├── bronze/raw_source.py      # Auto Loader table definitions
 │   ├── silver/
 │   │   ├── clean_reports.py      # guild_reports, fight_events
 │   │   ├── clean_players.py      # actor_roster, player_performance
 │   │   ├── clean_rankings.py     # player_rankings (WCL parse percentiles)
-│   │   ├── clean_events.py       # player_deaths (killing blow extraction)
+│   │   ├── clean_events.py       # player_deaths + player_cast_events
 │   │   ├── clean_attendance.py   # raid_attendance
 │   │   ├── clean_zone_catalog.py # zone_catalog
 │   │   ├── clean_guild_members.py# guild_members (rank labels, class names)
@@ -125,6 +126,8 @@ sc-warcraftlogs-analytics/
   - `reportData.report.table(dataType:Summary)` — per-player combat stats (gear, consumables, stat ratings)
   - `reportData.report.rankings(compare:Parses)` — WCL parse percentiles and DPS/HPS
   - `reportData.report.table(dataType:Deaths)` — death events per fight
+  - `reportData.report.events(dataType:Casts)` — full player cast stream for utility tracking
+  - `reportData.report.events(dataType:CombatantInfo)` — spec/talent context for cooldown gating
   - `reportData.report.table(dataType:Casts, sourceID:0)` — attendance data
   - `worldData.zones` — zone/encounter reference catalog
 
@@ -146,7 +149,7 @@ sc-warcraftlogs-analytics/
 
 ## Tables Produced
 
-### Bronze (10 tables — raw, schema-enforced)
+### Bronze (11 tables — raw, schema-enforced)
 | Table | Source |
 |-------|--------|
 | `bronze_guild_reports` | WCL guild reports |
@@ -155,12 +158,13 @@ sc-warcraftlogs-analytics/
 | `bronze_actor_roster` | WCL masterData actors |
 | `bronze_player_details` | WCL table(Summary) playerDetails |
 | `bronze_fight_rankings` | WCL rankings(compare:Parses) |
-| `bronze_fight_deaths` | WCL table(Deaths) |
+| `bronze_fight_deaths` | WCL table(Deaths), one record per fight after backfill-safe ingestion |
+| `bronze_fight_casts` | WCL events(Casts + CombatantInfo) |
 | `bronze_zone_catalog` | WCL worldData zones |
 | `bronze_guild_members` | Blizzard guild roster |
 | `bronze_raiderio_character_profiles` | Raider.IO character profile payloads |
 
-### Silver (11 tables — cleaned, normalised)
+### Silver (12 tables — cleaned, normalised)
 | Table | Key transformations |
 |-------|---------------------|
 | `silver_guild_reports` | UTC timestamps, zone extracted, deduplicated |
@@ -168,7 +172,8 @@ sc-warcraftlogs-analytics/
 | `silver_actor_roster` | Player actors per report, class/realm extracted |
 | `silver_player_performance` | playerDetails JSON parsed; role arrays exploded & unioned; spec, item level, combatant stats (Crit/Haste/Mastery/Vers), consumable use |
 | `silver_player_rankings` | Rankings JSON parsed; role arrays exploded & unioned; WCL DPS/HPS amount, rank percentile |
-| `silver_player_deaths` | Deaths JSON parsed; one row per death; killing blow = first non-friendly damage event via `FILTER()` |
+| `silver_player_deaths` | Deaths JSON parsed; one row per death; prefers single-fight backfills over legacy multi-fight payloads |
+| `silver_player_cast_events` | Cast event stream joined to actor roster and fight context for utility analysis |
 | `silver_raid_attendance` | Attendance exploded; presence codes mapped to labels |
 | `silver_zone_catalog` | Zone/encounter reference; difficulty names collected |
 | `silver_guild_members` | Deduplicated; rank labels (GM→Social); class names from Blizzard class_id enum |
@@ -219,6 +224,11 @@ sc-warcraftlogs-analytics/
 | `gold_player_mplus_weekly_activity` | Weekly M+ run counts, timed/untimed split, highest key |
 | `gold_player_mplus_dungeon_breakdown` | Per-player per-dungeon M+ summary |
 
+Additional export-derived frontend datasets:
+- `gold_player_utility_by_pull.csv` — player + pull level healthstone / health potion / personal defensive casts
+- `gold_wipe_survival_events.csv` — wipe death events enriched with recovery and defensive context
+- `gold_wipe_cooldown_utilization.csv` — pull-scoped cooldown capacity for personal, raid, and healer external cooldowns
+
 ---
 
 ## Setup
@@ -232,14 +242,14 @@ See [SETUP.md](SETUP.md) for the full step-by-step guide. Summary:
 
 ### 1. Configure secrets
 
-In your Databricks workspace, create a secret scope named `pipeline-secrets`:
+Important: the ingestion notebook currently reads from the `warcraftlogs` secret scope.
 
 ```bash
-databricks secrets create-scope pipeline-secrets
-databricks secrets put-secret pipeline-secrets wcl_client_id       --string-value "..."
-databricks secrets put-secret pipeline-secrets wcl_client_secret    --string-value "..."
-databricks secrets put-secret pipeline-secrets blizzard_client_id   --string-value "..."
-databricks secrets put-secret pipeline-secrets blizzard_client_secret --string-value "..."
+databricks secrets create-scope warcraftlogs
+databricks secrets put-secret warcraftlogs client_id --string-value "..."
+databricks secrets put-secret warcraftlogs client_secret --string-value "..."
+databricks secrets put-secret warcraftlogs blizzard_client_id --string-value "..."
+databricks secrets put-secret warcraftlogs blizzard_client_secret --string-value "..."
 ```
 
 ### 2. Deploy
@@ -249,7 +259,11 @@ databricks bundle deploy
 databricks bundle run nightly_ingestion   # first ingestion run
 ```
 
-The DLT pipeline runs automatically after ingestion completes.
+Then start the DLT pipeline update in Databricks and run the export script:
+
+```bash
+.venv/bin/python scripts/export_gold_tables.py
+```
 
 ### 3. Customise for your guild
 
@@ -270,6 +284,9 @@ variables:
 
 ### Archived reports
 WCL eventually archives old reports. `ArchivedReportError` is caught at ingestion time and a skip marker file written to `landing/archived/{report_code}`. Archived reports are never retried.
+
+### Death ingestion truncation
+WCL `table(dataType: Deaths, fightIDs: [...])` can truncate long multi-fight reports. The current ingestion path fetches deaths one fight at a time and writes one bronze death record per fight. If you are recovering old data, re-run ingestion so stale legacy death files are backfilled.
 
 ### Rate limiting
 Manual retry loop reads `Retry-After` header on 429 responses. 5xx errors use exponential backoff (3 attempts, max 30s). Token refresh is proactive (5 min before expiry).
@@ -313,6 +330,17 @@ pytest ingestion/tests/
 # Deploy pipeline changes
 databricks bundle deploy
 ```
+
+## Frontend diagnosis panels
+
+The Wipe Analysis page is the main surface for survival utility review.
+
+Current utility diagnostics are built from export-layer datasets rather than extra gold tables:
+- wipe survival discipline on wipe deaths
+- raid defensive capacity
+- healer external cooldown capacity
+
+The score on the survival panel is presence-normalised to wipe pulls in scope, not a raw count.
 
 ---
 

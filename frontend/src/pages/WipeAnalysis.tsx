@@ -25,6 +25,9 @@ import {
   useBossWipeAnalysis,
   useBossPullHistory,
   useBossKillRoster,
+  usePlayerUtilityByPull,
+  useWipeSurvivalEvents,
+  useWipeCooldownUtilization,
 } from '../hooks/useGoldData'
 import { formatDate, formatNumber, formatPct } from '../utils/format'
 import { isIncludedZoneName } from '../utils/zones'
@@ -42,6 +45,46 @@ type SurvivabilitySortKey =
   | 'kills'
   | 'pulls'
 type SortDirection = 'asc' | 'desc'
+type WipeSurvivalSortKey =
+  | 'survivalFailureScore'
+  | 'wipeDeaths'
+  | 'defensiveCapacityUsedPct'
+  | 'noHealthstonePct'
+  | 'noHealthPotionPct'
+
+interface WipeSurvivalFailureRow {
+  player_name: string
+  player_class: string
+  wipe_pulls_tracked: number
+  wipe_deaths: number
+  deaths_per_wipe_pull: number
+  no_healthstone_deaths: number
+  no_health_potion_deaths: number
+  defensive_possible_casts: number
+  defensive_actual_casts: number
+  defensive_missed_casts: number
+  defensive_capacity_used_pct: number
+  no_healthstone_pct: number
+  no_health_potion_pct: number
+  weighted_failure_points: number
+  survival_failure_score: number
+  survival_grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
+  top_missing_category: string
+  most_common_killing_blow: string
+  most_common_killing_blow_count: number
+}
+
+interface CooldownCapacityRow {
+  key: string
+  player_name: string
+  player_class: string
+  ability_name: string
+  possible_casts: number
+  actual_casts: number
+  missed_casts: number
+  cast_efficiency_pct: number
+  pulls_tracked: number
+}
 
 interface ScopedSurvivabilityRow {
   player_name: string
@@ -294,12 +337,49 @@ function isKillRow(row: { is_kill?: boolean | string | null }) {
   return row.is_kill === true || row.is_kill === 'true'
 }
 
+function isPositiveFlag(value: unknown) {
+  return value === true || value === 'true' || Number(value) > 0
+}
+
 function sectionTotal<T extends { [k: string]: unknown }>(rows: T[], key: keyof T) {
   return rows.reduce((sum, row) => sum + Number(row[key] ?? 0), 0)
 }
 
 function getDefaultSortDirection(key: SurvivabilitySortKey): SortDirection {
   return key === 'deathsPerKill' || key === 'deathsPerPull' ? 'asc' : 'desc'
+}
+
+function pct(numerator: number, denominator: number) {
+  return denominator > 0 ? (numerator / denominator) * 100 : 0
+}
+
+function gradeForPercentile(percentile: number): WipeSurvivalFailureRow['survival_grade'] {
+  if (percentile <= 0.1) return 'S'
+  if (percentile <= 0.25) return 'A'
+  if (percentile <= 0.4) return 'B'
+  if (percentile <= 0.55) return 'C'
+  if (percentile <= 0.7) return 'D'
+  if (percentile <= 0.85) return 'E'
+  return 'F'
+}
+
+function gradeClassName(grade: WipeSurvivalFailureRow['survival_grade']) {
+  switch (grade) {
+    case 'S':
+      return 'border-ctp-green/30 bg-ctp-green/10 text-ctp-green'
+    case 'A':
+      return 'border-ctp-teal/30 bg-ctp-teal/10 text-ctp-teal'
+    case 'B':
+      return 'border-ctp-blue/30 bg-ctp-blue/10 text-ctp-blue'
+    case 'C':
+      return 'border-ctp-overlay1/30 bg-ctp-surface1/40 text-ctp-overlay1'
+    case 'D':
+      return 'border-ctp-yellow/30 bg-ctp-yellow/10 text-ctp-yellow'
+    case 'E':
+      return 'border-ctp-peach/30 bg-ctp-peach/10 text-ctp-peach'
+    case 'F':
+      return 'border-ctp-red/30 bg-ctp-red/10 text-ctp-red'
+  }
 }
 
 function MiniNote({ children }: { children: ReactNode }) {
@@ -601,6 +681,9 @@ export function WipeAnalysis() {
   const pullHistory = useBossPullHistory()
   const roster = useBossKillRoster()
   const raidSummary = useRaidSummary()
+  const utilityByPull = usePlayerUtilityByPull()
+  const wipeSurvivalEvents = useWipeSurvivalEvents()
+  const wipeCooldownUtilization = useWipeCooldownUtilization()
 
   const [diff, setDiff] = useState<string>('Mythic')
   const [selectedTier, setSelectedTier] = useState<string>('All')
@@ -613,10 +696,34 @@ export function WipeAnalysis() {
     key: 'deathsPerPull',
     direction: 'desc',
   })
+  const [wipeSurvivalSort, setWipeSurvivalSort] = useState<{
+    key: WipeSurvivalSortKey
+    direction: SortDirection
+  }>({
+    key: 'survivalFailureScore',
+    direction: 'desc',
+  })
 
   const loading =
-    mechs.loading || deathEvents.loading || wipes.loading || pullHistory.loading || roster.loading || raidSummary.loading
-  const error = mechs.error || deathEvents.error || wipes.error || pullHistory.error || roster.error || raidSummary.error
+    mechs.loading ||
+    deathEvents.loading ||
+    wipes.loading ||
+    pullHistory.loading ||
+    roster.loading ||
+    raidSummary.loading ||
+    utilityByPull.loading ||
+    wipeSurvivalEvents.loading ||
+    wipeCooldownUtilization.loading
+  const error =
+    mechs.error ||
+    deathEvents.error ||
+    wipes.error ||
+    pullHistory.error ||
+    roster.error ||
+    raidSummary.error ||
+    utilityByPull.error ||
+    wipeSurvivalEvents.error ||
+    wipeCooldownUtilization.error
 
   const tierOptions = useMemo(() => {
     const values = [...wipes.data]
@@ -844,6 +951,324 @@ export function WipeAnalysis() {
   )
 
   const wipeOnlyDeaths = useMemo(() => scopedDeathRows.filter(row => !isKillRow(row)), [scopedDeathRows])
+
+  const scopedWipeUtilityRows = useMemo(
+    () =>
+      utilityByPull.data
+        .filter(row => !isKillRow(row))
+        .filter(row => diff === 'All' || row.difficulty_label === diff)
+        .filter(row => isIncludedZoneName(row.zone_name))
+        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+        .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
+        .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase())),
+    [utilityByPull.data, diff, selectedTier, selectedBoss, search]
+  )
+
+  const scopedWipeSurvivalEventRows = useMemo(
+    () =>
+      wipeSurvivalEvents.data
+        .filter(row => diff === 'All' || row.difficulty_label === diff)
+        .filter(row => isIncludedZoneName(row.zone_name))
+        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+        .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
+        .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase())),
+    [wipeSurvivalEvents.data, diff, selectedTier, selectedBoss, search]
+  )
+
+  const scopedCooldownUtilizationRows = useMemo(
+    () =>
+      wipeCooldownUtilization.data
+        .filter(row => diff === 'All' || row.difficulty_label === diff)
+        .filter(row => isIncludedZoneName(row.zone_name))
+        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
+        .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
+        .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase())),
+    [wipeCooldownUtilization.data, diff, selectedTier, selectedBoss, search]
+  )
+
+  const cooldownCapacityRows = useMemo(() => {
+    const groups = new Map<string, CooldownCapacityRow>()
+
+    for (const row of scopedCooldownUtilizationRows) {
+      const key = `${row.cooldown_category}:${row.player_name}:${row.ability_id}`
+      const existing = groups.get(key) ?? {
+        key,
+        player_name: row.player_name,
+        player_class: row.player_class,
+        ability_name: row.ability_name,
+        possible_casts: 0,
+        actual_casts: 0,
+        missed_casts: 0,
+        cast_efficiency_pct: 0,
+        pulls_tracked: 0,
+      }
+
+      existing.possible_casts += Number(row.possible_casts) || 0
+      existing.actual_casts += Number(row.actual_casts) || 0
+      existing.missed_casts += Number(row.missed_casts) || 0
+      existing.pulls_tracked += 1
+      groups.set(key, existing)
+    }
+
+    return [...groups.values()].map(row => ({
+      ...row,
+      cast_efficiency_pct:
+        row.possible_casts > 0 ? (row.actual_casts / row.possible_casts) * 100 : 0,
+    }))
+  }, [scopedCooldownUtilizationRows])
+
+  const raidCooldownRows = useMemo(
+    () =>
+      cooldownCapacityRows
+        .filter(row => row.key.startsWith('raid:'))
+        .sort((a, b) => b.missed_casts - a.missed_casts || b.possible_casts - a.possible_casts)
+        .slice(0, 8),
+    [cooldownCapacityRows]
+  )
+
+  const personalDefensiveCapacityByPlayer = useMemo(() => {
+    const rows = new Map<
+      string,
+      {
+        possible_casts: number
+        actual_casts: number
+        missed_casts: number
+      }
+    >()
+
+    for (const row of cooldownCapacityRows) {
+      if (!row.key.startsWith('personal:') && !row.key.startsWith('personal_spec:')) continue
+
+      const key = row.player_name.toLowerCase()
+      const current = rows.get(key) ?? {
+        possible_casts: 0,
+        actual_casts: 0,
+        missed_casts: 0,
+      }
+
+      current.possible_casts += row.possible_casts
+      current.actual_casts += row.actual_casts
+      current.missed_casts += row.missed_casts
+      rows.set(key, current)
+    }
+
+    return rows
+  }, [cooldownCapacityRows])
+
+  const externalCooldownRows = useMemo(
+    () =>
+      cooldownCapacityRows
+        .filter(row => row.key.startsWith('external:'))
+        .sort((a, b) => b.missed_casts - a.missed_casts || b.possible_casts - a.possible_casts)
+        .slice(0, 8),
+    [cooldownCapacityRows]
+  )
+
+  function CooldownCapacityList({
+    rows,
+    accent,
+  }: {
+    rows: CooldownCapacityRow[]
+    accent: string
+  }) {
+    return (
+      <div className="space-y-3">
+        {rows.map((row, index) => {
+          const visibleTotal = Math.max(row.possible_casts, row.actual_casts, 1)
+          const actualPct = (row.actual_casts / visibleTotal) * 100
+          const missedPct = (row.missed_casts / visibleTotal) * 100
+
+          return (
+            <div key={row.key} className="space-y-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="w-5 text-right font-mono text-[10px] text-ctp-overlay0">
+                    {index + 1}
+                  </span>
+                  <ClassDot className={row.player_class} />
+                  <span className="truncate font-mono text-xs font-medium text-ctp-text">
+                    {row.player_name}
+                  </span>
+                </div>
+                <span className="shrink-0 font-mono text-[10px] text-ctp-overlay1">
+                  {formatNumber(row.missed_casts)} unused
+                </span>
+              </div>
+
+              <div className="pl-7">
+                <div className="h-2 overflow-hidden rounded-full bg-ctp-surface1">
+                  <div
+                    className="flex h-full overflow-hidden rounded-full"
+                    title={`${row.ability_name}: ${formatNumber(row.actual_casts)} cast / ${formatNumber(row.missed_casts)} unused`}
+                  >
+                    <div
+                      className="h-full"
+                      style={{ width: `${actualPct}%`, backgroundColor: '#a6e3a1', opacity: 0.9 }}
+                    />
+                    <div
+                      className="h-full"
+                      style={{ width: `${missedPct}%`, backgroundColor: accent, opacity: 0.82 }}
+                    />
+                  </div>
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-3">
+                  <span className="truncate font-mono text-[10px] text-ctp-overlay0">
+                    {row.ability_name}
+                  </span>
+                  <span className="shrink-0 font-mono text-[10px] text-ctp-overlay0">
+                    {formatNumber(row.actual_casts)} / {formatNumber(row.possible_casts)} cast
+                  </span>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  const wipeSurvivalFailures = useMemo((): WipeSurvivalFailureRow[] => {
+    const wipePullsByPlayer = new Map<string, Set<string>>()
+    const classByPlayer = new Map<string, string>()
+    const displayNameByPlayer = new Map<string, string>()
+
+    for (const row of scopedWipeUtilityRows) {
+      const playerKey = row.player_name.toLowerCase()
+      const pullKey = `${row.report_code}:${row.fight_id}`
+
+      if (!wipePullsByPlayer.has(playerKey)) wipePullsByPlayer.set(playerKey, new Set())
+      wipePullsByPlayer.get(playerKey)!.add(pullKey)
+      if (!classByPlayer.has(playerKey) && row.player_class) classByPlayer.set(playerKey, row.player_class)
+      if (!displayNameByPlayer.has(playerKey) && row.player_name) displayNameByPlayer.set(playerKey, row.player_name)
+    }
+
+    const rows = new Map<string, WipeSurvivalFailureRow>()
+    const killingBlowsByPlayer = new Map<string, Map<string, number>>()
+
+    function ensurePlayer(playerName: string, playerClass: string) {
+      const playerKey = playerName.toLowerCase()
+      const existing = rows.get(playerKey)
+      if (existing) {
+        if (existing.player_class === 'Unknown' && playerClass) existing.player_class = playerClass
+        return existing
+      }
+
+      const row: WipeSurvivalFailureRow = {
+        player_name: displayNameByPlayer.get(playerKey) ?? playerName,
+        player_class: playerClass || 'Unknown',
+        wipe_pulls_tracked: 0,
+        wipe_deaths: 0,
+        deaths_per_wipe_pull: 0,
+        no_healthstone_deaths: 0,
+        no_health_potion_deaths: 0,
+        defensive_possible_casts: 0,
+        defensive_actual_casts: 0,
+        defensive_missed_casts: 0,
+        defensive_capacity_used_pct: 0,
+        no_healthstone_pct: 0,
+        no_health_potion_pct: 0,
+        weighted_failure_points: 0,
+        survival_failure_score: 0,
+        survival_grade: 'S',
+        top_missing_category: '—',
+        most_common_killing_blow: '',
+        most_common_killing_blow_count: 0,
+      }
+      rows.set(playerKey, row)
+      return row
+    }
+
+    for (const [playerKey, pulls] of wipePullsByPlayer.entries()) {
+      const playerName = displayNameByPlayer.get(playerKey) ?? playerKey
+      const player = ensurePlayer(playerName, classByPlayer.get(playerKey) ?? 'Unknown')
+      player.wipe_pulls_tracked = pulls.size
+
+      const defensiveCapacity = personalDefensiveCapacityByPlayer.get(playerKey)
+      if (defensiveCapacity) {
+        player.defensive_possible_casts = defensiveCapacity.possible_casts
+        player.defensive_actual_casts = defensiveCapacity.actual_casts
+        player.defensive_missed_casts = defensiveCapacity.missed_casts
+      }
+    }
+
+    for (const death of scopedWipeSurvivalEventRows) {
+      const playerKey = death.player_name.toLowerCase()
+      const player = ensurePlayer(death.player_name, death.player_class)
+
+      player.wipe_deaths += 1
+      if (!isPositiveFlag(death.healthstone_before_death)) player.no_healthstone_deaths += 1
+      if (!isPositiveFlag(death.health_potion_before_death)) player.no_health_potion_deaths += 1
+
+      if (death.killing_blow_name) {
+        if (!killingBlowsByPlayer.has(playerKey)) {
+          killingBlowsByPlayer.set(playerKey, new Map())
+        }
+        const blows = killingBlowsByPlayer.get(playerKey)!
+        blows.set(death.killing_blow_name, (blows.get(death.killing_blow_name) ?? 0) + 1)
+      }
+    }
+
+    killingBlowsByPlayer.forEach((counts, playerKey) => {
+      const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]
+      const row = rows.get(playerKey)
+      if (row && top) {
+        row.most_common_killing_blow = top[0]
+        row.most_common_killing_blow_count = top[1]
+      }
+    })
+
+    const scoredRows = [...rows.values()]
+      .map(row => {
+        const missing = [
+          { label: 'Defensive capacity', count: row.defensive_missed_casts },
+          { label: 'Healthstone', count: row.no_healthstone_deaths },
+          { label: 'Health potion', count: row.no_health_potion_deaths },
+        ].sort((a, b) => b.count - a.count)
+        const wipePulls = Math.max(row.wipe_pulls_tracked, row.wipe_deaths)
+        const weightedFailurePoints =
+          row.defensive_missed_casts * 0.5 +
+          row.no_healthstone_deaths * 0.3 +
+          row.no_health_potion_deaths * 0.2
+
+        return {
+          ...row,
+          wipe_pulls_tracked: wipePulls,
+          deaths_per_wipe_pull: wipePulls > 0 ? row.wipe_deaths / wipePulls : 0,
+          defensive_capacity_used_pct:
+            row.defensive_possible_casts > 0
+              ? (row.defensive_actual_casts / row.defensive_possible_casts) * 100
+              : 0,
+          no_healthstone_pct: pct(row.no_healthstone_deaths, row.wipe_deaths),
+          no_health_potion_pct: pct(row.no_health_potion_deaths, row.wipe_deaths),
+          weighted_failure_points: weightedFailurePoints,
+          // Presence-normalised score: weighted missing-tool deaths per wipe pull, scaled to 100.
+          // This keeps low-pull and high-pull boss scopes comparable.
+          survival_failure_score: wipePulls > 0 ? (weightedFailurePoints / wipePulls) * 100 : 0,
+          top_missing_category: missing[0]?.count > 0 ? missing[0].label : '—',
+        }
+      })
+
+    const sortedForGrade = [...scoredRows].sort(
+      (a, b) => a.survival_failure_score - b.survival_failure_score || a.wipe_deaths - b.wipe_deaths
+    )
+    const distinctScores = new Set(sortedForGrade.map(row => row.survival_failure_score))
+    const gradeByPlayer = new Map<string, WipeSurvivalFailureRow['survival_grade']>()
+
+    for (const row of sortedForGrade) {
+      if (distinctScores.size <= 1) {
+        gradeByPlayer.set(row.player_name.toLowerCase(), 'S')
+        continue
+      }
+
+      const rank = sortedForGrade.findIndex(candidate => candidate === row)
+      const percentile = sortedForGrade.length <= 1 ? 0 : rank / (sortedForGrade.length - 1)
+      gradeByPlayer.set(row.player_name.toLowerCase(), gradeForPercentile(percentile))
+    }
+
+    return scoredRows
+      .map(row => ({ ...row, survival_grade: gradeByPlayer.get(row.player_name.toLowerCase()) ?? 'S' }))
+      .sort((a, b) => b.survival_failure_score - a.survival_failure_score || b.wipe_deaths - a.wipe_deaths)
+  }, [personalDefensiveCapacityByPlayer, scopedWipeUtilityRows, scopedWipeSurvivalEventRows])
 
   const historicalClosestPull = useMemo(
     () =>
@@ -1437,11 +1862,68 @@ export function WipeAnalysis() {
       .slice(0, 10)
   }, [scopedSurvivability, survivabilitySort])
 
+  const wipeSurvivalRows = useMemo(() => {
+    const valueFor = (row: WipeSurvivalFailureRow) => {
+      switch (wipeSurvivalSort.key) {
+        case 'survivalFailureScore':
+          return row.survival_failure_score
+        case 'wipeDeaths':
+          return row.wipe_deaths
+        case 'defensiveCapacityUsedPct':
+          return row.defensive_capacity_used_pct
+        case 'noHealthstonePct':
+          return row.no_healthstone_pct
+        case 'noHealthPotionPct':
+          return row.no_health_potion_pct
+      }
+    }
+
+    return [...wipeSurvivalFailures]
+      .sort((a, b) => {
+        const av = valueFor(a)
+        const bv = valueFor(b)
+        const comparison = wipeSurvivalSort.direction === 'asc' ? av - bv : bv - av
+        return comparison || b.wipe_deaths - a.wipe_deaths || a.player_name.localeCompare(b.player_name)
+      })
+      .slice(0, 12)
+  }, [wipeSurvivalFailures, wipeSurvivalSort])
+
   function sortSurvivabilityBy(key: SurvivabilitySortKey) {
     setSurvivabilitySort(current =>
       current.key === key
         ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
         : { key, direction: getDefaultSortDirection(key) }
+    )
+  }
+
+  function sortWipeSurvivalBy(key: WipeSurvivalSortKey) {
+    setWipeSurvivalSort(current =>
+      current.key === key
+        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
+        : { key, direction: 'desc' }
+    )
+  }
+
+  function WipeSurvivalSortButton({
+    k,
+    children,
+  }: {
+    k: WipeSurvivalSortKey
+    children: ReactNode
+  }) {
+    return (
+      <button
+        type="button"
+        onClick={() => sortWipeSurvivalBy(k)}
+        className="transition-colors hover:text-ctp-mauve"
+      >
+        {children}
+        {wipeSurvivalSort.key === k
+          ? wipeSurvivalSort.direction === 'asc'
+            ? ' ↑'
+            : ' ↓'
+          : ''}
+      </button>
     )
   }
 
@@ -2509,6 +2991,253 @@ export function WipeAnalysis() {
               </CardBody>
             </Card>
           </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            {[
+              {
+                title: 'Raid Defensive Capacity',
+                detail: 'Mass defensives ranked by unused cast capacity across wipe pulls in scope.',
+                rows: raidCooldownRows,
+                accent: wipeColor,
+              },
+              {
+                title: 'External Cooldown Capacity',
+                detail: 'Single-target externals ranked by unused cast capacity across wipe pulls in scope.',
+                rows: externalCooldownRows,
+                accent: '#fab387',
+              },
+            ].map(panel => {
+              const totalMissed = panel.rows.reduce((sum, row) => sum + row.missed_casts, 0)
+              const totalActual = panel.rows.reduce((sum, row) => sum + row.actual_casts, 0)
+
+              return (
+                <Card key={panel.title} className="h-full">
+                  <CardHeader>
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <CardTitle>{panel.title}</CardTitle>
+                        <p className="mt-0.5 text-xs text-ctp-overlay1">{panel.detail}</p>
+                      </div>
+                      <StatusPill label={`${formatNumber(totalMissed)} unused`} active={totalMissed > 0} />
+                    </div>
+                  </CardHeader>
+                  <CardBody className="flex h-full flex-col">
+                    {wipeCooldownUtilization.loading ? (
+                      <LoadingState rows={5} />
+                    ) : panel.rows.length > 0 ? (
+                      <>
+                        <CooldownCapacityList rows={panel.rows} accent={panel.accent} />
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <StatusPill label={`${formatNumber(totalActual)} casts`} active />
+                          <StatusPill label={`${formatNumber(totalMissed)} unused capacity`} active={totalMissed > 0} />
+                        </div>
+                        <p className="mt-3 font-mono text-[10px] text-ctp-overlay0">
+                          Capacity uses pull duration and base cooldown: one opener cast plus one additional possible cast per full cooldown elapsed.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="py-8 text-center font-mono text-xs text-ctp-overlay0">
+                        No tracked cooldown capacity in the current wipe scope.
+                      </p>
+                    )}
+                  </CardBody>
+                </Card>
+              )
+            })}
+          </div>
+
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle>Survival Discipline on Wipes</CardTitle>
+                  <p className="mt-0.5 text-xs text-ctp-overlay1">
+                    Wipe pulls only. Score blends missed personal defensive capacity with deaths lacking healthstones or health potions; grade is relative to this scope.
+                  </p>
+                </div>
+                <StatusPill label={`${formatNumber(wipeSurvivalFailures.length)} players`} active />
+              </div>
+            </CardHeader>
+
+            {deathEvents.loading || utilityByPull.loading || wipeSurvivalEvents.loading || wipeCooldownUtilization.loading ? (
+              <CardBody>
+                <LoadingState rows={7} />
+              </CardBody>
+            ) : wipeSurvivalRows.length === 0 ? (
+              <CardBody>
+                <p className="py-8 text-center font-mono text-xs text-ctp-overlay0">
+                  No wipe deaths with utility context in this scope.
+                </p>
+              </CardBody>
+            ) : (
+              <CardBody className="overflow-x-auto">
+                <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-3">
+                  {[
+                    {
+                      label: 'Player wipe pulls',
+                      value: formatNumber(
+                        wipeSurvivalFailures.reduce((sum, row) => sum + row.wipe_pulls_tracked, 0)
+                      ),
+                      detail: 'presence denominator in scope',
+                    },
+                    {
+                      label: 'Missed def capacity',
+                      value: formatNumber(
+                        wipeSurvivalFailures.reduce((sum, row) => sum + row.defensive_missed_casts, 0)
+                      ),
+                      detail: 'possible defensive casts left unused',
+                    },
+                    {
+                      label: 'Recovery gaps',
+                      value: formatNumber(
+                        wipeSurvivalFailures.reduce(
+                          (sum, row) => sum + row.no_healthstone_deaths + row.no_health_potion_deaths,
+                          0
+                        )
+                      ),
+                      detail: 'missing stone plus potion death flags',
+                    },
+                  ].map(item => (
+                    <div
+                      key={item.label}
+                      className="rounded-xl border border-ctp-surface1 bg-ctp-surface1/25 px-3 py-2.5"
+                    >
+                      <p className="font-mono text-[9px] uppercase tracking-widest text-ctp-overlay0">
+                        {item.label}
+                      </p>
+                      <p className="mt-1 font-mono text-base font-semibold text-ctp-text">
+                        {item.value}
+                      </p>
+                      <p className="mt-0.5 font-mono text-[10px] text-ctp-overlay0">{item.detail}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <Table>
+                  <THead>
+                    <tr>
+                      <Th>Player</Th>
+                      <Th right>Grade</Th>
+                      <Th right>Wipe Pulls</Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="wipeDeaths">Wipe Death Events</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>Deaths/Pull</Th>
+                      <Th right>
+                        Def Casts
+                      </Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="defensiveCapacityUsedPct">Def Cap Used</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>No Stone</Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="noHealthstonePct">No Stone Rate</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>No HPot</Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="noHealthPotionPct">No HPot Rate</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="survivalFailureScore">Score</WipeSurvivalSortButton>
+                      </Th>
+                      <Th>Top Missing</Th>
+                      <Th>Most Killed By</Th>
+                    </tr>
+                  </THead>
+                  <TBody>
+                    {wipeSurvivalRows.map(row => {
+                      const scoreColor =
+                        row.survival_failure_score >= 30
+                          ? wipeColor
+                          : row.survival_failure_score >= 15
+                            ? '#fab387'
+                            : '#a6adc8'
+
+                      return (
+                        <Tr key={row.player_name}>
+                          <Td>
+                            <div className="flex items-center gap-2">
+                              <ClassDot className={row.player_class} />
+                              <span className="text-xs font-medium text-ctp-text">{row.player_name}</span>
+                            </div>
+                          </Td>
+                          <Td right>
+                            <span
+                              className={`inline-flex min-w-7 justify-center rounded-md border px-2 py-1 font-mono text-[10px] font-semibold ${gradeClassName(row.survival_grade)}`}
+                            >
+                              {row.survival_grade}
+                            </span>
+                          </Td>
+                          <Td right mono className="text-ctp-overlay1">
+                            {formatNumber(row.wipe_pulls_tracked)}
+                          </Td>
+                          <Td right mono style={{ color: wipeColor }}>
+                            {formatNumber(row.wipe_deaths)}
+                          </Td>
+                          <Td right mono style={{ color: getDeathRateColor(row.deaths_per_wipe_pull) }}>
+                            {(row.deaths_per_wipe_pull * 100).toFixed(1)}%
+                          </Td>
+                          <Td right mono className="text-ctp-overlay1">
+                            {formatNumber(row.defensive_actual_casts)}
+                          </Td>
+                          <Td
+                            right
+                            mono
+                            style={{ color: getDeathRateColor(Math.max(0, 1 - row.defensive_capacity_used_pct / 100)) }}
+                          >
+                            {row.defensive_possible_casts > 0 ? `${row.defensive_capacity_used_pct.toFixed(0)}%` : '—'}
+                          </Td>
+                          <Td right mono className="text-ctp-overlay1">
+                            {formatNumber(row.no_healthstone_deaths)}
+                          </Td>
+                          <Td right mono style={{ color: getDeathRateColor(row.no_healthstone_pct / 100) }}>
+                            {row.no_healthstone_pct.toFixed(0)}%
+                          </Td>
+                          <Td right mono className="text-ctp-overlay1">
+                            {formatNumber(row.no_health_potion_deaths)}
+                          </Td>
+                          <Td right mono style={{ color: getDeathRateColor(row.no_health_potion_pct / 100) }}>
+                            {row.no_health_potion_pct.toFixed(0)}%
+                          </Td>
+                          <Td right mono>
+                            <span className="font-semibold" style={{ color: scoreColor }}>
+                              {row.survival_failure_score.toFixed(1)}
+                            </span>
+                          </Td>
+                          <Td>
+                            <span className="rounded-md border border-ctp-surface2 bg-ctp-surface1/40 px-2 py-1 font-mono text-[10px] text-ctp-overlay1">
+                              {row.top_missing_category}
+                            </span>
+                          </Td>
+                          <Td className="max-w-[220px] font-mono text-[10px] text-ctp-overlay0">
+                            {row.most_common_killing_blow ? (
+                              <span title={row.most_common_killing_blow} className="block truncate">
+                                {row.most_common_killing_blow.length > 30
+                                  ? `${row.most_common_killing_blow.slice(0, 29)}…`
+                                  : row.most_common_killing_blow}
+                                {row.most_common_killing_blow_count > 1 ? (
+                                  <span className="ml-1 text-ctp-overlay0">
+                                    ×{row.most_common_killing_blow_count}
+                                  </span>
+                                ) : null}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </Td>
+                        </Tr>
+                      )
+                    })}
+                  </TBody>
+                </Table>
+
+                <p className="mt-3 font-mono text-[10px] text-ctp-overlay0">
+                  Score = ((missed personal defensive capacity × 0.5 + no healthstone before death × 0.3 + no health potion before death × 0.2) / player wipe pulls) × 100.
+                  Death columns count logged death events on wipe pulls; stone and potion rates use player wipe deaths as the denominator; defensive capacity is limited to tracked abilities for the spec seen on the pull.
+                </p>
+              </CardBody>
+            )}
+          </Card>
 
           <Card>
             <CardHeader>

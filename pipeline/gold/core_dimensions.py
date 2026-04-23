@@ -1,7 +1,6 @@
 # Databricks notebook source
 # Gold layer — core dimension tables
 #
-# dim_encounter    — deduplicated boss encounter reference from zone catalog
 # dim_player       — canonical player identity across all logs, enriched with
 #                    guild membership and rank from silver_guild_members
 # dim_guild_member — full guild roster from Blizzard API, enriched with
@@ -10,37 +9,6 @@
 import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
-
-
-# ── Encounter Dimension ────────────────────────────────────────────────────────
-# Stable reference for encounter metadata.  Only non-frozen zones are included
-# (zone_frozen = false) to keep focus on active content tiers.
-
-@dlt.table(
-    name="dim_encounter",
-    comment=(
-        "Boss encounter reference dimension from WCL zone catalog. "
-        "One row per encounter ID, active tiers only (zone_frozen = false)."
-    ),
-    table_properties={"quality": "gold"},
-)
-def dim_encounter():
-    catalog = dlt.read("silver_zone_catalog")
-    return (
-        catalog
-        .filter(F.col("zone_frozen") == False)  # noqa: E712 — Spark SQL requires == not is
-        .select(
-            F.col("encounter_id"),
-            F.col("encounter_name"),
-            F.col("zone_id"),
-            F.col("zone_name"),
-            F.col("zone_frozen"),
-            F.col("difficulty_names"),
-        )
-        .dropDuplicates(["encounter_id"])
-        .orderBy("zone_id", "encounter_id")
-    )
-
 
 # ── Player Dimension ───────────────────────────────────────────────────────────
 # Canonical player identity table combining actor roster (class, realm) and

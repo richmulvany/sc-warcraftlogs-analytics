@@ -144,7 +144,6 @@ encounter_id,boss_name,zone_id,zone_name,difficulty,difficulty_label,total_pulls
 2677,Fyrakk the Blazing,35,"Amirdrassil, the Dream's Hope",3,Normal,8,4,4,251,264.875,true,2023-11-15,2024-05-08,1.0
 2540,"Dausegne, the Fallen Oracle",29,Sepulcher of the First Ones,5,Mythic,48,1,47,323,216.52083333333334,true,2022-05-11,2022-05-11,47.0
 2540,"Dausegne, the Fallen Oracle",29,Sepulcher of the First Ones,4,Heroic,27,10,17,127,204.33333333333334,true,2022-03-06,2022-09-12,1.7
-3176,Imperator Averzian,46,VS / DR / MQD,5,Mythic,10,2,8,384,250.4,true,2026-04-06,2026-04-15,4.0
 2423,The Tarragrue,28,Sanctum of Domination,3,Normal,7,6,1,200,251.57142857142858,true,2021-07-07,2021-09-02,0.17
 2902,Ulgrax the Devourer,38,Nerub-ar Palace,5,Mythic,24,9,15,342,336.0,true,2024-10-07,2024-12-29,1.67
 2919,Broodtwister Ovi'nax,38,Nerub-ar Palace,5,Mythic,190,1,189,474,177.2,true,2024-11-25,2024-11-25,189.0
@@ -211,7 +210,6 @@ encounter_id,boss_name,zone_id,zone_name,difficulty,difficulty_label,total_pulls
 2512,Vigilant Guardian,29,Sepulcher of the First Ones,3,Normal,3,3,0,366,395.0,true,2022-03-06,2022-03-16,0.0
 2920,Nexus-Princess Ky'veza,38,Nerub-ar Palace,4,Heroic,21,10,11,186,255.76190476190476,true,2024-09-23,2025-01-13,1.1
 3010,Cauldron of Carnage,42,Liberation of Undermine,3,Normal,6,6,0,138,182.83333333333334,true,2025-03-05,2025-05-04,0.0
-3306,"Chimaerus, the Undreamt God",46,VS / DR / MQD,5,Mythic,16,1,15,391,178.5625,true,2026-04-15,2026-04-15,15.0
 3306,"Chimaerus, the Undreamt God",46,VS / DR / MQD,4,Heroic,8,5,3,253,396.875,true,2026-03-23,2026-04-15,0.6
 3011,Rik Reverb,42,Liberation of Undermine,5,Mythic,57,6,51,320,220.24561403508773,true,2025-04-07,2025-05-07,8.5
 3131,Loom'ithar,44,Manaforge Omega,4,Heroic,8,7,1,157,241.25,true,2025-08-13,2025-12-01,0.14
@@ -245,7 +243,6 @@ encounter_id,boss_name,zone_id,zone_name,difficulty,difficulty_label,total_pulls
 2436,Guardian of the First Ones,28,Sanctum of Domination,5,Mythic,48,1,47,313,136.91666666666666,true,2021-11-08,2021-11-08,47.0
 3009,Vexie and the Geargrinders,42,Liberation of Undermine,4,Heroic,26,24,2,119,171.19230769230768,true,2025-03-05,2025-07-30,0.08
 2922,Queen Ansurek,38,Nerub-ar Palace,5,Mythic,290,0,290,null,175.38275862068966,null,null,2025-03-03,290.0
-3177,Vorasius,46,VS / DR / MQD,5,Mythic,20,2,18,359,274.25,true,2026-04-06,2026-04-15,9.0
 3183,Midnight Falls,46,VS / DR / MQD,3,Normal,1,1,0,259,259.0,true,2026-04-01,2026-04-01,0.0
 3129,Plexus Sentinel,44,Manaforge Omega,5,Mythic,27,10,17,248,245.03703703703704,true,2025-08-25,2026-01-26,1.7
 2434,Soulrender Dormazain,28,Sanctum of Domination,5,Mythic,57,1,56,442,236.71929824561403,true,2021-09-29,2021-09-29,56.0
@@ -277,5 +274,8 @@ encounter_id,boss_name,zone_id,zone_name,difficulty,difficulty_label,total_pulls
 3133,Fractillus,44,Manaforge Omega,4,Heroic,15,9,6,177,232.0,true,2025-08-18,2025-12-01,0.67
 2731,"Larodar, Keeper of the Flame",35,"Amirdrassil, the Dream's Hope",5,Mythic,49,2,47,311,229.10204081632654,true,2024-01-15,2024-01-22,23.5
 2921,The Silken Court,38,Nerub-ar Palace,4,Heroic,53,13,40,282,235.9245283018868,true,2024-09-17,2025-01-13,3.08
-3179,Fallen-King Salhadaar,46,VS / DR / MQD,5,Mythic,16,1,15,365,272.8125,true,2026-04-20,2026-04-20,15.0
-3178,Vaelgor & Ezzorak,46,VS / DR / MQD,5,Mythic,20,0,20,null,147.05,null,null,2026-04-20,20.0
+3179,Fallen-King Salhadaar,46,VS / DR / MQD,5,Mythic,20,2,18,362,268.75,true,2026-04-20,2026-04-22,9.0
+3178,Vaelgor & Ezzorak,46,VS / DR / MQD,5,Mythic,31,0,31,null,174.38709677419354,null,null,2026-04-22,31.0
+3306,"Chimaerus, the Undreamt God",46,VS / DR / MQD,5,Mythic,20,2,18,389,201.15,true,2026-04-15,2026-04-22,9.0
+3176,Imperator Averzian,46,VS / DR / MQD,5,Mythic,11,3,8,368,261.09090909090907,true,2026-04-06,2026-04-22,2.67
+3177,Vorasius,46,VS / DR / MQD,5,Mythic,21,3,18,340,277.3809523809524,true,2026-04-06,2026-04-22,6.0

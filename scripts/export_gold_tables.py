@@ -106,6 +106,9 @@ FRONTEND_TABLES: dict[str, str] = {
     "gold_encounter_catalog.csv": "gold_encounter_catalog",
     "gold_boss_kill_roster.csv": "gold_boss_kill_roster",
     "gold_player_attendance.csv": "gold_player_attendance",
+    "gold_player_utility_by_pull.csv": "gold_player_utility_by_pull",
+    "gold_wipe_survival_events.csv": "gold_wipe_survival_events",
+    "gold_wipe_cooldown_utilization.csv": "gold_wipe_cooldown_utilization",
     "gold_guild_roster.csv": "gold_guild_roster",
     "gold_weekly_activity.csv": "gold_weekly_activity",
     "gold_boss_wipe_analysis.csv": "gold_boss_wipe_analysis",
@@ -125,6 +128,209 @@ FRONTEND_TABLES: dict[str, str] = {
     "gold_player_mplus_dungeon_breakdown.csv": "gold_player_mplus_dungeon_breakdown",
 }
 EXCLUDED_ZONES = {"Blackrock Depths"}
+HEALTHSTONE_ABILITY_IDS = [
+    6262,
+]
+HEALTH_POTION_ABILITY_IDS = [
+    431416,  # Algari Healing Potion
+    431419,  # Algari Healing Potion variant
+    431422,  # Algari Healing Potion variant
+    370511,  # Refreshing Healing Potion
+    371024,  # Refreshing Healing Potion variant
+    371028,  # Refreshing Healing Potion variant
+    371033,  # Refreshing Healing Potion variant
+    371036,  # Refreshing Healing Potion variant
+    371039,  # Refreshing Healing Potion variant
+    371043,  # Refreshing Healing Potion variant
+    1238009,  # Invigorating Healing Potion
+    1262857,  # Potent Healing Potion
+    1234768,  # Silvermoon Health Potion
+]
+UTILITY_ABILITY_NAMES = {
+    # Healthstone
+    6262: "Healthstone",
+    # --- Pre-Midnight ---
+    431416: "Algari Healing Potion",
+    431419: "Algari Healing Potion",
+    431422: "Algari Healing Potion",
+    370511: "Refreshing Healing Potion",
+    371024: "Refreshing Healing Potion",
+    371028: "Refreshing Healing Potion",
+    371033: "Refreshing Healing Potion",
+    371036: "Refreshing Healing Potion",
+    371039: "Refreshing Healing Potion",
+    371043: "Refreshing Healing Potion",
+    1238009: "Invigorating Healing Potion",
+    1262857: "Potent Healing Potion",
+    # --- Midnight ---
+    # Silvermoon Health Potion item-use effect
+    1234768: "Silvermoon Health Potion",
+    # Silvermoon Health Potion (rank variants)
+    1230866: "Silvermoon Health Potion",
+    1230867: "Silvermoon Health Potion",
+    1230868: "Silvermoon Health Potion",
+    1230869: "Silvermoon Health Potion",
+    1230870: "Silvermoon Health Potion",
+    1230871: "Silvermoon Health Potion",
+    1230872: "Silvermoon Health Potion",
+}
+COOLDOWN_RULES = [
+    # category, class, spell id, spell name, cooldown seconds, active/window seconds.
+    # Personal rules feed the death-failure score. Raid/external rules are excluded
+    # there and only feed cooldown capacity review panels.
+    ("personal", "DeathKnight", 48707, "Anti-Magic Shell", 60, 5),
+    ("personal", "DeathKnight", 48792, "Icebound Fortitude", 180, 8),
+    ("personal", "DeathKnight", 49039, "Lichborne", 120, 10),
+    ("personal", "DeathKnight", 48743, "Death Pact", 120, 1),
+    ("personal", "DemonHunter", 198589, "Blur", 60, 10),
+    ("personal", "DemonHunter", 196555, "Netherwalk", 180, 6),
+    ("personal", "Druid", 22812, "Barkskin", 60, 12),
+    ("personal", "Druid", 61336, "Survival Instincts", 180, 6),
+    ("personal", "Druid", 108238, "Renewal", 90, 1),
+    ("personal", "Evoker", 363916, "Obsidian Scales", 90, 12),
+    ("personal", "Evoker", 374348, "Renewing Blaze", 90, 8),
+    ("personal", "Hunter", 186265, "Aspect of the Turtle", 180, 8),
+    ("personal", "Hunter", 264735, "Survival of the Fittest", 180, 6),
+    ("personal", "Hunter", 109304, "Exhilaration", 120, 1),
+    ("personal", "Mage", 45438, "Ice Block", 240, 10),
+    ("personal", "Mage", 342245, "Alter Time", 60, 10),
+    ("personal", "Mage", 55342, "Mirror Image", 120, 40),
+    ("personal", "Mage", 110959, "Greater Invisibility", 120, 3),
+    ("personal", "Monk", 115203, "Fortifying Brew", 360, 15),
+    ("personal", "Monk", 122783, "Diffuse Magic", 90, 6),
+    ("personal", "Monk", 122278, "Dampen Harm", 120, 10),
+    ("personal", "Monk", 122470, "Touch of Karma", 90, 10),
+    ("personal", "Paladin", 642, "Divine Shield", 300, 8),
+    ("personal", "Paladin", 498, "Divine Protection", 60, 8),
+    ("personal", "Paladin", 184662, "Shield of Vengeance", 90, 10),
+    ("personal", "Priest", 19236, "Desperate Prayer", 90, 10),
+    ("personal", "Priest", 47585, "Dispersion", 120, 6),
+    ("personal", "Rogue", 31224, "Cloak of Shadows", 120, 5),
+    ("personal", "Rogue", 5277, "Evasion", 120, 10),
+    ("personal", "Shaman", 108271, "Astral Shift", 90, 8),
+    ("personal", "Warlock", 104773, "Unending Resolve", 180, 8),
+    ("personal", "Warlock", 108416, "Dark Pact", 60, 20),
+    ("personal", "Warrior", 118038, "Die by the Sword", 120, 8),
+    ("personal", "Warrior", 184364, "Enraged Regeneration", 120, 8),
+    ("personal_spec", "DeathKnight", 55233, "Vampiric Blood", 90, 10),
+    ("personal_spec", "Druid", 22842, "Frenzied Regeneration", 36, 3),
+    ("personal_spec", "Paladin", 31850, "Ardent Defender", 120, 8),
+    ("personal_spec", "Paladin", 86659, "Guardian of Ancient Kings", 300, 8),
+    ("personal_spec", "Warrior", 871, "Shield Wall", 240, 8),
+    ("personal_spec", "Warrior", 12975, "Last Stand", 180, 15),
+    ("raid", "DeathKnight", 51052, "Anti-Magic Zone", 120, 10),
+    ("raid", "DemonHunter", 196718, "Darkness", 300, 8),
+    ("raid", "Evoker", 374227, "Zephyr", 120, 8),
+    ("raid", "Paladin", 31821, "Aura Mastery", 180, 8),
+    ("raid", "Priest", 62618, "Power Word: Barrier", 180, 10),
+    ("raid", "Shaman", 98008, "Spirit Link Totem", 180, 6),
+    ("raid", "Warrior", 97462, "Rallying Cry", 180, 10),
+    ("external", "Druid", 102342, "Ironbark", 90, 12),
+    ("external", "Evoker", 357170, "Time Dilation", 60, 8),
+    ("external", "Monk", 116849, "Life Cocoon", 120, 12),
+    ("external", "Paladin", 6940, "Blessing of Sacrifice", 120, 12),
+    ("external", "Priest", 33206, "Pain Suppression", 180, 8),
+    ("external", "Priest", 47788, "Guardian Spirit", 180, 10),
+]
+COOLDOWN_ALLOWED_SPECS = {
+    198589: [
+        577,
+        1480,
+    ],  # Blur — Havoc Demon Hunter (1480 observed in WCL combatantInfo for Havoc pulls)
+    196555: [577, 1480],  # Netherwalk — Havoc Demon Hunter
+    47585: [258],  # Dispersion — Shadow Priest
+    498: [65],  # Divine Protection — Holy Paladin
+    184662: [70],  # Shield of Vengeance — Retribution Paladin
+    102342: [105],  # Ironbark — Restoration Druid
+    357170: [1468],  # Time Dilation — Preservation Evoker
+    116849: [270],  # Life Cocoon — Mistweaver Monk
+    6940: [65],  # Blessing of Sacrifice — Holy Paladin
+    33206: [256],  # Pain Suppression — Discipline Priest
+    47788: [257],  # Guardian Spirit — Holy Priest
+    31821: [65],  # Aura Mastery — Holy Paladin
+    62618: [256],  # Power Word: Barrier — Discipline Priest
+    98008: [264],  # Spirit Link Totem — Restoration Shaman
+    122470: [269],  # Touch of Karma — Windwalker Monk
+    55233: [250],  # Vampiric Blood — Blood Death Knight
+    22842: [104],  # Frenzied Regeneration — Guardian Druid
+    31850: [66],  # Ardent Defender — Protection Paladin
+    86659: [66],  # Guardian of Ancient Kings — Protection Paladin
+    118038: [71],  # Die by the Sword — Arms Warrior
+    184364: [72],  # Enraged Regeneration — Fury Warrior
+    871: [73],  # Shield Wall — Protection Warrior
+    12975: [73],  # Last Stand — Protection Warrior
+}
+# Talent-gated cooldowns are only considered available capacity when WCL
+# CombatantInfo shows the matching talent node, or when the player actually
+# cast the ability elsewhere in the report. This prevents false missed-cooldown
+# rows for untalented spells such as Power Word: Barrier.
+COOLDOWN_REQUIRED_TALENT_SPELL_IDS = {
+    196555: [196555],  # Netherwalk
+    49039: [49039],  # Lichborne
+    48743: [48743],  # Death Pact
+    61336: [61336],  # Survival Instincts
+    108238: [108238],  # Renewal
+    374348: [374348],  # Renewing Blaze
+    264735: [264735],  # Survival of the Fittest
+    342245: [342245],  # Alter Time
+    55342: [55342],  # Mirror Image
+    110959: [110959],  # Greater Invisibility
+    122783: [122783],  # Diffuse Magic
+    122278: [122278],  # Dampen Harm
+    122470: [122470],  # Touch of Karma
+    19236: [19236],  # Desperate Prayer
+    108270: [108270],  # Stone Bulwark Totem
+    108416: [108416],  # Dark Pact
+    118038: [118038],  # Die by the Sword
+    184364: [184364],  # Enraged Regeneration
+    51052: [51052],  # Anti-Magic Zone
+    196718: [196718],  # Darkness
+    374227: [374227],  # Zephyr
+    31821: [31821],  # Aura Mastery
+    62618: [62618],  # Power Word: Barrier
+    98008: [98008],  # Spirit Link Totem
+    102342: [102342],  # Ironbark
+    357170: [357170],  # Time Dilation
+    116849: [116849],  # Life Cocoon
+    6940: [6940],  # Blessing of Sacrifice
+    33206: [33206],  # Pain Suppression
+    47788: [47788],  # Guardian Spirit
+}
+PERSONAL_DEFENSIVE_RULES = [
+    rule for rule in COOLDOWN_RULES if rule[0] in {"personal", "personal_spec"}
+]
+TRACKED_PERSONAL_DEFENSIVE_RULES = [
+    rule for rule in COOLDOWN_RULES if rule[0] in {"personal", "personal_spec"}
+]
+NON_PERSONAL_COOLDOWN_RULES = [rule for rule in COOLDOWN_RULES if rule[0] in {"raid", "external"}]
+DEFENSIVE_ABILITY_IDS = [rule[2] for rule in TRACKED_PERSONAL_DEFENSIVE_RULES]
+DEFENSIVE_ABILITY_ID_TO_NAME = {rule[2]: rule[3] for rule in COOLDOWN_RULES}
+DEFENSIVE_COOLDOWN_RULES_SQL = ",\n            ".join(
+    (
+        f"({player_class!r}, {ability_id}, {ability_name!r}, {cooldown_seconds}, "
+        f"{active_seconds}, {'|'.join(str(spec_id) for spec_id in COOLDOWN_ALLOWED_SPECS.get(ability_id, []))!r}, "
+        f"{'|'.join(str(spell_id) for spell_id in COOLDOWN_REQUIRED_TALENT_SPELL_IDS.get(ability_id, []))!r})"
+    )
+    for _, player_class, ability_id, ability_name, cooldown_seconds, active_seconds in PERSONAL_DEFENSIVE_RULES
+)
+COOLDOWN_RULES_SQL = ",\n            ".join(
+    (
+        f"({category!r}, {player_class!r}, {ability_id}, {ability_name!r}, {cooldown_seconds}, "
+        f"{active_seconds}, {'|'.join(str(spec_id) for spec_id in COOLDOWN_ALLOWED_SPECS.get(ability_id, []))!r}, "
+        f"{'|'.join(str(spell_id) for spell_id in COOLDOWN_REQUIRED_TALENT_SPELL_IDS.get(ability_id, []))!r})"
+    )
+    for category, player_class, ability_id, ability_name, cooldown_seconds, active_seconds in COOLDOWN_RULES
+)
+UTILITY_ABILITY_ID_TO_NAME = {
+    **UTILITY_ABILITY_NAMES,
+    **DEFENSIVE_ABILITY_ID_TO_NAME,
+}
+UTILITY_ABILITY_NAME_SQL = " ".join(
+    f"WHEN {ability_id} THEN {name!r}"
+    for ability_id, name in sorted(UTILITY_ABILITY_ID_TO_NAME.items())
+)
+DEFENSIVE_ABILITY_NAMES = sorted(rule[3].lower() for rule in TRACKED_PERSONAL_DEFENSIVE_RULES)
+
 TABLE_EXPORT_STATEMENTS: dict[str, str] = {
     "gold_weekly_activity": f"""
         SELECT
@@ -140,7 +346,719 @@ TABLE_EXPORT_STATEMENTS: dict[str, str] = {
           AND zone_name NOT IN ({", ".join(repr(zone) for zone in sorted(EXCLUDED_ZONES))})
         GROUP BY DATE_TRUNC('week', CAST(start_time_utc AS TIMESTAMP))
         ORDER BY week_start
-    """.strip()
+    """.strip(),
+    "gold_player_utility_by_pull": f"""
+        WITH latest_fight_casts AS (
+          SELECT *
+          FROM (
+            SELECT
+              *,
+              ROW_NUMBER() OVER (PARTITION BY report_code ORDER BY _ingested_at DESC, _file_path DESC) AS rn
+            FROM {CATALOG}.{SCHEMA}.bronze_fight_casts
+          )
+          WHERE rn = 1
+        ),
+        player_pulls AS (
+          SELECT
+            f.report_code,
+            f.fight_id,
+            f.encounter_id,
+            f.boss_name,
+            f.zone_name,
+            f.difficulty,
+            f.difficulty_label,
+            f.raid_night_date,
+            f.is_kill,
+            a.player_name,
+            a.player_class
+          FROM (
+            SELECT
+              report_code,
+              fight_id,
+              encounter_id,
+              boss_name,
+              zone_name,
+              difficulty,
+              difficulty_label,
+              raid_night_date,
+              is_kill,
+              EXPLODE(friendly_player_ids) AS actor_id
+            FROM {CATALOG}.{SCHEMA}.silver_fight_events
+          ) f
+          INNER JOIN {CATALOG}.{SCHEMA}.silver_actor_roster a
+            ON f.report_code = a.report_code
+           AND f.actor_id = a.actor_id
+          WHERE a.player_name IS NOT NULL
+            AND a.player_name != ''
+        ),
+        casts AS (
+          SELECT
+            raw.report_code,
+            event.fight AS fight_id,
+            event.sourceID AS actor_id,
+            event.abilityGameID AS ability_id,
+            CASE event.abilityGameID
+              {UTILITY_ABILITY_NAME_SQL}
+              ELSE CAST(event.abilityGameID AS STRING)
+            END AS ability_name
+          FROM (
+            SELECT
+              report_code,
+              EXPLODE(
+                FROM_JSON(
+                  events_json,
+                  'STRUCT<data:ARRAY<STRUCT<timestamp:BIGINT,type:STRING,sourceID:BIGINT,targetID:BIGINT,abilityGameID:BIGINT,fight:BIGINT>>>'
+                ).data
+              ) AS event
+            FROM latest_fight_casts
+          ) raw
+          WHERE event.sourceID IS NOT NULL
+            AND event.abilityGameID IS NOT NULL
+        ),
+        casts_with_players AS (
+          SELECT
+            c.report_code,
+            c.fight_id,
+            a.player_name,
+            a.player_class,
+            c.ability_id,
+            c.ability_name
+          FROM casts c
+          INNER JOIN {CATALOG}.{SCHEMA}.silver_actor_roster a
+            ON c.report_code = a.report_code
+           AND c.actor_id = a.actor_id
+        ),
+        classified AS (
+          SELECT
+            c.report_code,
+            c.fight_id,
+            f.encounter_id,
+            f.boss_name,
+            f.zone_name,
+            f.difficulty,
+            f.difficulty_label,
+            f.raid_night_date,
+            f.is_kill,
+            c.player_name,
+            c.player_class,
+            COALESCE(c.ability_name, CAST(c.ability_id AS STRING)) AS ability_name,
+            CASE
+              WHEN c.ability_id IN ({", ".join(str(value) for value in HEALTHSTONE_ABILITY_IDS)})
+                OR LOWER(COALESCE(c.ability_name, '')) LIKE '%healthstone%' THEN 'healthstone'
+              WHEN c.ability_id IN ({", ".join(str(value) for value in HEALTH_POTION_ABILITY_IDS)})
+                OR LOWER(COALESCE(c.ability_name, '')) LIKE '%healing potion%'
+                OR LOWER(COALESCE(c.ability_name, '')) LIKE '%health potion%'
+                OR LOWER(COALESCE(c.ability_name, '')) LIKE '%healing injector%' THEN 'health_potion'
+              WHEN c.ability_id IN ({", ".join(str(value) for value in DEFENSIVE_ABILITY_IDS)})
+                OR LOWER(COALESCE(c.ability_name, '')) IN ({", ".join(repr(value) for value in DEFENSIVE_ABILITY_NAMES)})
+                THEN 'defensive'
+            END AS utility_type
+          FROM casts_with_players c
+          INNER JOIN {CATALOG}.{SCHEMA}.silver_fight_events f
+            ON c.report_code = f.report_code
+           AND c.fight_id = f.fight_id
+        ),
+        utility_by_player_pull AS (
+          SELECT
+            report_code,
+            fight_id,
+            player_name,
+            SUM(CASE WHEN utility_type = 'health_potion' THEN 1 ELSE 0 END) AS health_potion_uses,
+            SUM(CASE WHEN utility_type = 'healthstone' THEN 1 ELSE 0 END) AS healthstone_casts,
+            SUM(CASE WHEN utility_type = 'defensive' THEN 1 ELSE 0 END) AS defensive_casts,
+            CONCAT_WS(
+              ', ',
+              ARRAY_SORT(COLLECT_SET(CASE WHEN utility_type = 'defensive' THEN ability_name END))
+            ) AS defensive_abilities
+          FROM classified
+          WHERE utility_type IS NOT NULL
+          GROUP BY report_code, fight_id, player_name
+        )
+        SELECT
+          p.report_code,
+          p.fight_id,
+          p.encounter_id,
+          p.boss_name,
+          p.zone_name,
+          p.difficulty,
+          p.difficulty_label,
+          p.raid_night_date,
+          p.is_kill,
+          p.player_name,
+          p.player_class,
+          COALESCE(u.health_potion_uses, 0) AS health_potion_uses,
+          COALESCE(u.healthstone_casts, 0) AS healthstone_casts,
+          COALESCE(u.defensive_casts, 0) AS defensive_casts,
+          COALESCE(u.defensive_abilities, '') AS defensive_abilities
+        FROM player_pulls p
+        INNER JOIN (SELECT DISTINCT report_code, fight_id FROM casts) i
+          ON p.report_code = i.report_code
+         AND p.fight_id = i.fight_id
+        LEFT JOIN utility_by_player_pull u
+          ON p.report_code = u.report_code
+         AND p.fight_id = u.fight_id
+         AND p.player_name = u.player_name
+        ORDER BY p.raid_night_date, p.boss_name, p.fight_id, p.player_name
+    """.strip(),
+    "gold_wipe_survival_events": f"""
+        WITH latest_fight_casts AS (
+          SELECT *
+          FROM (
+            SELECT
+              *,
+              ROW_NUMBER() OVER (PARTITION BY report_code ORDER BY _ingested_at DESC, _file_path DESC) AS rn
+            FROM {CATALOG}.{SCHEMA}.bronze_fight_casts
+          )
+          WHERE rn = 1
+        ),
+        defensive_rules AS (
+          SELECT *
+          FROM VALUES
+            {DEFENSIVE_COOLDOWN_RULES_SQL}
+          AS defensive_rules(player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids)
+        ),
+        casts AS (
+          SELECT
+            raw.report_code,
+            event.fight AS fight_id,
+            event.timestamp AS cast_timestamp_ms,
+            event.sourceID AS actor_id,
+            event.abilityGameID AS ability_id,
+            CASE event.abilityGameID
+              {UTILITY_ABILITY_NAME_SQL}
+              ELSE CAST(event.abilityGameID AS STRING)
+            END AS ability_name
+          FROM (
+            SELECT
+              report_code,
+              EXPLODE(
+                FROM_JSON(
+                  events_json,
+                  'STRUCT<data:ARRAY<STRUCT<timestamp:BIGINT,type:STRING,sourceID:BIGINT,targetID:BIGINT,abilityGameID:BIGINT,fight:BIGINT>>>'
+                ).data
+              ) AS event
+            FROM latest_fight_casts
+          ) raw
+          WHERE event.sourceID IS NOT NULL
+            AND event.abilityGameID IS NOT NULL
+            AND event.timestamp IS NOT NULL
+        ),
+        combatant_info AS (
+          SELECT
+            raw.report_code,
+            event.fight AS fight_id,
+            event.sourceID AS actor_id,
+            event.specID AS spec_id,
+            FILTER(
+              TRANSFORM(
+                event.talentTree,
+                talent -> CAST(COALESCE(talent.spellID, talent.id, talent.talentID) AS STRING)
+              ),
+              talent_id -> talent_id IS NOT NULL
+            ) AS talent_spell_ids
+          FROM (
+            SELECT
+              report_code,
+              EXPLODE(
+                FROM_JSON(
+                  GET_JSON_OBJECT(TO_JSON(STRUCT(*)), '$.combatant_info_json'),
+                  'STRUCT<data:ARRAY<STRUCT<timestamp:BIGINT,type:STRING,sourceID:BIGINT,fight:BIGINT,specID:BIGINT,talentTree:ARRAY<STRUCT<spellID:BIGINT,id:BIGINT,talentID:BIGINT>>>>>'
+                ).data
+              ) AS event
+            FROM latest_fight_casts
+            WHERE GET_JSON_OBJECT(TO_JSON(STRUCT(*)), '$.combatant_info_json') IS NOT NULL
+          ) raw
+          WHERE event.sourceID IS NOT NULL
+            AND event.specID IS NOT NULL
+        ),
+        player_pull_specs AS (
+          SELECT
+            c.report_code,
+            c.fight_id,
+            a.player_name,
+            MAX(c.spec_id) AS spec_id,
+            ARRAY_DISTINCT(FLATTEN(COLLECT_LIST(c.talent_spell_ids))) AS talent_spell_ids
+          FROM combatant_info c
+          INNER JOIN {CATALOG}.{SCHEMA}.silver_actor_roster a
+            ON c.report_code = a.report_code
+           AND c.actor_id = a.actor_id
+          GROUP BY c.report_code, c.fight_id, a.player_name
+        ),
+        instrumented_pulls AS (
+          SELECT DISTINCT report_code, fight_id
+          FROM casts
+        ),
+        player_casts AS (
+          SELECT
+            c.report_code,
+            c.fight_id,
+            c.cast_timestamp_ms,
+            a.player_name,
+            a.player_class,
+            c.ability_id,
+            c.ability_name
+          FROM casts c
+          INNER JOIN {CATALOG}.{SCHEMA}.silver_actor_roster a
+            ON c.report_code = a.report_code
+           AND c.actor_id = a.actor_id
+        ),
+        report_player_casts AS (
+          SELECT DISTINCT
+            report_code,
+            player_name,
+            ability_id
+          FROM player_casts
+        ),
+        wipe_deaths AS (
+          SELECT
+            d.report_code,
+            d.fight_id,
+            d.encounter_id,
+            d.boss_name,
+            d.zone_name,
+            d.zone_id,
+            d.difficulty,
+            d.difficulty_label,
+            d.raid_night_date,
+            d.player_name,
+            d.player_class,
+            s.spec_id,
+            s.talent_spell_ids,
+            d.death_timestamp_ms,
+            d.fight_start_ms,
+            d.killing_blow_name,
+            d.killing_blow_id
+          FROM {CATALOG}.{SCHEMA}.gold_player_death_events d
+          INNER JOIN instrumented_pulls i
+            ON d.report_code = i.report_code
+           AND d.fight_id = i.fight_id
+          LEFT JOIN player_pull_specs s
+            ON d.report_code = s.report_code
+           AND d.fight_id = s.fight_id
+           AND d.player_name = s.player_name
+          WHERE COALESCE(d.is_kill, false) = false
+        ),
+        death_defensive_rules AS (
+          SELECT
+            d.*,
+            r.ability_id AS defensive_ability_id,
+            r.ability_name AS defensive_ability_name,
+            r.cooldown_seconds,
+            r.active_seconds,
+            MAX(c_any.cast_timestamp_ms) AS last_cast_before_death_ms,
+            MAX(c_pull.cast_timestamp_ms) AS last_cast_on_pull_before_death_ms
+          FROM wipe_deaths d
+          INNER JOIN defensive_rules r
+            ON d.player_class = r.player_class
+           AND (
+             r.allowed_spec_ids = ''
+             OR ARRAY_CONTAINS(SPLIT(r.allowed_spec_ids, '\\\\|'), CAST(d.spec_id AS STRING))
+           )
+          LEFT JOIN report_player_casts rpc
+            ON d.report_code = rpc.report_code
+           AND d.player_name = rpc.player_name
+           AND r.ability_id = rpc.ability_id
+          LEFT JOIN player_casts c_any
+            ON d.report_code = c_any.report_code
+           AND d.player_name = c_any.player_name
+           AND r.ability_id = c_any.ability_id
+           AND c_any.cast_timestamp_ms <= d.death_timestamp_ms
+          LEFT JOIN player_casts c_pull
+            ON d.report_code = c_pull.report_code
+           AND d.fight_id = c_pull.fight_id
+           AND d.player_name = c_pull.player_name
+           AND r.ability_id = c_pull.ability_id
+           AND c_pull.cast_timestamp_ms <= d.death_timestamp_ms
+          WHERE
+            r.required_talent_spell_ids = ''
+            OR EXISTS(
+              SPLIT(r.required_talent_spell_ids, '\\\\|'),
+              talent_id -> d.talent_spell_ids IS NOT NULL AND ARRAY_CONTAINS(d.talent_spell_ids, talent_id)
+            )
+            OR rpc.ability_id IS NOT NULL
+          GROUP BY
+            d.report_code,
+            d.fight_id,
+            d.encounter_id,
+            d.boss_name,
+            d.zone_name,
+            d.zone_id,
+            d.difficulty,
+            d.difficulty_label,
+            d.raid_night_date,
+            d.player_name,
+            d.player_class,
+            d.spec_id,
+            d.talent_spell_ids,
+            d.death_timestamp_ms,
+            d.fight_start_ms,
+            d.killing_blow_name,
+            d.killing_blow_id,
+            r.ability_id,
+            r.ability_name,
+            r.cooldown_seconds,
+            r.active_seconds
+        ),
+        death_defensive_state AS (
+          SELECT
+            *,
+            CASE
+              WHEN last_cast_on_pull_before_death_ms IS NOT NULL
+               AND death_timestamp_ms <= last_cast_on_pull_before_death_ms + (active_seconds * 1000)
+              THEN 1 ELSE 0
+            END AS was_active_at_death,
+            CASE
+              WHEN last_cast_before_death_ms IS NULL
+                OR death_timestamp_ms >= last_cast_before_death_ms + (cooldown_seconds * 1000)
+              THEN 1 ELSE 0
+            END AS was_available_at_death
+          FROM death_defensive_rules
+        ),
+        defensive_summary AS (
+          SELECT
+            report_code,
+            fight_id,
+            encounter_id,
+            boss_name,
+            zone_name,
+            zone_id,
+            difficulty,
+            difficulty_label,
+            raid_night_date,
+            player_name,
+            player_class,
+            spec_id,
+            death_timestamp_ms,
+            fight_start_ms,
+            killing_blow_name,
+            killing_blow_id,
+            MAX(was_active_at_death) AS defensive_active_at_death,
+            MAX(was_available_at_death) AS defensive_available_at_death,
+            MAX(last_cast_before_death_ms) AS last_defensive_cast_before_death_ms,
+            CONCAT_WS(
+              ', ',
+              ARRAY_SORT(COLLECT_SET(CASE WHEN was_active_at_death = 1 THEN defensive_ability_name END))
+            ) AS active_defensives,
+            CONCAT_WS(
+              ', ',
+              ARRAY_SORT(COLLECT_SET(CASE WHEN was_available_at_death = 1 THEN defensive_ability_name END))
+            ) AS available_defensives
+          FROM death_defensive_state
+          GROUP BY
+            report_code,
+            fight_id,
+            encounter_id,
+            boss_name,
+            zone_name,
+            zone_id,
+            difficulty,
+            difficulty_label,
+            raid_night_date,
+            player_name,
+            player_class,
+            spec_id,
+            death_timestamp_ms,
+            fight_start_ms,
+            killing_blow_name,
+            killing_blow_id
+        ),
+        recovery_summary AS (
+          SELECT
+            d.report_code,
+            d.fight_id,
+            d.player_name,
+            d.death_timestamp_ms,
+            SUM(CASE
+              WHEN c.ability_id IN ({", ".join(str(value) for value in HEALTHSTONE_ABILITY_IDS)})
+               AND c.cast_timestamp_ms <= d.death_timestamp_ms
+              THEN 1 ELSE 0
+            END) AS healthstone_before_death,
+            SUM(CASE
+              WHEN c.ability_id IN ({", ".join(str(value) for value in HEALTH_POTION_ABILITY_IDS)})
+               AND c.cast_timestamp_ms <= d.death_timestamp_ms
+              THEN 1 ELSE 0
+            END) AS health_potion_before_death
+          FROM wipe_deaths d
+          LEFT JOIN player_casts c
+            ON d.report_code = c.report_code
+           AND d.fight_id = c.fight_id
+           AND d.player_name = c.player_name
+          GROUP BY d.report_code, d.fight_id, d.player_name, d.death_timestamp_ms
+        )
+        SELECT
+          w.report_code,
+          w.fight_id,
+          w.encounter_id,
+          w.boss_name,
+          w.zone_name,
+          w.zone_id,
+          w.difficulty,
+          w.difficulty_label,
+          w.raid_night_date,
+          w.player_name,
+          w.player_class,
+          w.spec_id,
+          w.death_timestamp_ms,
+          w.fight_start_ms,
+          w.killing_blow_name,
+          w.killing_blow_id,
+          COALESCE(d.defensive_active_at_death, 0) AS defensive_active_at_death,
+          COALESCE(d.defensive_available_at_death, 0) AS defensive_available_at_death,
+          CASE
+            WHEN COALESCE(d.defensive_active_at_death, 0) = 0
+             AND COALESCE(d.defensive_available_at_death, 0) = 1
+            THEN 1 ELSE 0
+          END AS available_defensive_unused_at_death,
+          d.last_defensive_cast_before_death_ms,
+          d.active_defensives,
+          d.available_defensives,
+          CASE WHEN COALESCE(r.healthstone_before_death, 0) > 0 THEN 1 ELSE 0 END AS healthstone_before_death,
+          CASE WHEN COALESCE(r.health_potion_before_death, 0) > 0 THEN 1 ELSE 0 END AS health_potion_before_death
+        FROM wipe_deaths w
+        LEFT JOIN defensive_summary d
+          ON w.report_code = d.report_code
+         AND w.fight_id = d.fight_id
+         AND w.player_name = d.player_name
+         AND w.death_timestamp_ms = d.death_timestamp_ms
+        LEFT JOIN recovery_summary r
+          ON w.report_code = r.report_code
+         AND w.fight_id = r.fight_id
+         AND w.player_name = r.player_name
+         AND w.death_timestamp_ms = r.death_timestamp_ms
+        ORDER BY w.raid_night_date, w.boss_name, w.fight_id, w.death_timestamp_ms, w.player_name
+    """.strip(),
+    "gold_wipe_cooldown_utilization": f"""
+        WITH latest_fight_casts AS (
+          SELECT *
+          FROM (
+            SELECT
+              *,
+              ROW_NUMBER() OVER (PARTITION BY report_code ORDER BY _ingested_at DESC, _file_path DESC) AS rn
+            FROM {CATALOG}.{SCHEMA}.bronze_fight_casts
+          )
+          WHERE rn = 1
+        ),
+        cooldown_rules AS (
+          SELECT *
+          FROM VALUES
+            {COOLDOWN_RULES_SQL}
+          AS cooldown_rules(cooldown_category, player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids)
+        ),
+        instrumented_pulls AS (
+          SELECT DISTINCT
+            report_code,
+            event.fight AS fight_id
+          FROM (
+            SELECT
+              report_code,
+              EXPLODE(
+                FROM_JSON(
+                  events_json,
+                  'STRUCT<data:ARRAY<STRUCT<timestamp:BIGINT,type:STRING,sourceID:BIGINT,targetID:BIGINT,abilityGameID:BIGINT,fight:BIGINT>>>'
+                ).data
+              ) AS event
+            FROM latest_fight_casts
+          ) raw
+          WHERE event.fight IS NOT NULL
+        ),
+        combatant_info AS (
+          SELECT
+            raw.report_code,
+            event.fight AS fight_id,
+            event.sourceID AS actor_id,
+            event.specID AS spec_id,
+            FILTER(
+              TRANSFORM(
+                event.talentTree,
+                talent -> CAST(COALESCE(talent.spellID, talent.id, talent.talentID) AS STRING)
+              ),
+              talent_id -> talent_id IS NOT NULL
+            ) AS talent_spell_ids
+          FROM (
+            SELECT
+              report_code,
+              EXPLODE(
+                FROM_JSON(
+                  GET_JSON_OBJECT(TO_JSON(STRUCT(*)), '$.combatant_info_json'),
+                  'STRUCT<data:ARRAY<STRUCT<timestamp:BIGINT,type:STRING,sourceID:BIGINT,fight:BIGINT,specID:BIGINT,talentTree:ARRAY<STRUCT<spellID:BIGINT,id:BIGINT,talentID:BIGINT>>>>>'
+                ).data
+              ) AS event
+            FROM latest_fight_casts
+            WHERE GET_JSON_OBJECT(TO_JSON(STRUCT(*)), '$.combatant_info_json') IS NOT NULL
+          ) raw
+          WHERE event.sourceID IS NOT NULL
+            AND event.specID IS NOT NULL
+        ),
+        player_pull_specs AS (
+          SELECT
+            c.report_code,
+            c.fight_id,
+            a.player_name,
+            MAX(c.spec_id) AS spec_id,
+            ARRAY_DISTINCT(FLATTEN(COLLECT_LIST(c.talent_spell_ids))) AS talent_spell_ids
+          FROM combatant_info c
+          INNER JOIN {CATALOG}.{SCHEMA}.silver_actor_roster a
+            ON c.report_code = a.report_code
+           AND c.actor_id = a.actor_id
+          GROUP BY c.report_code, c.fight_id, a.player_name
+        ),
+        casts AS (
+          SELECT
+            raw.report_code,
+            event.fight AS fight_id,
+            event.sourceID AS actor_id,
+            event.abilityGameID AS ability_id
+          FROM (
+            SELECT
+              report_code,
+              EXPLODE(
+                FROM_JSON(
+                  events_json,
+                  'STRUCT<data:ARRAY<STRUCT<timestamp:BIGINT,type:STRING,sourceID:BIGINT,targetID:BIGINT,abilityGameID:BIGINT,fight:BIGINT>>>'
+                ).data
+              ) AS event
+            FROM latest_fight_casts
+          ) raw
+          WHERE event.sourceID IS NOT NULL
+            AND event.abilityGameID IS NOT NULL
+        ),
+        player_casts AS (
+          SELECT
+            c.report_code,
+            c.fight_id,
+            a.player_name,
+            c.ability_id,
+            COUNT(*) AS actual_casts
+          FROM casts c
+          INNER JOIN {CATALOG}.{SCHEMA}.silver_actor_roster a
+            ON c.report_code = a.report_code
+           AND c.actor_id = a.actor_id
+          GROUP BY c.report_code, c.fight_id, a.player_name, c.ability_id
+        ),
+        report_player_casts AS (
+          SELECT DISTINCT
+            report_code,
+            player_name,
+            ability_id
+          FROM player_casts
+        ),
+        player_pulls AS (
+          SELECT
+            f.report_code,
+            f.fight_id,
+            f.encounter_id,
+            f.boss_name,
+            f.zone_name,
+            f.difficulty,
+            f.difficulty_label,
+            f.raid_night_date,
+            f.duration_seconds,
+            a.player_name,
+            a.player_class
+          FROM (
+            SELECT
+              report_code,
+              fight_id,
+              encounter_id,
+              boss_name,
+              zone_name,
+              difficulty,
+              difficulty_label,
+              raid_night_date,
+              duration_seconds,
+              is_kill,
+              EXPLODE(friendly_player_ids) AS actor_id
+            FROM {CATALOG}.{SCHEMA}.silver_fight_events
+          ) f
+          INNER JOIN {CATALOG}.{SCHEMA}.silver_actor_roster a
+            ON f.report_code = a.report_code
+           AND f.actor_id = a.actor_id
+          WHERE COALESCE(f.is_kill, false) = false
+            AND a.player_name IS NOT NULL
+            AND a.player_name != ''
+        ),
+        tracked_cooldowns AS (
+          SELECT
+            p.report_code,
+            p.fight_id,
+            p.encounter_id,
+            p.boss_name,
+            p.zone_name,
+            p.difficulty,
+            p.difficulty_label,
+            p.raid_night_date,
+            p.duration_seconds,
+            p.player_name,
+            p.player_class,
+            s.spec_id,
+            r.cooldown_category,
+            r.ability_id,
+            r.ability_name,
+            r.cooldown_seconds,
+            r.active_seconds,
+            CAST(FLOOR(COALESCE(p.duration_seconds, 0) / r.cooldown_seconds) + 1 AS BIGINT) AS possible_casts
+          FROM player_pulls p
+          INNER JOIN cooldown_rules r
+            ON p.player_class = r.player_class
+          INNER JOIN instrumented_pulls i
+            ON p.report_code = i.report_code
+           AND p.fight_id = i.fight_id
+          INNER JOIN player_pull_specs s
+            ON p.report_code = s.report_code
+           AND p.fight_id = s.fight_id
+           AND p.player_name = s.player_name
+          LEFT JOIN report_player_casts rpc
+            ON p.report_code = rpc.report_code
+           AND p.player_name = rpc.player_name
+           AND r.ability_id = rpc.ability_id
+          WHERE COALESCE(p.duration_seconds, 0) > 0
+            AND (
+              r.allowed_spec_ids = ''
+              OR ARRAY_CONTAINS(SPLIT(r.allowed_spec_ids, '\\\\|'), CAST(s.spec_id AS STRING))
+            )
+            AND (
+              r.required_talent_spell_ids = ''
+              OR EXISTS(
+                SPLIT(r.required_talent_spell_ids, '\\\\|'),
+                talent_id -> s.talent_spell_ids IS NOT NULL AND ARRAY_CONTAINS(s.talent_spell_ids, talent_id)
+              )
+              OR rpc.ability_id IS NOT NULL
+            )
+        )
+        SELECT
+          t.report_code,
+          t.fight_id,
+          t.encounter_id,
+          t.boss_name,
+          t.zone_name,
+          t.difficulty,
+          t.difficulty_label,
+          t.raid_night_date,
+          t.duration_seconds,
+          t.player_name,
+          t.player_class,
+          t.spec_id,
+          t.cooldown_category,
+          t.ability_id,
+          t.ability_name,
+          t.cooldown_seconds,
+          t.active_seconds,
+          t.possible_casts,
+          COALESCE(c.actual_casts, 0) AS actual_casts,
+          GREATEST(t.possible_casts - COALESCE(c.actual_casts, 0), 0) AS missed_casts,
+          CASE
+            WHEN t.possible_casts > 0
+            THEN ROUND((COALESCE(c.actual_casts, 0) / t.possible_casts) * 100, 1)
+            ELSE 0
+          END AS cast_efficiency_pct
+        FROM tracked_cooldowns t
+        LEFT JOIN player_casts c
+          ON t.report_code = c.report_code
+         AND t.fight_id = c.fight_id
+         AND t.player_name = c.player_name
+         AND t.ability_id = c.ability_id
+        ORDER BY t.raid_night_date, t.boss_name, t.fight_id, t.cooldown_category, t.player_name, t.ability_name
+    """.strip(),
 }
 
 LIVE_ROSTER_COLUMNS = {
@@ -627,16 +1545,38 @@ def _fetch_blizzard_profile_candidates(
     client: WorkspaceClient, warehouse_id: str
 ) -> list[dict[str, str]]:
     statement = f"""
-        SELECT player_name, COALESCE(NULLIF(realm, ''), '{WCL_GUILD_SERVER_SLUG}') AS realm
-        FROM {CATALOG}.{SCHEMA}.gold_player_profile
-        WHERE player_name IS NOT NULL
-          AND player_name != ''
-          AND (
-            COALESCE(is_raid_team, false) = true
-            OR COALESCE(kills_tracked, 0) > 0
-          )
-        ORDER BY COALESCE(is_raid_team, false) DESC,
-                 latest_kill_date DESC NULLS LAST,
+        WITH candidates AS (
+          SELECT
+            name AS player_name,
+            COALESCE(NULLIF(realm, ''), '{WCL_GUILD_SERVER_SLUG}') AS realm,
+            true AS is_raid_team,
+            0 AS kills_tracked,
+            last_raid_date AS latest_seen_date
+          FROM {CATALOG}.{SCHEMA}.gold_raid_team
+          WHERE name IS NOT NULL
+            AND name != ''
+
+          UNION ALL
+
+          SELECT
+            player_name,
+            '{WCL_GUILD_SERVER_SLUG}' AS realm,
+            false AS is_raid_team,
+            COUNT(*) AS kills_tracked,
+            MAX(raid_night_date) AS latest_seen_date
+          FROM {CATALOG}.{SCHEMA}.gold_boss_kill_roster
+          WHERE player_name IS NOT NULL
+            AND player_name != ''
+          GROUP BY player_name
+        )
+        SELECT
+          player_name,
+          realm
+        FROM candidates
+        GROUP BY player_name, realm
+        ORDER BY MAX(is_raid_team) DESC,
+                 MAX(kills_tracked) DESC,
+                 MAX(latest_seen_date) DESC NULLS LAST,
                  player_name
         LIMIT {BLIZZARD_PROFILE_EXPORT_CAP}
     """.strip()

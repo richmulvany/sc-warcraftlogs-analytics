@@ -9,6 +9,7 @@ import { Raids }         from './pages/Raids'
 import { RaidDetail }    from './pages/RaidDetail'
 import { Attendance }    from './pages/Attendance'
 import { Roster }        from './pages/Roster'
+import { Preparation }   from './pages/Preparation'
 // Legacy pages kept but accessible via guild nav
 import { Performance }   from './pages/Performance'
 
@@ -24,5 +25,6 @@ export const router = createBrowserRouter([
   { path: '/raids/:reportCode',      element: <RaidDetail />   },
   { path: '/attendance',             element: <Attendance />   },
   { path: '/roster',                 element: <Roster />       },
+  { path: '/preparation',            element: <Preparation />  },
   { path: '/performance',            element: <Performance />  },
 ])

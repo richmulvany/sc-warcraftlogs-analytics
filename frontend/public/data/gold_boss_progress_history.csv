@@ -2048,3 +2048,8 @@ encounter_id,boss_name,zone_name,difficulty,difficulty_label,raid_night_date,rep
 3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2026-04-15,PkmcAzgyjQfGwMZB,Reclear 2 Electric Boogaloo 04-15,2026-04-15T18:17:46.823Z,2026-04-15T21:18:22.168Z,5,1,4,51.52,68.3,0.0,true,391,391
 3178,Vaelgor & Ezzorak,VS / DR / MQD,5,Mythic,2026-04-20,b9Afa8tD3GRmvr26,Happy w33d day - 04-20,2026-04-20T18:00:34.661Z,2026-04-20T21:35:37.853Z,20,0,20,51.87,70.14,51.87,false,null,267
 3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2026-04-20,b9Afa8tD3GRmvr26,Happy w33d day - 04-20,2026-04-20T18:00:34.661Z,2026-04-20T21:35:37.853Z,8,1,7,2.97,23.92,0.0,true,365,382
+3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2026-04-22,VvyhHrk3P4Z18NKT,Reclear with Rerolls - 04-22,2026-04-22T18:12:24.572Z,2026-04-22T21:03:48.101Z,4,1,3,0.65,41.37,0.0,true,362,385
+3177,Vorasius,VS / DR / MQD,5,Mythic,2026-04-22,VvyhHrk3P4Z18NKT,Reclear with Rerolls - 04-22,2026-04-22T18:12:24.572Z,2026-04-22T21:03:48.101Z,1,1,0,null,null,0.0,true,340,340
+3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2026-04-22,VvyhHrk3P4Z18NKT,Reclear with Rerolls - 04-22,2026-04-22T18:12:24.572Z,2026-04-22T21:03:48.101Z,1,1,0,null,null,0.0,true,368,368
+3178,Vaelgor & Ezzorak,VS / DR / MQD,5,Mythic,2026-04-22,VvyhHrk3P4Z18NKT,Reclear with Rerolls - 04-22,2026-04-22T18:12:24.572Z,2026-04-22T21:03:48.101Z,11,0,11,33.31,56.5,33.31,false,null,361
+3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2026-04-22,VvyhHrk3P4Z18NKT,Reclear with Rerolls - 04-22,2026-04-22T18:12:24.572Z,2026-04-22T21:03:48.101Z,4,1,3,43.81,46.01,0.0,true,389,389

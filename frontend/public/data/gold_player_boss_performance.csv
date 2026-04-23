@@ -15035,30 +15035,31 @@ Budgetgoku,Paladin,healer,Holy,3176,Imperator Averzian,VS / DR / MQD,4,Heroic,2,
 Karllia,DemonHunter,tank,Vengeance,3176,Imperator Averzian,VS / DR / MQD,4,Heroic,1,39584,39584,39584,null,73.0,73.0,273.0,2026-04-08,2026-04-08
 Lenus,DemonHunter,tank,Vengeance,3176,Imperator Averzian,VS / DR / MQD,4,Heroic,3,35049,41327,41327,17.9,69.3,84.0,256.3,2026-03-23,2026-04-01
 Jadsrune,DeathKnight,tank,Blood,3176,Imperator Averzian,VS / DR / MQD,4,Heroic,4,30770,41144,41144,33.7,48.3,77.0,265.0,2026-03-23,2026-04-08
-Yearning,Monk,dps,Windwalker,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,107825,111807,111807,3.7,85.5,90.0,276.0,2026-04-06,2026-04-15
+Yearning,Monk,dps,Windwalker,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,111109,117676,117676,5.9,85.5,90.0,277.3,2026-04-06,2026-04-22
+Zren,Hunter,dps,Survival,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,104907,109676,109676,4.5,51.0,59.0,276.0,2026-04-06,2026-04-22
 Lunasnow,Mage,dps,Frost,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,102979,109146,109146,6.0,78.5,93.0,271.0,2026-04-06,2026-04-15
-Zren,Hunter,dps,Survival,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,102523,106488,106488,3.9,51.0,59.0,274.0,2026-04-06,2026-04-15
-Sebaheoung,Warlock,dps,Demonology,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,98724,99542,97906,-0.8,36.5,44.0,276.0,2026-04-06,2026-04-15
+Sebaheoung,Warlock,dps,Demonology,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,100943,105383,105383,4.4,36.5,44.0,277.7,2026-04-06,2026-04-22
+Karllia,DemonHunter,dps,Devourer,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,100037,108588,108588,8.5,35.0,35.0,276.5,2026-04-06,2026-04-22
+Imogen,Evoker,dps,Augmentation,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,99801,99801,99801,null,null,null,280.0,2026-04-22,2026-04-22
+Jumzo,Paladin,dps,Retribution,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,98320,106166,106166,8.0,50.5,83.0,277.7,2026-04-06,2026-04-22
+Typ,Warrior,dps,Fury,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,95429,98396,98396,3.1,63.5,77.0,276.7,2026-04-06,2026-04-22
 Midnight,Mage,dps,Frost,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,95178,95178,95178,null,56.0,56.0,273.0,2026-04-06,2026-04-06
-Jumzo,Paladin,dps,Retribution,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,94398,105072,105072,11.3,50.5,83.0,276.0,2026-04-06,2026-04-15
-Typ,Warrior,dps,Fury,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,93946,97620,97620,3.9,63.5,77.0,275.5,2026-04-06,2026-04-15
-Yevie,Priest,dps,Shadow,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,92047,92047,92047,null,42.0,42.0,275.0,2026-04-15,2026-04-15
-Karllia,DemonHunter,dps,Devourer,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,91487,91487,91487,null,35.0,35.0,273.0,2026-04-06,2026-04-06
-Hobbyalkis,Rogue,dps,Subtlety,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,91258,92304,92304,1.1,55.5,56.0,273.0,2026-04-06,2026-04-15
-Bigboiples,Druid,dps,Balance,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,88754,92373,92373,4.1,45.0,51.0,272.5,2026-04-06,2026-04-15
+Yevie,Priest,dps,Shadow,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,94450,96853,96853,2.5,42.0,42.0,276.0,2026-04-15,2026-04-22
+Hobbyalkis,Rogue,dps,Subtlety,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,92541,95106,95106,2.8,55.5,56.0,274.3,2026-04-06,2026-04-22
+Bigboiples,Druid,dps,Balance,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,90218,93146,93146,3.2,45.0,51.0,273.7,2026-04-06,2026-04-22
+Megachomber,DeathKnight,dps,Unholy,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,89501,101165,94376,5.4,43.0,84.0,276.3,2026-04-06,2026-04-22
 Estrogel,Evoker,dps,Augmentation,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,88559,94931,94931,7.2,37.5,55.0,274.5,2026-04-06,2026-04-15
-Turbohot,Hunter,dps,Marksmanship,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,88196,90494,90494,2.6,30.5,34.0,271.5,2026-04-06,2026-04-15
-Megachomber,DeathKnight,dps,Unholy,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,87064,101165,101165,16.2,43.0,84.0,274.5,2026-04-06,2026-04-15
-Jointsuckerr,Shaman,dps,Elemental,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,87053,87053,87053,null,33.0,33.0,276.0,2026-04-15,2026-04-15
-Dorathy,Warrior,dps,Fury,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,83212,83212,83212,null,19.0,19.0,270.0,2026-04-06,2026-04-06
+Dorathy,Warrior,dps,Fury,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,88389,93567,93567,5.9,19.0,19.0,275.0,2026-04-06,2026-04-22
+Jointsuckerr,Shaman,dps,Elemental,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,86531,87053,86009,-0.6,33.0,33.0,277.5,2026-04-15,2026-04-22
+Turbohot,Hunter,dps,Marksmanship,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,85508,90494,80133,-6.3,30.5,34.0,274.0,2026-04-06,2026-04-22
 Bileplume,Rogue,dps,Subtlety,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,79303,79303,79303,null,8.0,8.0,268.0,2026-04-15,2026-04-15
-Mleko,Priest,healer,Discipline,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,19330,19330,19330,null,38.0,38.0,275.0,2026-04-15,2026-04-15
-Everrin,Evoker,healer,Preservation,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,11977,13436,10518,-12.2,96.5,98.0,272.0,2026-04-06,2026-04-15
-Rivey,Monk,healer,Mistweaver,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,7597,7633,7633,0.5,24.5,25.0,274.5,2026-04-06,2026-04-15
-Garsias,Shaman,healer,Restoration,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,3738,5591,1885,-49.6,72.5,87.0,272.0,2026-04-06,2026-04-15
+Mleko,Priest,healer,Discipline,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,21375,23420,23420,9.6,38.0,38.0,277.0,2026-04-15,2026-04-22
+Everrin,Evoker,healer,Preservation,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,12373,13436,13167,6.4,96.5,98.0,274.3,2026-04-06,2026-04-22
+Rivey,Monk,healer,Mistweaver,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,8440,10126,10126,20.0,24.5,25.0,276.3,2026-04-06,2026-04-22
 Budgetgoku,Paladin,healer,Holy,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,1,3499,3499,3499,null,68.0,68.0,271.0,2026-04-06,2026-04-06
-Lenus,DemonHunter,tank,Vengeance,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,43220,49593,49593,14.7,53.0,76.0,268.0,2026-04-06,2026-04-15
-Jadsrune,DeathKnight,tank,Blood,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,2,42973,44377,41570,-3.3,58.5,72.0,275.5,2026-04-06,2026-04-15
+Garsias,Shaman,healer,Restoration,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,3462,5591,2912,-15.9,72.5,87.0,274.0,2026-04-06,2026-04-22
+Lenus,DemonHunter,tank,Vengeance,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,48307,58483,58483,21.1,53.0,76.0,270.7,2026-04-06,2026-04-22
+Jadsrune,DeathKnight,tank,Blood,3176,Imperator Averzian,VS / DR / MQD,5,Mythic,3,40980,44377,36995,-9.7,58.5,72.0,277.3,2026-04-06,2026-04-22
 Zren,Hunter,dps,Survival,3177,Vorasius,VS / DR / MQD,3,Normal,2,68178,82480,82480,21.0,92.5,99.0,254.5,2026-03-18,2026-03-25
 Yearning,Monk,dps,Windwalker,3177,Vorasius,VS / DR / MQD,3,Normal,2,65154,80666,80666,23.8,81.5,97.0,254.0,2026-03-18,2026-03-25
 Midnight,Mage,dps,Frost,3177,Vorasius,VS / DR / MQD,3,Normal,2,63358,76931,76931,21.4,82.0,97.0,257.0,2026-03-18,2026-03-25
@@ -15115,29 +15116,30 @@ Temiti,Druid,healer,Restoration,3177,Vorasius,VS / DR / MQD,4,Heroic,1,4500,4500
 Karllia,DemonHunter,tank,Vengeance,3177,Vorasius,VS / DR / MQD,4,Heroic,1,36790,36790,36790,null,74.0,74.0,273.0,2026-04-08,2026-04-08
 Lenus,DemonHunter,tank,Vengeance,3177,Vorasius,VS / DR / MQD,4,Heroic,3,35479,43721,43721,23.2,80.7,97.0,256.3,2026-03-23,2026-04-01
 Jadsrune,DeathKnight,tank,Blood,3177,Vorasius,VS / DR / MQD,4,Heroic,4,32142,40423,40423,25.8,64.8,86.0,265.0,2026-03-23,2026-04-08
-Jumzo,Paladin,dps,Retribution,3177,Vorasius,VS / DR / MQD,5,Mythic,2,94531,95679,93384,-1.2,78.5,88.0,276.5,2026-04-06,2026-04-15
-Yearning,Monk,dps,Windwalker,3177,Vorasius,VS / DR / MQD,5,Mythic,2,89614,90901,90901,1.4,76.5,77.0,276.0,2026-04-06,2026-04-15
-Karllia,DemonHunter,dps,Devourer,3177,Vorasius,VS / DR / MQD,5,Mythic,2,89231,96281,96281,7.9,70.5,91.0,276.0,2026-04-06,2026-04-15
-Zren,Hunter,dps,Survival,3177,Vorasius,VS / DR / MQD,5,Mythic,2,85343,92416,92416,8.3,50.5,80.0,274.0,2026-04-06,2026-04-15
-Hobbyalkis,Rogue,dps,Subtlety,3177,Vorasius,VS / DR / MQD,5,Mythic,2,84273,86391,86391,2.5,54.5,63.0,273.5,2026-04-06,2026-04-15
-Yevie,Priest,dps,Shadow,3177,Vorasius,VS / DR / MQD,5,Mythic,1,83865,83865,83865,null,40.0,40.0,276.0,2026-04-15,2026-04-15
-Sebaheoung,Warlock,dps,Destruction,3177,Vorasius,VS / DR / MQD,5,Mythic,2,82050,82539,82539,0.6,54.0,56.0,276.5,2026-04-06,2026-04-15
-Bigboiples,Druid,dps,Balance,3177,Vorasius,VS / DR / MQD,5,Mythic,2,81128,81271,81271,0.2,31.0,33.0,272.5,2026-04-06,2026-04-15
-Megachomber,DeathKnight,dps,Unholy,3177,Vorasius,VS / DR / MQD,5,Mythic,2,80581,82287,78875,-2.1,22.5,32.0,274.5,2026-04-06,2026-04-15
+Jumzo,Paladin,dps,Retribution,3177,Vorasius,VS / DR / MQD,5,Mythic,3,97196,102525,102525,5.5,78.5,88.0,278.0,2026-04-06,2026-04-22
+Yearning,Monk,dps,Windwalker,3177,Vorasius,VS / DR / MQD,5,Mythic,3,93884,102424,102424,9.1,76.5,77.0,277.3,2026-04-06,2026-04-22
+Yevie,Priest,dps,Shadow,3177,Vorasius,VS / DR / MQD,5,Mythic,2,89587,95309,95309,6.4,40.0,40.0,276.5,2026-04-15,2026-04-22
+Karllia,DemonHunter,dps,Devourer,3177,Vorasius,VS / DR / MQD,5,Mythic,3,88320,96281,86498,-2.1,70.5,91.0,277.3,2026-04-06,2026-04-22
+Hobbyalkis,Rogue,dps,Subtlety,3177,Vorasius,VS / DR / MQD,5,Mythic,3,85948,89299,89299,3.9,54.5,63.0,274.7,2026-04-06,2026-04-22
+Zren,Hunter,dps,Survival,3177,Vorasius,VS / DR / MQD,5,Mythic,3,84941,92416,84137,-0.9,50.5,80.0,276.0,2026-04-06,2026-04-22
+Megachomber,DeathKnight,dps,Unholy,3177,Vorasius,VS / DR / MQD,5,Mythic,3,82017,84891,84891,3.5,22.5,32.0,276.3,2026-04-06,2026-04-22
+Sebaheoung,Warlock,dps,Destruction,3177,Vorasius,VS / DR / MQD,5,Mythic,3,80875,82539,78525,-2.9,54.0,56.0,278.0,2026-04-06,2026-04-22
+Bigboiples,Druid,dps,Balance,3177,Vorasius,VS / DR / MQD,5,Mythic,3,79664,81271,76737,-3.7,31.0,33.0,273.7,2026-04-06,2026-04-22
 Lunasnow,Mage,dps,Frost,3177,Vorasius,VS / DR / MQD,5,Mythic,2,79568,91561,67575,-15.1,47.0,90.0,271.0,2026-04-06,2026-04-15
+Imogen,Evoker,dps,Augmentation,3177,Vorasius,VS / DR / MQD,5,Mythic,1,79099,79099,79099,null,null,null,280.0,2026-04-22,2026-04-22
+Turbohot,Hunter,dps,Marksmanship,3177,Vorasius,VS / DR / MQD,5,Mythic,3,78907,84461,84461,7.0,38.0,59.0,275.7,2026-04-06,2026-04-22
 Estrogel,Evoker,dps,Augmentation,3177,Vorasius,VS / DR / MQD,5,Mythic,2,78369,79041,77697,-0.9,33.5,40.0,274.5,2026-04-06,2026-04-15
-Turbohot,Hunter,dps,Marksmanship,3177,Vorasius,VS / DR / MQD,5,Mythic,2,76130,81892,81892,7.6,38.0,59.0,274.0,2026-04-06,2026-04-15
-Jointsuckerr,Shaman,dps,Elemental,3177,Vorasius,VS / DR / MQD,5,Mythic,1,75667,75667,75667,null,22.0,22.0,276.0,2026-04-15,2026-04-15
-Dorathy,Warrior,dps,Fury,3177,Vorasius,VS / DR / MQD,5,Mythic,2,75338,76320,76320,1.3,27.0,31.0,274.5,2026-04-06,2026-04-15
+Dorathy,Warrior,dps,Fury,3177,Vorasius,VS / DR / MQD,5,Mythic,3,78139,83742,83742,7.2,27.0,31.0,276.3,2026-04-06,2026-04-22
+Jointsuckerr,Shaman,dps,Elemental,3177,Vorasius,VS / DR / MQD,5,Mythic,2,77856,80045,80045,2.8,22.0,22.0,277.5,2026-04-15,2026-04-22
+Typ,Warrior,dps,Fury,3177,Vorasius,VS / DR / MQD,5,Mythic,2,75273,83887,83887,11.4,5.0,5.0,276.0,2026-04-06,2026-04-22
 Midnight,Mage,dps,Frost,3177,Vorasius,VS / DR / MQD,5,Mythic,1,72851,72851,72851,null,10.0,10.0,273.0,2026-04-06,2026-04-06
-Typ,Warrior,dps,Fury,3177,Vorasius,VS / DR / MQD,5,Mythic,1,66659,66659,66659,null,5.0,5.0,272.0,2026-04-06,2026-04-06
-Mleko,Priest,healer,Discipline,3177,Vorasius,VS / DR / MQD,5,Mythic,1,16120,16120,16120,null,5.0,5.0,275.0,2026-04-15,2026-04-15
-Rivey,Monk,healer,Mistweaver,3177,Vorasius,VS / DR / MQD,5,Mythic,2,9535,10461,8609,-9.7,31.5,48.0,275.5,2026-04-06,2026-04-15
-Everrin,Evoker,healer,Preservation,3177,Vorasius,VS / DR / MQD,5,Mythic,2,9505,9780,9780,2.9,96.5,97.0,272.0,2026-04-06,2026-04-15
-Garsias,Shaman,healer,Restoration,3177,Vorasius,VS / DR / MQD,5,Mythic,2,4323,5711,2936,-32.1,65.5,81.0,272.0,2026-04-06,2026-04-15
+Mleko,Priest,healer,Discipline,3177,Vorasius,VS / DR / MQD,5,Mythic,2,18948,21777,21777,14.9,5.0,5.0,277.0,2026-04-15,2026-04-22
+Everrin,Evoker,healer,Preservation,3177,Vorasius,VS / DR / MQD,5,Mythic,3,10040,11109,11109,10.6,96.5,97.0,274.3,2026-04-06,2026-04-22
+Rivey,Monk,healer,Mistweaver,3177,Vorasius,VS / DR / MQD,5,Mythic,3,9969,10837,10837,8.7,31.5,48.0,277.0,2026-04-06,2026-04-22
+Garsias,Shaman,healer,Restoration,3177,Vorasius,VS / DR / MQD,5,Mythic,3,4788,5717,5717,19.4,65.5,81.0,274.0,2026-04-06,2026-04-22
 Budgetgoku,Paladin,healer,Holy,3177,Vorasius,VS / DR / MQD,5,Mythic,1,3476,3476,3476,null,53.0,53.0,271.0,2026-04-06,2026-04-06
-Lenus,DemonHunter,tank,Vengeance,3177,Vorasius,VS / DR / MQD,5,Mythic,2,45219,46670,46670,3.2,73.5,75.0,269.0,2026-04-06,2026-04-15
-Jadsrune,DeathKnight,tank,Blood,3177,Vorasius,VS / DR / MQD,5,Mythic,2,41225,41513,40938,-0.7,59.0,72.0,275.5,2026-04-06,2026-04-15
+Lenus,DemonHunter,tank,Vengeance,3177,Vorasius,VS / DR / MQD,5,Mythic,3,46655,49528,49528,6.2,73.5,75.0,271.3,2026-04-06,2026-04-22
+Jadsrune,DeathKnight,tank,Blood,3177,Vorasius,VS / DR / MQD,5,Mythic,3,42467,44950,44950,5.8,59.0,72.0,277.3,2026-04-06,2026-04-22
 Bpd,Warlock,dps,Destruction,3178,Vaelgor & Ezzorak,VS / DR / MQD,3,Normal,2,75852,83161,83161,9.6,83.0,89.0,247.5,2026-03-18,2026-03-25
 Lunasnow,Mage,dps,Frost,3178,Vaelgor & Ezzorak,VS / DR / MQD,3,Normal,2,75372,83510,83510,10.8,92.5,96.0,256.5,2026-03-18,2026-03-25
 Midnight,Mage,dps,Frost,3178,Vaelgor & Ezzorak,VS / DR / MQD,3,Normal,2,75347,91024,91024,20.8,85.0,98.0,257.0,2026-03-18,2026-03-25
@@ -15247,26 +15249,28 @@ Budgetgoku,Paladin,healer,Holy,3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic
 Karllia,DemonHunter,tank,Vengeance,3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic,1,45228,45228,45228,null,96.0,96.0,273.0,2026-04-08,2026-04-08
 Lenus,DemonHunter,tank,Vengeance,3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic,3,33501,38559,38559,15.1,84.7,92.0,256.3,2026-03-23,2026-04-01
 Jadsrune,DeathKnight,tank,Blood,3179,Fallen-King Salhadaar,VS / DR / MQD,4,Heroic,4,28796,37240,37240,29.3,55.0,80.0,265.0,2026-03-23,2026-04-08
-Hobbyalkis,Rogue,dps,Subtlety,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,107931,107931,107931,null,null,null,277.0,2026-04-20,2026-04-20
-Yearning,Monk,dps,Windwalker,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,106204,106204,106204,null,null,null,280.0,2026-04-20,2026-04-20
-Karllia,DemonHunter,dps,Devourer,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,103178,103178,103178,null,null,null,280.0,2026-04-20,2026-04-20
-Sebaheoung,Warlock,dps,Demonology,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,101391,101391,101391,null,null,null,279.0,2026-04-20,2026-04-20
+Yearning,Monk,dps,Windwalker,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,108955,111707,111707,2.5,null,null,281.0,2026-04-20,2026-04-22
+Hobbyalkis,Rogue,dps,Subtlety,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,106406,107931,104882,-1.4,null,null,277.0,2026-04-20,2026-04-22
+Typ,Warrior,dps,Fury,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,105627,105627,105627,null,null,null,280.0,2026-04-22,2026-04-22
+Karllia,DemonHunter,dps,Devourer,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,104071,104964,104964,0.9,null,null,280.5,2026-04-20,2026-04-22
+Sebaheoung,Warlock,dps,Demonology,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,102035,102680,102680,0.6,null,null,280.0,2026-04-20,2026-04-22
+Zren,Hunter,dps,Survival,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,101314,101314,101314,null,null,null,280.0,2026-04-22,2026-04-22
+Yevie,Priest,dps,Shadow,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,99263,100718,100718,1.5,null,null,278.0,2026-04-20,2026-04-22
 Midnight,Mage,dps,Frost,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,99231,99231,99231,null,null,null,277.0,2026-04-20,2026-04-20
-Dorathy,Warrior,dps,Fury,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,98005,98005,98005,null,null,null,279.0,2026-04-20,2026-04-20
-Yevie,Priest,dps,Shadow,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,97809,97809,97809,null,null,null,277.0,2026-04-20,2026-04-20
-Bigboiples,Druid,dps,Balance,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,94924,94924,94924,null,null,null,275.0,2026-04-20,2026-04-20
-Jumzo,Paladin,dps,Retribution,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,92148,92148,92148,null,null,null,280.0,2026-04-20,2026-04-20
+Dorathy,Warrior,dps,Fury,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,95315,98005,92625,-2.8,null,null,279.5,2026-04-20,2026-04-22
+Jumzo,Paladin,dps,Retribution,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,93893,95639,95639,1.9,null,null,281.0,2026-04-20,2026-04-22
+Bigboiples,Druid,dps,Balance,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,91016,94924,87108,-4.3,null,null,275.5,2026-04-20,2026-04-22
 Lunasnow,Mage,dps,Frost,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,89483,89483,89483,null,null,null,273.0,2026-04-20,2026-04-20
-Turbohot,Hunter,dps,Marksmanship,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,89483,89483,89483,null,null,null,279.0,2026-04-20,2026-04-20
-Imogen,Evoker,dps,Augmentation,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,88206,88206,88206,null,null,null,280.0,2026-04-20,2026-04-20
-Megachomber,DeathKnight,dps,Unholy,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,87360,87360,87360,null,null,null,279.0,2026-04-20,2026-04-20
-Jointsuckerr,Shaman,dps,Elemental,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,79233,79233,79233,null,null,null,278.0,2026-04-20,2026-04-20
-Mleko,Priest,healer,Discipline,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,27214,27214,27214,null,null,null,278.0,2026-04-20,2026-04-20
-Everrin,Evoker,healer,Preservation,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,14375,14375,14375,null,null,null,277.0,2026-04-20,2026-04-20
-Rivey,Monk,healer,Mistweaver,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,11578,11578,11578,null,null,null,278.0,2026-04-20,2026-04-20
-Garsias,Shaman,healer,Restoration,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,3428,3428,3428,null,null,null,274.0,2026-04-20,2026-04-20
-Lenus,DemonHunter,tank,Vengeance,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,49188,49188,49188,null,null,null,275.0,2026-04-20,2026-04-20
-Jadsrune,DeathKnight,tank,Blood,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,1,39242,39242,39242,null,null,null,280.0,2026-04-20,2026-04-20
+Megachomber,DeathKnight,dps,Unholy,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,89070,90781,90781,1.9,null,null,279.5,2026-04-20,2026-04-22
+Imogen,Evoker,dps,Augmentation,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,87635,88206,87065,-0.7,null,null,280.5,2026-04-20,2026-04-22
+Turbohot,Hunter,dps,Marksmanship,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,81915,89483,74348,-9.2,null,null,279.5,2026-04-20,2026-04-22
+Jointsuckerr,Shaman,dps,Elemental,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,78877,79233,78521,-0.5,null,null,278.5,2026-04-20,2026-04-22
+Mleko,Priest,healer,Discipline,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,26438,27214,25663,-2.9,null,null,278.5,2026-04-20,2026-04-22
+Everrin,Evoker,healer,Preservation,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,14951,15528,15528,3.9,null,null,278.0,2026-04-20,2026-04-22
+Rivey,Monk,healer,Mistweaver,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,12296,13014,13014,5.8,null,null,279.0,2026-04-20,2026-04-22
+Garsias,Shaman,healer,Restoration,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,3161,3428,2894,-8.4,null,null,276.0,2026-04-20,2026-04-22
+Lenus,DemonHunter,tank,Vengeance,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,51914,54641,54641,5.3,null,null,275.5,2026-04-20,2026-04-22
+Jadsrune,DeathKnight,tank,Blood,3179,Fallen-King Salhadaar,VS / DR / MQD,5,Mythic,2,38412,39242,37582,-2.2,null,null,280.5,2026-04-20,2026-04-22
 Karllia,DemonHunter,dps,Devourer,3180,Lightblinded Vanguard,VS / DR / MQD,3,Normal,2,95325,124919,124919,31.0,75.0,97.0,256.5,2026-03-18,2026-03-25
 Pompqmoi,Mage,dps,Frost,3180,Lightblinded Vanguard,VS / DR / MQD,3,Normal,1,93959,93959,93959,null,81.0,81.0,261.0,2026-03-25,2026-03-25
 Jumzo,Paladin,dps,Retribution,3180,Lightblinded Vanguard,VS / DR / MQD,3,Normal,2,86590,103464,103464,19.5,81.5,96.0,255.0,2026-03-18,2026-03-25
@@ -15496,23 +15500,26 @@ Budgetgoku,Paladin,healer,Holy,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,
 Karllia,DemonHunter,tank,Vengeance,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,1,42547,42547,88925,null,95.0,95.0,273.0,2026-04-08,2026-04-08
 Lenus,DemonHunter,tank,Vengeance,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,4,33248,40627,40627,22.2,71.3,90.0,260.8,2026-03-23,2026-04-15
 Jadsrune,DeathKnight,tank,Blood,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,4,Heroic,5,26125,34915,34915,33.6,38.4,73.0,267.4,2026-03-23,2026-04-15
-Karllia,DemonHunter,dps,Devourer,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,102825,102825,102825,null,53.0,53.0,279.0,2026-04-15,2026-04-15
-Yearning,Monk,dps,Windwalker,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,102456,102456,102456,null,93.0,93.0,279.0,2026-04-15,2026-04-15
+Karllia,DemonHunter,dps,Devourer,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,100932,102825,99039,-1.9,53.0,53.0,279.5,2026-04-15,2026-04-22
+Jumzo,Paladin,dps,Retribution,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,100517,103933,103933,3.4,66.0,66.0,279.5,2026-04-15,2026-04-22
 Estrogel,Evoker,dps,Augmentation,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,99061,99061,99061,null,68.0,68.0,277.0,2026-04-15,2026-04-15
+Bigboiples,Druid,dps,Balance,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,98031,98870,98870,0.9,62.0,62.0,275.5,2026-04-15,2026-04-22
+Typ,Warrior,dps,Fury,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,97764,99126,99126,1.4,80.0,80.0,279.0,2026-04-15,2026-04-22
 Lunasnow,Mage,dps,Frost,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,97382,97382,97382,null,49.0,49.0,272.0,2026-04-15,2026-04-15
-Bigboiples,Druid,dps,Balance,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,97192,97192,97192,null,62.0,62.0,275.0,2026-04-15,2026-04-15
-Jumzo,Paladin,dps,Retribution,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,97101,97101,97101,null,66.0,66.0,278.0,2026-04-15,2026-04-15
-Typ,Warrior,dps,Fury,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,96403,96403,96403,null,80.0,80.0,279.0,2026-04-15,2026-04-15
-Yevie,Priest,dps,Shadow,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,92680,92680,92680,null,42.0,42.0,275.0,2026-04-15,2026-04-15
-Sebaheoung,Warlock,dps,Demonology,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,90341,90341,90341,null,15.0,15.0,278.0,2026-04-15,2026-04-15
-Jointsuckerr,Shaman,dps,Elemental,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,89471,89471,89471,null,40.0,40.0,276.0,2026-04-15,2026-04-15
-Megachomber,DeathKnight,dps,Unholy,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,88260,88260,88260,null,60.0,60.0,278.0,2026-04-15,2026-04-15
-Dorathy,Warrior,dps,Fury,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,82848,82848,82848,null,24.0,24.0,278.0,2026-04-15,2026-04-15
-Zren,Hunter,dps,Marksmanship,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,78032,78032,78032,null,8.0,8.0,276.0,2026-04-15,2026-04-15
+Sebaheoung,Warlock,dps,Demonology,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,95787,101234,101234,5.7,15.0,15.0,279.5,2026-04-15,2026-04-22
+Yearning,Monk,dps,Windwalker,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,93491,102456,84526,-9.6,93.0,93.0,279.5,2026-04-15,2026-04-22
+Turbohot,Hunter,dps,Marksmanship,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,92363,92363,92363,null,null,null,279.0,2026-04-22,2026-04-22
+Yevie,Priest,dps,Shadow,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,92043,92680,91407,-0.7,42.0,42.0,276.0,2026-04-15,2026-04-22
+Imogen,Evoker,dps,Augmentation,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,90583,90583,90583,null,null,null,280.0,2026-04-22,2026-04-22
+Jointsuckerr,Shaman,dps,Elemental,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,90157,90844,90844,0.8,40.0,40.0,277.5,2026-04-15,2026-04-22
+Zren,Hunter,dps,Marksmanship,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,86718,95405,95405,10.0,8.0,8.0,278.0,2026-04-15,2026-04-22
+Megachomber,DeathKnight,dps,Unholy,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,86369,88260,84478,-2.2,60.0,60.0,278.5,2026-04-15,2026-04-22
+Hobbyalkis,Rogue,dps,Subtlety,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,82305,82305,82305,null,null,null,277.0,2026-04-22,2026-04-22
+Dorathy,Warrior,dps,Fury,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,80463,82848,78079,-3.0,24.0,24.0,279.0,2026-04-15,2026-04-22
 Bileplume,Rogue,dps,Subtlety,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,71891,71891,71891,null,2.0,2.0,268.0,2026-04-15,2026-04-15
-Mleko,Priest,healer,Discipline,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,20175,20175,20175,null,26.0,26.0,275.0,2026-04-15,2026-04-15
-Everrin,Evoker,healer,Preservation,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,12146,12146,12146,null,95.0,95.0,273.0,2026-04-15,2026-04-15
-Rivey,Monk,healer,Mistweaver,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,4269,4269,4269,null,0.0,0.0,276.0,2026-04-15,2026-04-15
-Garsias,Shaman,healer,Restoration,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,4103,4103,4103,null,76.0,76.0,274.0,2026-04-15,2026-04-15
-Jadsrune,DeathKnight,tank,Blood,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,48603,48603,48603,null,67.0,67.0,277.0,2026-04-15,2026-04-15
-Lenus,DemonHunter,tank,Vengeance,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,1,45771,45771,45771,null,48.0,48.0,272.0,2026-04-15,2026-04-15
+Mleko,Priest,healer,Discipline,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,21843,23512,23512,7.6,26.0,26.0,277.0,2026-04-15,2026-04-22
+Everrin,Evoker,healer,Preservation,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,12965,13785,13785,6.3,95.0,95.0,276.0,2026-04-15,2026-04-22
+Rivey,Monk,healer,Mistweaver,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,4991,5713,5713,14.5,0.0,0.0,278.0,2026-04-15,2026-04-22
+Garsias,Shaman,healer,Restoration,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,4500,4898,4898,8.8,76.0,76.0,276.0,2026-04-15,2026-04-22
+Jadsrune,DeathKnight,tank,Blood,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,46127,48603,43651,-5.4,67.0,67.0,278.5,2026-04-15,2026-04-22
+Lenus,DemonHunter,tank,Vengeance,3306,"Chimaerus, the Undreamt God",VS / DR / MQD,5,Mythic,2,45382,45771,44994,-0.9,48.0,48.0,274.0,2026-04-15,2026-04-22

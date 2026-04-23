@@ -14,6 +14,9 @@ import type {
   BossPullHistoryRow,
   PlayerSurvivability,
   PlayerDeathEvent,
+  PlayerUtilityByPull,
+  WipeSurvivalEvent,
+  WipeCooldownUtilization,
   ProgressionTimeline,
   RaidTeamMember,
   LiveRaidRosterEntry,
@@ -28,6 +31,8 @@ import type {
   PlayerMplusRunHistory,
   PlayerMplusWeeklyActivity,
   PlayerMplusDungeonBreakdown,
+  PlayerConsumables,
+  PlayerCombatStats,
 } from '../types'
 
 export const useRaidSummary        = () => useCSV<RaidSummary>('gold_raid_summary.csv')
@@ -36,6 +41,9 @@ export const useBossProgression    = () => useCSV<BossProgression>('gold_boss_pr
 export const useEncounterCatalog   = () => useCSV<EncounterCatalog>('gold_encounter_catalog.csv', { optional: true })
 export const useBossKillRoster     = () => useCSV<BossKillRosterRow>('gold_boss_kill_roster.csv')
 export const usePlayerAttendance   = () => useCSV<PlayerAttendance>('gold_player_attendance.csv')
+export const usePlayerUtilityByPull = () => useCSV<PlayerUtilityByPull>('gold_player_utility_by_pull.csv', { optional: true })
+export const useWipeSurvivalEvents = () => useCSV<WipeSurvivalEvent>('gold_wipe_survival_events.csv', { optional: true })
+export const useWipeCooldownUtilization = () => useCSV<WipeCooldownUtilization>('gold_wipe_cooldown_utilization.csv', { optional: true })
 export const useGuildRoster        = () => useCSV<GuildRoster>('gold_guild_roster.csv')
 export const useWeeklyActivity     = () => useCSV<WeeklyActivity>('gold_weekly_activity.csv')
 export const useGuildZoneRanks     = () => useCSV<GuildZoneRank>('guild_zone_ranks.csv', { optional: true })
@@ -58,3 +66,5 @@ export const usePlayerMplusScoreHistory = () => useCSV<PlayerMplusScoreHistory>(
 export const usePlayerMplusRunHistory = () => useCSV<PlayerMplusRunHistory>('gold_player_mplus_run_history.csv', { optional: true })
 export const usePlayerMplusWeeklyActivity = () => useCSV<PlayerMplusWeeklyActivity>('gold_player_mplus_weekly_activity.csv', { optional: true })
 export const usePlayerMplusDungeonBreakdown = () => useCSV<PlayerMplusDungeonBreakdown>('gold_player_mplus_dungeon_breakdown.csv', { optional: true })
+export const usePlayerConsumables  = () => useCSV<PlayerConsumables>('gold_player_consumables.csv', { optional: true })
+export const usePlayerCombatStats  = () => useCSV<PlayerCombatStats>('gold_player_combat_stats.csv', { optional: true })

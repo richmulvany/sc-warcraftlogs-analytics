@@ -3,12 +3,9 @@
 #
 # gold_guild_roster     — authoritative guild roster from Blizzard API
 # gold_raid_team        — active raid team with attendance and alt detection
-# gold_player_profile   — comprehensive per-player identity + performance summary
 
 import dlt
 from pyspark.sql import functions as F
-from pyspark.sql.window import Window
-
 
 # ── Guild Roster ───────────────────────────────────────────────────────────────
 # The authoritative guild roster sourced from the Blizzard Profile API via
@@ -155,131 +152,4 @@ def gold_raid_team():
             "has_possible_alt_in_logs",
         )
         .orderBy("rank", "name")
-    )
-
-
-# ── Player Profile ─────────────────────────────────────────────────────────────
-# Comprehensive per-player summary combining identity, rank, performance
-# aggregations, and attendance.  One row per player across all logs.
-
-@dlt.table(
-    name="gold_player_profile",
-    comment=(
-        "Comprehensive per-player profile combining identity, guild rank, "
-        "WCL performance aggregates, and attendance statistics."
-    ),
-    table_properties={
-        "quality": "gold",
-        "pipelines.autoOptimize.zOrderCols": "player_name",
-    },
-)
-def gold_player_profile():
-    players = dlt.read("dim_player")
-    perf_facts = dlt.read("fact_player_fight_performance")
-    guild_members = dlt.read("dim_guild_member")
-
-    # Performance aggregations per player across all kill fights
-    w_spec = Window.partitionBy("player_name").orderBy(F.col("spec_count").desc())
-    w_role = Window.partitionBy("player_name").orderBy(F.col("role_count").desc())
-
-    spec_counts = (
-        perf_facts
-        .filter(F.col("spec").isNotNull())
-        .groupBy("player_name", "spec")
-        .agg(F.count("*").alias("spec_count"))
-    )
-    primary_specs = (
-        spec_counts
-        .withColumn("_rn", F.row_number().over(w_spec))
-        .filter(F.col("_rn") == 1)
-        .select("player_name", F.col("spec").alias("primary_spec"))
-    )
-
-    role_counts = (
-        perf_facts
-        .filter(F.col("role").isNotNull())
-        .groupBy("player_name", "role")
-        .agg(F.count("*").alias("role_count"))
-    )
-    primary_roles = (
-        role_counts
-        .withColumn("_rn", F.row_number().over(w_role))
-        .filter(F.col("_rn") == 1)
-        .select("player_name", F.col("role").alias("primary_role"))
-    )
-
-    perf_agg = (
-        perf_facts
-        .groupBy("player_name")
-        .agg(
-            F.count("*").alias("kills_tracked"),
-            F.avg("throughput_per_second").cast("long").alias("avg_throughput_per_second"),
-            F.avg("rank_percent").alias("avg_rank_percent"),
-            F.avg("bracket_percent").alias("avg_bracket_percent"),
-            F.max("rank_percent").alias("best_rank_percent"),
-            F.avg("avg_item_level").alias("avg_item_level"),
-            F.collect_set("zone_name").alias("zones_raided"),
-            F.min("raid_night_date").alias("first_kill_date"),
-            F.max("raid_night_date").alias("latest_kill_date"),
-        )
-    )
-
-    # Attendance from guild member dimension (covers non-guild players too via dim_player join)
-    guild_att = (
-        guild_members
-        .select(
-            F.col("name").alias("_gm_name"),
-            "total_raids_tracked",
-            "raids_present",
-            "attendance_rate_pct",
-        )
-    )
-
-    return (
-        players
-        .join(perf_agg, "player_name", "left")
-        .join(primary_specs, "player_name", "left")
-        .join(primary_roles, "player_name", "left")
-        .join(
-            guild_att,
-            F.lower(F.col("player_name")) == F.lower(F.col("_gm_name")),
-            "left",
-        )
-        .drop("_gm_name")
-        .withColumn("total_raids_tracked", F.coalesce(F.col("total_raids_tracked"), F.lit(0)))
-        .withColumn("raids_present", F.coalesce(F.col("raids_present"), F.lit(0)))
-        .withColumn(
-            "attendance_rate_pct",
-            F.coalesce(F.col("attendance_rate_pct"), F.lit(0.0)),
-        )
-        .select(
-            "player_name",
-            "player_class",
-            "realm",
-            "is_guild_member",
-            # rank is included for ordering; NULL for non-guild players
-            "rank",
-            "rank_label",
-            "rank_category",
-            "is_raid_team",
-            "primary_role",
-            "primary_spec",
-            F.coalesce(F.col("kills_tracked"), F.lit(0)).alias("kills_tracked"),
-            "avg_throughput_per_second",
-            F.round("avg_rank_percent", 1).alias("avg_rank_percent"),
-            F.round("avg_bracket_percent", 1).alias("avg_bracket_percent"),
-            F.round("best_rank_percent", 1).alias("best_rank_percent"),
-            F.round("avg_item_level", 1).alias("avg_item_level"),
-            "zones_raided",
-            "first_kill_date",
-            "latest_kill_date",
-            "total_raids_tracked",
-            "raids_present",
-            F.round("attendance_rate_pct", 1).alias("attendance_rate_pct"),
-        )
-        .orderBy(
-            F.col("is_raid_team").desc(),
-            F.col("rank").asc_nulls_last(),
-            F.col("player_name").asc(),
-        )
     )

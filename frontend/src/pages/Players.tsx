@@ -167,9 +167,11 @@ export function Players() {
   const stats = useMemo(() => {
     const withData = aggregatedRows.filter(p => p.avg_rank_percent > 0)
     const withItemLevel = aggregatedRows.filter(p => p.avg_item_level > 0)
-    if (!withData.length && !withItemLevel.length) return null
-    const avg = withData.reduce((sum, p) => sum + p.avg_rank_percent, 0) / withData.length
-    const top = Math.max(...withData.map(p => p.best_rank_percent || 0))
+    if (!withData.length && !withItemLevel.length && !aggregatedRows.length) return null
+    const avg = withData.length
+      ? withData.reduce((sum, p) => sum + p.avg_rank_percent, 0) / withData.length
+      : 0
+    const top = withData.length ? Math.max(...withData.map(p => p.best_rank_percent || 0)) : 0
     const avgItemLevel = withItemLevel.length
       ? withItemLevel.reduce((sum, p) => sum + p.avg_item_level, 0) / withItemLevel.length
       : 0

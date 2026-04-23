@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 import time
+from glob import glob
 from datetime import UTC, datetime
 
 # Derive bundle root from notebook workspace path — __file__ is undefined in
@@ -93,6 +94,7 @@ for subdir in (
     "raiderio_character_profiles",
     "fight_rankings",
     "fight_deaths",
+    "fight_casts",
     "archived",       # skip-marker directory — one empty file per archived report code
 ):
     os.makedirs(f"{landing}/{subdir}", exist_ok=True)
@@ -271,6 +273,58 @@ for report_code in all_report_codes:
                 fh.write(json.dumps(record) + "\n")
             logger.info("player_details: %s fight %d written", report_code, fight_id)
         _sleep()
+
+    # ── 3d: Cast events for consumable + defensive analysis ───────────────
+    raid_fights = [
+        f for f in fights
+        if f.get("difficulty", 0) in RAID_DIFFICULTIES
+        and (f.get("encounterID") or 0) > 0
+    ]
+    raid_fight_ids = [int(f["id"]) for f in raid_fights if f.get("id") is not None]
+    casts_file_pattern = f"{landing}/fight_casts/{report_code}*.jsonl"
+    cast_files = sorted(glob(casts_file_pattern))
+    casts_file = cast_files[-1] if cast_files else f"{landing}/fight_casts/{report_code}.jsonl"
+    should_fetch_casts = bool(raid_fight_ids) and not cast_files
+    if raid_fight_ids and cast_files:
+        try:
+            with open(casts_file) as fh:
+                existing_cast_record = json.loads(fh.readline() or "{}")
+            existing_fight_ids = {
+                int(fight_id) for fight_id in existing_cast_record.get("fight_ids", [])
+                if fight_id is not None
+            }
+            should_fetch_casts = (
+                "combatant_info_json" not in existing_cast_record
+                or not set(raid_fight_ids).issubset(existing_fight_ids)
+            )
+            if should_fetch_casts:
+                logger.info("fight_casts: %s stale/incomplete — refetching", report_code)
+                casts_file = f"{landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+        except Exception as exc:
+            logger.warning("fight_casts: %s unreadable (%s) — refetching", report_code, exc)
+            should_fetch_casts = True
+            casts_file = f"{landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+
+    if raid_fight_ids and should_fetch_casts:
+        try:
+            casts_result = adapter.fetch_fight_casts(report_code, raid_fight_ids)
+        except ArchivedReportError:
+            _mark_archived(report_code)
+            continue
+        if casts_result.records:
+            with open(casts_file, "w") as fh:
+                fh.write(
+                    json.dumps({**casts_result.records[0], "_source": "wcl", "_ingested_at": ingested_at})
+                    + "\n"
+                )
+            logger.info(
+                "fight_casts: %s → %d fights",
+                report_code,
+                len(raid_fight_ids),
+            )
+        _sleep()
+    elif raid_fight_ids:
+        logger.info("fight_casts: %s already fetched — skipping", report_code)
 
 # COMMAND ----------
 
@@ -610,8 +664,8 @@ for report_code in all_report_codes:
 
 # DBTITLE 1,Fight Deaths
 # Fetches death events for ALL boss fights (kills + wipes) per report via the
-# WCL table API.  Deaths are aggregated across all requested fights — per-fight
-# attribution is not available from this endpoint (limitation of the table API).
+# WCL table API. Multi-fight Deaths responses can truncate on long reports, so
+# fetches are done one fight at a time and written as JSONL records.
 # Skip if already fetched.
 logger.info("Fetching fight deaths …")
 
@@ -620,10 +674,9 @@ for report_code in all_report_codes:
         logger.info("fight_deaths: %s is archived — skipping", report_code)
         continue
 
-    deaths_file = f"{landing}/fight_deaths/{report_code}.jsonl"
-    if os.path.exists(deaths_file):
-        logger.info("fight_deaths: %s already fetched — skipping", report_code)
-        continue
+    deaths_file_pattern = f"{landing}/fight_deaths/{report_code}*.jsonl"
+    death_files = sorted(glob(deaths_file_pattern))
+    deaths_file = death_files[-1] if death_files else f"{landing}/fight_deaths/{report_code}.jsonl"
 
     fight_file = f"{landing}/report_fights/{report_code}.jsonl"
     if not os.path.exists(fight_file):
@@ -645,21 +698,60 @@ for report_code in all_report_codes:
         logger.info("fight_deaths: %s has no qualifying boss fights — skipping", report_code)
         continue
 
+    should_fetch_deaths = not death_files
+    if death_files:
+        try:
+            line_count = 0
+            existing_fight_ids: set[int] = set()
+            has_legacy_multi_fight_record = False
+            with open(deaths_file) as fh:
+                for line in fh:
+                    raw_record = json.loads(line)
+                    line_count += 1
+                    record_fight_ids = {
+                        int(fight_id)
+                        for fight_id in raw_record.get("fight_ids", [])
+                        if fight_id is not None
+                    }
+                    existing_fight_ids.update(record_fight_ids)
+                    if len(record_fight_ids) > 1:
+                        has_legacy_multi_fight_record = True
+            should_fetch_deaths = (
+                has_legacy_multi_fight_record
+                or line_count < len(all_boss_fight_ids)
+                or not set(all_boss_fight_ids).issubset(existing_fight_ids)
+            )
+            if should_fetch_deaths:
+                logger.info("fight_deaths: %s stale/incomplete — refetching", report_code)
+                deaths_file = f"{landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
+        except Exception as exc:
+            logger.warning("fight_deaths: %s unreadable (%s) — refetching", report_code, exc)
+            should_fetch_deaths = True
+            deaths_file = f"{landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
+
+    if not should_fetch_deaths:
+        logger.info("fight_deaths: %s already fetched — skipping", report_code)
+        continue
+
     try:
         deaths_result = adapter.fetch_fight_deaths(report_code, all_boss_fight_ids)
     except ArchivedReportError:
         _mark_archived(report_code)
         continue
     if deaths_result.records:
-        record = {
-            **deaths_result.records[0],
-            "_source": "wcl",
-            "_ingested_at": ingested_at,
-        }
         with open(deaths_file, "w") as fh:
-            fh.write(json.dumps(record) + "\n")
+            for raw_record in deaths_result.records:
+                record = {
+                    **raw_record,
+                    "_source": "wcl",
+                    "_ingested_at": ingested_at,
+                }
+                fh.write(json.dumps(record) + "\n")
         logger.info(
-            "fight_deaths: %s written (%d boss fights)", report_code, len(all_boss_fight_ids)
+            "fight_deaths: %s written (%d boss fights, %d records)",
+            report_code,
+            len(all_boss_fight_ids),
+            len(deaths_result.records),
         )
     _sleep()
 

@@ -575,7 +575,11 @@ class WarcraftLogsAdapter(BaseAdapter):
         """
         Fetch death events for boss fights within a report via the table API.
 
-        The ``table`` field is an opaque JSON scalar in the WCL schema.  We
+        WCL truncates multi-fight Deaths table responses on long reports. To
+        avoid silently dropping later pulls, fetch one fight at a time and
+        persist one bronze record per fight.
+
+        The ``table`` field is an opaque JSON scalar in the WCL schema. We
         serialise it to a string (``table_json``) for safe storage in bronze;
         the silver layer parses it with an explicit schema.
 
@@ -590,19 +594,122 @@ class WarcraftLogsAdapter(BaseAdapter):
           }
         }
         """
-        data = self._graphql_query(query, {"code": report_code, "fightIDs": fight_ids})
-        raw = data["reportData"]["report"]["table"]
-        table_json = json.dumps(raw) if not isinstance(raw, str) else raw
+        records: list[dict[str, Any]] = []
+        for fight_id in fight_ids:
+            data = self._graphql_query(query, {"code": report_code, "fightIDs": [fight_id]})
+            raw = data["reportData"]["report"]["table"]
+            table_json = json.dumps(raw) if not isinstance(raw, str) else raw
+            records.append(
+                {
+                    "report_code": report_code,
+                    "fight_ids": [fight_id],
+                    "table_json": table_json,
+                }
+            )
 
-        log.info("wcl.fight_deaths", code=report_code, fight_count=len(fight_ids))
+        log.info(
+            "wcl.fight_deaths",
+            code=report_code,
+            fight_count=len(fight_ids),
+            record_count=len(records),
+        )
         return FetchResult(
             source="wcl",
             endpoint="fight_deaths",
+            records=records,
+            total_records=len(records),
+            has_more=False,
+        )
+
+    def _fetch_report_events(
+        self,
+        report_code: str,
+        fight_id: int,
+        data_type: str,
+    ) -> list[dict[str, Any]]:
+        query = """
+        query FightEvents($code: String!, $fightIDs: [Int], $dataType: EventDataType, $startTime: Float) {
+          reportData {
+            report(code: $code) {
+              events(
+                dataType: $dataType
+                fightIDs: $fightIDs
+                startTime: $startTime
+                limit: 10000
+                useActorIDs: true
+              ) {
+                nextPageTimestamp
+                data
+              }
+            }
+          }
+        }
+        """
+
+        events: list[dict[str, Any]] = []
+        start_time: float | None = None
+
+        while True:
+            data = self._graphql_query(
+                query,
+                {
+                    "code": report_code,
+                    "fightIDs": [fight_id],
+                    "dataType": data_type,
+                    "startTime": start_time,
+                },
+            )
+            page = data["reportData"]["report"]["events"]
+            page_events = page.get("data") or []
+            for event in page_events:
+                event.setdefault("fight", fight_id)
+            events.extend(page_events)
+
+            next_page = page.get("nextPageTimestamp")
+            if next_page is None or next_page == start_time:
+                break
+            start_time = next_page
+
+        return events
+
+    def fetch_fight_casts(self, report_code: str, fight_ids: list[int]) -> FetchResult:
+        """
+        Fetch player cast events for boss fights within a report.
+
+        This is intentionally event-based rather than ``table(dataType: Casts)``:
+        defensive and health-potion analysis needs fight/player/ability-level
+        rows, and the table endpoint can truncate broad cast tables. The events
+        paginator gives us the full cast stream for the selected boss pulls.
+
+        Raises ArchivedReportError if the report has been archived.
+        """
+        events: list[dict[str, Any]] = []
+        combatant_info_events: list[dict[str, Any]] = []
+        for fight_id in fight_ids:
+            events.extend(self._fetch_report_events(report_code, fight_id, "Casts"))
+            combatant_info_events.extend(
+                self._fetch_report_events(report_code, fight_id, "CombatantInfo")
+            )
+
+        casts_json = json.dumps({"data": events})
+        combatant_info_json = json.dumps({"data": combatant_info_events})
+
+        log.info(
+            "wcl.fight_casts",
+            code=report_code,
+            fight_count=len(fight_ids),
+            event_count=len(events),
+            combatant_info_count=len(combatant_info_events),
+        )
+        return FetchResult(
+            source="wcl",
+            endpoint="fight_casts",
             records=[
                 {
                     "report_code": report_code,
                     "fight_ids": fight_ids,
-                    "table_json": table_json,
+                    "events_json": casts_json,
+                    "combatant_info_json": combatant_info_json,
                 }
             ],
             total_records=1,
