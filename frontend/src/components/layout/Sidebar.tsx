@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Skull, Swords, CalendarDays, Shield, Eye, ChevronDown, AlertTriangle, Beaker } from 'lucide-react'
+import { LayoutDashboard, Users, Skull, Swords, CalendarDays, Shield, Eye, ChevronDown, AlertTriangle, Beaker, KeyRound } from 'lucide-react'
 import clsx from 'clsx'
 import { useColourBlind } from '../../context/ColourBlindContext'
 import { type ColourBlindMode, MODE_LABELS } from '../../constants/palettes'
@@ -11,6 +11,7 @@ const NAV = [
   { to: '/bosses',         label: 'Boss Progression', Icon: Skull },
   { to: '/wipe-analysis',  label: 'Wipe Analysis',    Icon: AlertTriangle },
   { to: '/raids',          label: 'Raids',            Icon: Swords },
+  { to: '/mythic-plus',    label: 'Mythic+',          Icon: KeyRound },
 ]
 
 const SECONDARY = [

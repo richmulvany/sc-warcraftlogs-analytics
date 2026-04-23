@@ -10,6 +10,7 @@ import { RaidDetail }    from './pages/RaidDetail'
 import { Attendance }    from './pages/Attendance'
 import { Roster }        from './pages/Roster'
 import { Preparation }   from './pages/Preparation'
+import { MythicPlus }    from './pages/MythicPlus'
 // Legacy pages kept but accessible via guild nav
 import { Performance }   from './pages/Performance'
 
@@ -26,5 +27,6 @@ export const router = createBrowserRouter([
   { path: '/attendance',             element: <Attendance />   },
   { path: '/roster',                 element: <Roster />       },
   { path: '/preparation',            element: <Preparation />  },
+  { path: '/mythic-plus',            element: <MythicPlus />   },
   { path: '/performance',            element: <Performance />  },
 ])

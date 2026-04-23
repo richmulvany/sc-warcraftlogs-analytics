@@ -296,7 +296,7 @@ export function Preparation() {
               </THead>
               <TBody>
                 {filteredConsumables.map((p, i) => (
-                  <Tr key={p.player_name}>
+                  <Tr key={`${p.player_name}-${i}`}>
                     <Td mono className="text-ctp-surface2 text-xs">{i + 1}</Td>
                     <Td>
                       <div className="flex items-center gap-2">
@@ -364,7 +364,7 @@ export function Preparation() {
               {filteredStats.map((p, i) => {
                 const baselines = specBaselines.get(p.spec || 'Unknown') || {}
                 return (
-                  <Tr key={`${p.player_name}-${p.spec}`}>
+                  <Tr key={`${p.player_name}-${p.spec}-${i}`}>
                     <Td mono className="text-ctp-surface2 text-xs">{i + 1}</Td>
                     <Td>
                       <div className="flex items-center gap-2">
