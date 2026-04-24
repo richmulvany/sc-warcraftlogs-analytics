@@ -4,15 +4,15 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-A production-grade **Databricks medallion pipeline** that ingests WoW raid data from the [WarcraftLogs v2 GraphQL API](https://www.warcraftlogs.com/api/docs), [Blizzard Profile API](https://develop.battle.net/documentation), and [Raider.IO API](https://raider.io/api), processes it through a Bronze → Silver → Gold architecture, and serves it to a React dashboard through static CSV exports.
+A production-grade **Databricks medallion pipeline** that ingests WoW raid data from the [WarcraftLogs v2 GraphQL API](https://www.warcraftlogs.com/api/docs), [Blizzard Profile API](https://develop.battle.net/documentation), [Raider.IO API](https://raider.io/api), and Google Sheets, processes it through a Bronze → Silver → Gold architecture, and serves it to a React dashboard through static CSV exports.
 
-Built to run on **Databricks Free Edition** (serverless DLT).
+Built to run on **Databricks Free Edition** (serverless Lakeflow / DLT).
 
 ---
 
 ## What it does
 
-Pulls data from WarcraftLogs, Blizzard, and Raider.IO nightly, transforms it into 40+ analytics tables, and surfaces insights across:
+Pulls data from WarcraftLogs, Blizzard, Raider.IO, and Google Sheets nightly, transforms it into 40+ analytics tables, and surfaces insights across:
 
 - **Progression** — boss kill timelines, wipe analysis, best kill times
 - **Performance** — DPS/HPS parse percentiles, throughput trends, spec breakdowns
@@ -37,19 +37,19 @@ WarcraftLogs API          Blizzard Profile API          Raider.IO API
                    ▼
         ┌──────────────────────┐
         │   ingest_primary.py  │  Databricks Workflow Job
-        │   9+ ingestion steps │  JSONL → Unity Catalog Volume
+        │ source-split landing │  JSONL → UC Volumes in 01_bronze
         └──────────┬───────────┘
-                   │ /Volumes/{catalog}/{schema}/landing/
+                   │ /Volumes/01_bronze/{source}/landing/
                    ▼
         ┌──────────────────────┐
         │   Bronze (DLT)       │  Auto Loader streams JSONL into Delta
-        │   10 raw tables      │  Schema enforcement, metadata columns
+        │ source-split schemas │  Schema enforcement, metadata columns
         └──────────┬───────────┘
                    │
                    ▼
         ┌──────────────────────┐
         │   Silver (DLT)       │  Parse JSON, explode arrays, deduplicate
-        │   11 clean tables    │  Explicit StructType schemas, DLT expectations
+        │ source-split schemas │  Explicit StructType schemas, DLT expectations
         └──────────┬───────────┘
                    │
                    ▼
@@ -78,14 +78,18 @@ sc-warcraftlogs-analytics/
 │   │   ├── adapters/
 │   │   │   ├── base.py           # Abstract BaseAdapter interface
 │   │   │   ├── wcl/client.py     # WarcraftLogs GraphQL client (OAuth2, retry)
-│   │   │   ├── blizzard/client.py# Blizzard REST client (guild roster)
+│   │   │   ├── blizzard/client.py# Blizzard REST client (guild + character/item APIs)
 │   │   │   └── raiderio/client.py# Raider.IO character profile client
 │   │   └── utils/helpers.py
 │   └── config/
 │       ├── source_config.yml     # API endpoints, rate limits
 │       └── rank_config.yml       # Guild rank definitions
 ├── pipeline/
-│   ├── bronze/raw_source.py      # Auto Loader table definitions
+│   ├── bronze/
+│   │   ├── warcraftlogs.py       # 01_bronze.warcraftlogs.*
+│   │   ├── blizzard.py           # 01_bronze.blizzard.*
+│   │   ├── raiderio.py           # 01_bronze.raiderio.*
+│   │   └── google_sheets.py      # 01_bronze.google_sheets.*
 │   ├── silver/
 │   │   ├── clean_reports.py      # guild_reports, fight_events
 │   │   ├── clean_players.py      # actor_roster, player_performance
@@ -94,18 +98,27 @@ sc-warcraftlogs-analytics/
 │   │   ├── clean_attendance.py   # raid_attendance
 │   │   ├── clean_zone_catalog.py # zone_catalog
 │   │   ├── clean_guild_members.py# guild_members (rank labels, class names)
-│   │   └── clean_raiderio.py     # Raider.IO M+ scores and runs
+│   │   ├── clean_raiderio.py     # Raider.IO M+ scores and runs
+│   │   ├── clean_live_raid_roster.py
+│   │   ├── clean_guild_zone_ranks.py
+│   │   ├── clean_character_media.py
+│   │   ├── clean_character_equipment.py
+│   │   ├── clean_character_achievements.py
+│   │   └── clean_item_media.py
 │   └── gold/
 │       ├── core_facts.py         # fact_player_fight_performance, fact_player_events
 │       ├── core_dimensions.py    # dim_encounter, dim_player, dim_guild_member
-│       ├── player_products.py    # attendance, weekly activity, performance, boss roster
+│       ├── player_products.py    # attendance, performance, boss roster
 │       ├── summary_products.py   # progression, best kills, wipe analysis
 │       ├── survivability_products.py # player survivability, boss mechanics
 │       ├── roster_products.py    # guild roster, raid team, player profile
-│       ├── preparation_products.py  # consumables, combat stats, boss ability deaths
-│       └── mplus_products.py        # Raider.IO Mythic+ gold products
+│       ├── mplus_products.py        # Raider.IO Mythic+ gold products
+│       ├── utility_products.py      # weekly activity, utility by pull
+│       ├── wipe_diagnostics.py      # wipe survival + cooldown utilization
+│       ├── profile_products.py      # live roster, zone ranks, media, equipment, achievements
+│       └── _cooldown_rules.py       # shared cooldown/spec metadata
 ├── frontend/                     # React + Vite + TypeScript dashboard
-├── scripts/export_gold_tables.py  # Databricks SQL → static frontend CSV export
+├── scripts/export_gold_tables.py  # gold tables → static frontend CSV export
 ├── docs/                         # Architecture, data dictionary, runbooks, ADRs
 ├── databricks.yml                # Databricks Asset Bundle (pipeline + job config)
 ├── pyproject.toml                # Python deps, ruff, mypy config
@@ -118,6 +131,19 @@ sc-warcraftlogs-analytics/
 
 ### WarcraftLogs v2 GraphQL API
 - **Auth**: OAuth2 client credentials (`/oauth/token`)
+- **Rate limit**: ~30 req/min (manual retry loop with `Retry-After` header)
+- **Endpoints used**:
+  - `reportData.reports` — guild raid reports (paginated)
+  - `reportData.report.fights` — individual boss pulls per report
+  - `reportData.report.masterData.actors` — player roster per report
+  - `reportData.report.table(dataType:Summary)` — per-player combat stats (gear, consumables, stat ratings)
+  - `reportData.report.rankings(compare:Parses)` — WCL parse percentiles and DPS/HPS
+  - `reportData.report.table(dataType:Deaths)` — death events per fight
+  - `reportData.report.events(dataType:Casts)` — full player cast stream for utility tracking
+  - `reportData.report.events(dataType:CombatantInfo)` — spec/talent context for cooldown gating
+  - `reportData.report.table(dataType:Casts, sourceID:0)` — attendance data
+  - `guildData.zoneRanking` — guild progression rank by raid zone
+  - `worldData.zones` — zone/encounter reference catalog
 
 ---
 
@@ -138,33 +164,25 @@ Implementation notes:
 - the frontend reads preparation metrics from `gold_boss_kill_roster.csv`
 - Midnight consumable detection is derived in the pipeline from combatant buffs,
   weapon enhancements, and buff-based combat potion detection
-- shared identity overrides are intended to come from
+- shared identity overrides come from
   `00_governance.warcraftlogs_admin.preparation_identity_overrides` and are exported
   by `scripts/export_gold_tables.py`
-- **Rate limit**: ~30 req/min (manual retry loop with `Retry-After` header)
-- **Endpoints used**:
-  - `reportData.reports` — guild raid reports (paginated)
-  - `reportData.report.fights` — individual boss pulls per report
-  - `reportData.report.masterData.actors` — player roster per report
-  - `reportData.report.table(dataType:Summary)` — per-player combat stats (gear, consumables, stat ratings)
-  - `reportData.report.rankings(compare:Parses)` — WCL parse percentiles and DPS/HPS
-  - `reportData.report.table(dataType:Deaths)` — death events per fight
-  - `reportData.report.events(dataType:Casts)` — full player cast stream for utility tracking
-  - `reportData.report.events(dataType:CombatantInfo)` — spec/talent context for cooldown gating
-  - `reportData.report.table(dataType:Casts, sourceID:0)` — attendance data
-  - `worldData.zones` — zone/encounter reference catalog
 
 ### Blizzard Profile API
 - **Auth**: OAuth2 client credentials (basic auth)
-- **In Databricks ingestion**: `/data/wow/guild/{realm}/{guild}/roster`
-- **In frontend export helper**: character media, equipment, and achievements for player profile pages
-- Returns guild members with rank (0–9), class_id, character media, equipment, gems/enchants, and selected raid feats
+- **In Databricks ingestion**:
+  - `/data/wow/guild/{realm}/{guild}/roster`
+  - `/profile/wow/character/{realm}/{name}/character-media`
+  - `/profile/wow/character/{realm}/{name}/equipment`
+  - `/profile/wow/character/{realm}/{name}/achievements`
+  - `/data/wow/media/item/{item_id}`
+- Returns guild members with rank (0–9), class_id, character media, equipment, gems/enchants, selected raid feats, and item icon metadata
 
 ### Raider.IO API
 - **Auth**: public unauthenticated character profile endpoint
 - **Endpoint**: `/api/v1/characters/profile`
 - **Fields used**: current-season Mythic+ scores, ranks, recent runs, best runs
-- **Landing**: `landing/raiderio_character_profiles/`
+- **Landing**: `/Volumes/01_bronze/raiderio/landing/raiderio_character_profiles/`
 - **Scope**: all guild characters from Blizzard roster, with prior `silver_guild_members` as a fallback seed
 - 404 per character is non-fatal; score history starts from the first successful nightly ingestion
 
@@ -172,7 +190,7 @@ Implementation notes:
 
 ## Tables Produced
 
-### Bronze (11 tables — raw, schema-enforced)
+### Bronze (16+ tables — raw, schema-enforced, source-split under `01_bronze`)
 | Table | Source |
 |-------|--------|
 | `bronze_guild_reports` | WCL guild reports |
@@ -184,10 +202,16 @@ Implementation notes:
 | `bronze_fight_deaths` | WCL table(Deaths), one record per fight after backfill-safe ingestion |
 | `bronze_fight_casts` | WCL events(Casts + CombatantInfo) |
 | `bronze_zone_catalog` | WCL worldData zones |
+| `bronze_guild_zone_ranks` | WCL guild zone rank payloads |
 | `bronze_guild_members` | Blizzard guild roster |
+| `bronze_character_media` | Blizzard character media payloads |
+| `bronze_character_equipment` | Blizzard equipment payloads |
+| `bronze_character_achievements` | Blizzard achievements payloads |
+| `bronze_item_media` | Blizzard item media payloads |
 | `bronze_raiderio_character_profiles` | Raider.IO character profile payloads |
+| `bronze_live_raid_roster` | Google Sheets live raid roster CSV payload |
 
-### Silver (12 tables — cleaned, normalised)
+### Silver (source-split under `02_silver`)
 | Table | Key transformations |
 |-------|---------------------|
 | `silver_guild_reports` | UTC timestamps, zone extracted, deduplicated |
@@ -199,9 +223,15 @@ Implementation notes:
 | `silver_player_cast_events` | Cast event stream joined to actor roster and fight context for utility analysis |
 | `silver_raid_attendance` | Attendance exploded; presence codes mapped to labels |
 | `silver_zone_catalog` | Zone/encounter reference; difficulty names collected |
+| `silver_guild_zone_ranks` | Progress JSON preserved per zone for downstream flattening |
 | `silver_guild_members` | Deduplicated; rank labels (GM→Social); class names from Blizzard class_id enum |
+| `silver_character_media` | Latest avatar / inset / main / main_raw URLs per character |
+| `silver_character_equipment` | Latest raw equipment JSON per character |
+| `silver_character_achievements` | Latest raw achievements JSON per character |
+| `silver_item_media` | `item_id` → icon URL lookup |
 | `silver_raiderio_player_scores` | Raider.IO current-season score snapshots and ranks |
 | `silver_raiderio_player_runs` | Deduped Mythic+ recent/best runs, timed flag, scores, URLs |
+| `silver_live_raid_roster` | Parsed Google Sheets live roster rows |
 
 ### Gold (40+ tables — business-ready)
 
@@ -233,24 +263,24 @@ Implementation notes:
 | `gold_boss_wipe_analysis` | Wipe phase/% breakdown per boss |
 | `gold_boss_mechanics` | Enhanced wipe analysis — phase buckets, duration buckets, weekly trend |
 | `gold_player_survivability` | Deaths per kill, most common killing blow per player |
-| `gold_boss_ability_deaths` | What abilities kill players most per boss |
-| `gold_player_consumables` | Potion/healthstone usage rate per player, per boss |
-| `gold_player_combat_stats` | Crit/Haste/Mastery/Vers ratings per player (latest + avg) |
 | `gold_encounter_catalog` | Zone/encounter reference for frontend filters |
 | `gold_guild_roster` | Full Blizzard guild roster with class, attendance |
+| `gold_live_raid_roster` | Current live raid roster from Google Sheets |
+| `gold_guild_zone_ranks` | World / region / server rank per zone |
+| `gold_player_character_media` | Character avatar / inset / render artwork |
+| `gold_player_character_equipment` | Equipped items joined to icon URLs |
+| `gold_player_raid_achievements` | Selected raid feats per character |
+| `gold_player_utility_by_pull` | Pull-level healthstone / potion / defensive usage |
+| `gold_wipe_survival_events` | Wipe death events with survival/recovery context |
+| `gold_wipe_cooldown_utilization` | Pull-scoped cooldown capacity and actual usage |
 | `gold_raid_team` | Active raid team with possible alt flags |
-| `gold_player_profile` | Comprehensive per-player identity + performance summary |
-| `gold_roster` | Active roster from WCL actor logs |
 | `gold_player_mplus_summary` | Latest Raider.IO score, ranks, best run, timed/untimed counts |
 | `gold_player_mplus_score_history` | Nightly Raider.IO score snapshots |
 | `gold_player_mplus_run_history` | Governed Mythic+ run-level table |
 | `gold_player_mplus_weekly_activity` | Weekly M+ run counts, timed/untimed split, highest key |
 | `gold_player_mplus_dungeon_breakdown` | Per-player per-dungeon M+ summary |
 
-Additional export-derived frontend datasets:
-- `gold_player_utility_by_pull.csv` — player + pull level healthstone / health potion / personal defensive casts
-- `gold_wipe_survival_events.csv` — wipe death events enriched with recovery and defensive context
-- `gold_wipe_cooldown_utilization.csv` — pull-scoped cooldown capacity for personal, raid, and healer external cooldowns
+The export script is now intentionally thin: it reads from persisted gold tables and writes CSVs for the frontend, plus the governed `preparation_identity_overrides` export.
 
 ---
 

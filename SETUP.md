@@ -26,7 +26,7 @@ Optional local checks:
 
 ```bash
 .venv/bin/ruff check .
-python3 -m py_compile scripts/export_gold_tables.py ingestion/src/adapters/wcl/client.py pipeline/silver/clean_events.py
+python3 -m py_compile scripts/export_gold_tables.py ingestion/src/adapters/wcl/client.py ingestion/src/adapters/blizzard/client.py
 cd frontend && npm run build && cd ..
 ```
 
@@ -64,6 +64,8 @@ Review `databricks.yml` and set the guild-specific values you actually want to i
 
 - `catalog`
 - `schema`
+- `profile_candidate_catalog`
+- `profile_candidate_schema`
 - `guild_name`
 - `guild_server_slug`
 - `guild_server_region`
@@ -83,23 +85,25 @@ This deploys:
 
 ## 6. First ingestion run
 
-Run the ingestion job once to populate the landing volume:
+Run the ingestion job once to populate the split bronze landing volumes:
 
 ```bash
 databricks bundle run nightly_ingestion
 ```
 
 What it writes:
-- `/Volumes/{catalog}/{schema}/landing/guild_reports/`
-- `/Volumes/{catalog}/{schema}/landing/report_fights/`
-- `/Volumes/{catalog}/{schema}/landing/actor_roster/`
-- `/Volumes/{catalog}/{schema}/landing/player_details/`
-- `/Volumes/{catalog}/{schema}/landing/raid_attendance/`
-- `/Volumes/{catalog}/{schema}/landing/guild_members/`
-- `/Volumes/{catalog}/{schema}/landing/raiderio_character_profiles/`
-- `/Volumes/{catalog}/{schema}/landing/fight_rankings/`
-- `/Volumes/{catalog}/{schema}/landing/fight_casts/`
-- `/Volumes/{catalog}/{schema}/landing/fight_deaths/`
+- `/Volumes/01_bronze/warcraftlogs/landing/{guild_reports,report_fights,actor_roster,player_details,raid_attendance,zone_catalog,fight_rankings,fight_casts,fight_deaths,guild_zone_ranks,archived}/`
+- `/Volumes/01_bronze/blizzard/landing/{guild_members,character_media,character_equipment,character_achievements,item_media}/`
+- `/Volumes/01_bronze/raiderio/landing/raiderio_character_profiles/`
+- `/Volumes/01_bronze/google_sheets/landing/live_raid_roster/`
+
+If you are migrating from the old shared landing volume, run:
+
+```bash
+databricks bundle run migrate_bronze_landing_volumes
+```
+
+Then run the DLT pipeline as a **full refresh** once so the bronze streaming tables rebuild from the new source paths.
 
 ## 7. Run the DLT pipeline
 
@@ -122,12 +126,7 @@ Run:
 .venv/bin/python scripts/export_gold_tables.py
 ```
 
-This exports the governed datasets used by the dashboard, including:
-- progression and wipe analysis CSVs
-- Raider.IO exports
-- player profile media/equipment exports
-- wipe utility exports such as `gold_wipe_survival_events.csv`
-- cooldown capacity exports such as `gold_wipe_cooldown_utilization.csv`
+This exports the governed datasets used by the dashboard from persisted gold tables in `03_gold.sc_analytics`.
 
 ## 9. Run the frontend
 
@@ -146,18 +145,18 @@ npm run build
 
 - `fight_deaths` must be fetched one fight at a time. Multi-fight WCL death table requests truncate on long reports.
 - `silver_player_deaths` prefers single-fight death records when both legacy and backfilled files exist for a report.
-- The Wipe Analysis utility panels are export-derived. Avoid creating extra DLT gold tables for them unless there is a strong reason.
 - Databricks Free object limits matter. Hidden DLT materialization tables count against the schema quota.
+- The pipeline publishes into split catalogs/schemas. Leave the top-level bundle `catalog/schema` alone for the existing pipeline unless you are intentionally recreating it.
 
 ## First validation checks
 
 After a full first run, confirm:
 
 ```sql
-SELECT COUNT(*) FROM 04_sdp.warcraftlogs.silver_fight_events;
-SELECT COUNT(*) FROM 04_sdp.warcraftlogs.silver_player_cast_events;
-SELECT COUNT(*) FROM 04_sdp.warcraftlogs.silver_player_deaths;
-SELECT COUNT(*) FROM 04_sdp.warcraftlogs.gold_player_death_events;
+SELECT COUNT(*) FROM 02_silver.sc_analytics_warcraftlogs.silver_fight_events;
+SELECT COUNT(*) FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cast_events;
+SELECT COUNT(*) FROM 02_silver.sc_analytics_warcraftlogs.silver_player_deaths;
+SELECT COUNT(*) FROM 03_gold.sc_analytics.gold_player_death_events;
 ```
 
 And locally:
