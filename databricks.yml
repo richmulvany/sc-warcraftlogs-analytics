@@ -31,7 +31,7 @@ variables:
     default: WarcraftLogs Analytics
   developer_user:
     description: Email of the developer deploying in development mode
-    default: ricard.mulvany@gmail.com
+    default: developer@example.com
   guild_name:
     description: WoW guild name to ingest data for
     default: Student Council

@@ -37,6 +37,9 @@ load_dotenv(REPO_ROOT / ".env")
 
 CATALOG = os.environ.get("DATABRICKS_CATALOG", "04_sdp")
 SCHEMA = os.environ.get("DATABRICKS_SCHEMA", "warcraftlogs")
+OVERRIDES_CATALOG = os.environ.get("OVERRIDES_DATABRICKS_CATALOG", "00_governance")
+OVERRIDES_SCHEMA = os.environ.get("OVERRIDES_DATABRICKS_SCHEMA", "warcraftlogs_admin")
+OVERRIDES_TABLE = os.environ.get("OVERRIDES_DATABRICKS_TABLE", "preparation_identity_overrides")
 _output_dir = Path(os.environ.get("EXPORT_OUTPUT_DIR", "frontend/public/data"))
 OUTPUT_DIR = _output_dir if _output_dir.is_absolute() else REPO_ROOT / _output_dir
 FRONTEND_PUBLIC_DATA_DIR = REPO_ROOT / "frontend/public/data"
@@ -47,6 +50,9 @@ LIVE_ROSTER_SHEET_ID = (
 )
 LIVE_ROSTER_SHEET_GID = os.environ.get("LIVE_ROSTER_SHEET_GID") or "0"
 LIVE_ROSTER_FILENAME = os.environ.get("LIVE_ROSTER_FILENAME") or "live_raid_roster.csv"
+PREPARATION_OVERRIDES_FILENAME = (
+    os.environ.get("PREPARATION_OVERRIDES_FILENAME") or "preparation_overrides.csv"
+)
 WCL_CLIENT_ID = os.environ.get("WCL_CLIENT_ID") or os.environ.get("WARCRAFTLOGS_CLIENT_ID") or ""
 WCL_CLIENT_SECRET = (
     os.environ.get("WCL_CLIENT_SECRET") or os.environ.get("WARCRAFTLOGS_CLIENT_SECRET") or ""
@@ -1061,6 +1067,22 @@ TABLE_EXPORT_STATEMENTS: dict[str, str] = {
     """.strip(),
 }
 
+PREPARATION_OVERRIDES_EXPORT_STATEMENT = f"""
+    SELECT
+      CAST(id AS STRING) AS id,
+      CAST(mode AS STRING) AS mode,
+      CAST(source_character AS STRING) AS source_character,
+      CAST(target_character AS STRING) AS target_character,
+      CAST(characters AS STRING) AS characters,
+      CAST(display_name AS STRING) AS display_name,
+      CAST(enabled AS STRING) AS enabled,
+      CAST(notes AS STRING) AS notes,
+      CAST(updated_by AS STRING) AS updated_by,
+      CAST(updated_at AS STRING) AS updated_at
+    FROM {OVERRIDES_CATALOG}.{OVERRIDES_SCHEMA}.{OVERRIDES_TABLE}
+    ORDER BY id
+""".strip()
+
 LIVE_ROSTER_COLUMNS = {
     "name": 0,
     "roster_rank": 3,
@@ -1797,6 +1819,32 @@ def export_table(client: WorkspaceClient, warehouse_id: str, filename: str, tabl
     return row_count
 
 
+def export_external_statement(
+    client: WorkspaceClient,
+    warehouse_id: str,
+    *,
+    statement: str,
+    filename: str,
+    label: str,
+) -> int:
+    logger.info("Exporting %s -> %s", label, filename)
+    response = client.statement_execution.execute_statement(
+        warehouse_id=warehouse_id,
+        statement=statement,
+        disposition=sql.Disposition.EXTERNAL_LINKS,
+        format=sql.Format.CSV,
+        wait_timeout="10s",
+        on_wait_timeout=sql.ExecuteStatementRequestOnWaitTimeout.CONTINUE,
+    )
+
+    response = _wait_for_success(client, response)
+    output_path = OUTPUT_DIR / filename
+    row_count = _write_csv_from_statement(client, response, output_path)
+    _mirror_to_frontend_data(output_path)
+    logger.info("  wrote %s rows to %s", row_count or "unknown", output_path)
+    return row_count
+
+
 def main() -> None:
     client = WorkspaceClient()
     warehouse_id = _first_warehouse_id(client)
@@ -1821,10 +1869,21 @@ def main() -> None:
     except Exception as exc:
         logger.warning("Skipping Blizzard character profile export: %s", exc)
 
+    try:
+        total_rows += export_external_statement(
+            client,
+            warehouse_id,
+            statement=PREPARATION_OVERRIDES_EXPORT_STATEMENT,
+            filename=PREPARATION_OVERRIDES_FILENAME,
+            label=f"{OVERRIDES_CATALOG}.{OVERRIDES_SCHEMA}.{OVERRIDES_TABLE}",
+        )
+    except Exception as exc:
+        logger.warning("Skipping preparation overrides export: %s", exc)
+
     logger.info(
         "Export complete. %s total rows across %s files.",
         total_rows or "unknown",
-        len(FRONTEND_TABLES) + 5,
+        len(FRONTEND_TABLES) + 6,
     )
 
 

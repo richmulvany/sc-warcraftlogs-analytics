@@ -33,6 +33,7 @@ import type {
   PlayerMplusDungeonBreakdown,
   PlayerConsumables,
   PlayerCombatStats,
+  PreparationOverrideRow,
 } from '../types'
 
 export const useRaidSummary        = () => useCSV<RaidSummary>('gold_raid_summary.csv')
@@ -68,3 +69,4 @@ export const usePlayerMplusWeeklyActivity = () => useCSV<PlayerMplusWeeklyActivi
 export const usePlayerMplusDungeonBreakdown = () => useCSV<PlayerMplusDungeonBreakdown>('gold_player_mplus_dungeon_breakdown.csv', { optional: true })
 export const usePlayerConsumables  = () => useCSV<PlayerConsumables>('gold_player_consumables.csv', { optional: true })
 export const usePlayerCombatStats  = () => useCSV<PlayerCombatStats>('gold_player_combat_stats.csv', { optional: true })
+export const usePreparationOverrides = () => useCSV<PreparationOverrideRow>('preparation_overrides.csv', { optional: true })

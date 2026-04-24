@@ -19,7 +19,7 @@ Pulls data from WarcraftLogs, Blizzard, and Raider.IO nightly, transforms it int
 - **Attendance** — who shows up, how often, which nights
 - **Roster** — guild rank structure, active raid team, alt detection
 - **Survivability** — who's dying, to what, how often
-- **Preparation** — consumable usage rates, combat stat distributions per player
+- **Preparation** — experimental current-tier raid-readiness ranking with attendance, food, flask/phial, weapon enhancement, and combat potion coverage
 - **Wipe diagnosis** — first deaths, repeat deaths, wipe survival discipline, raid cooldown capacity, healer external capacity
 - **Mythic+** — Raider.IO score snapshots, timed/untimed keys, dungeon breakdowns
 - **Character profiles** — Blizzard profile portraits, standing renders, equipped gear, enchants, gems, raid feats
@@ -118,6 +118,29 @@ sc-warcraftlogs-analytics/
 
 ### WarcraftLogs v2 GraphQL API
 - **Auth**: OAuth2 client credentials (`/oauth/token`)
+
+---
+
+## Preparation Page
+
+The `Preparation` page is now a current-tier-only raid-readiness dashboard rather
+than a thin wrapper around the old consumables/stat exports.
+
+What it currently does:
+- scopes to the current raid tier from `gold_raid_summary`
+- scopes to the current raid team from `live_raid_roster.csv` with `gold_raid_team.csv` fallback
+- scores readiness from current-tier attendance plus preparation coverage
+- tracks food, flask/phial, weapon enhancement, and combat potion coverage
+- shows combat potion usage for every role, but only counts it in readiness for DPS
+- supports identity overrides for same-raider character swaps via `preparation_overrides.csv`
+
+Implementation notes:
+- the frontend reads preparation metrics from `gold_boss_kill_roster.csv`
+- Midnight consumable detection is derived in the pipeline from combatant buffs,
+  weapon enhancements, and buff-based combat potion detection
+- shared identity overrides are intended to come from
+  `00_governance.warcraftlogs_admin.preparation_identity_overrides` and are exported
+  by `scripts/export_gold_tables.py`
 - **Rate limit**: ~30 req/min (manual retry loop with `Retry-After` header)
 - **Endpoints used**:
   - `reportData.reports` — guild raid reports (paginated)

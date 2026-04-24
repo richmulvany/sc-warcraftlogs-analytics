@@ -89,6 +89,19 @@ export interface BossKillRosterRow {
   rank_string: string
 }
 
+export interface PreparationOverrideRow {
+  id: string
+  mode: 'replace' | 'pool'
+  source_character?: string
+  target_character?: string
+  characters?: string
+  display_name?: string
+  enabled?: boolean | string
+  notes?: string
+  updated_by?: string
+  updated_at?: string
+}
+
 export interface PlayerAttendance {
   player_name: string
   player_class: string

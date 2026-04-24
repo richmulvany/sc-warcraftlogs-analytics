@@ -16,6 +16,7 @@ is purely descriptive reference material. A contract is a *promise*.
 | Contract | Table | Status |
 |----------|-------|--------|
 | [gold_entity_summary](gold_entity_summary.md) | `gold_entity_summary` | Active |
+| [preparation_identity_overrides](preparation_identity_overrides.md) | `00_governance.warcraftlogs_admin.preparation_identity_overrides` | Draft |
 
 ---
 

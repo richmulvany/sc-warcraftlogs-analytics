@@ -308,6 +308,31 @@ Per-player stat ratings. `latest_*` columns = most recent kill snapshot. `avg_*`
 
 What is killing players on each boss. `death_rank` orders abilities by deaths. Splits `deaths_on_kills` vs `deaths_on_wipes`. Includes `unique_players_killed` and `reports_with_deaths`.
 
+### Current Preparation page inputs
+
+The live frontend `Preparation` page does **not** currently use `gold_player_consumables`
+or `gold_player_combat_stats` as its main source of truth.
+
+Instead it is built from:
+- `gold_raid_summary` to identify the current raid tier and its raid nights
+- `gold_boss_kill_roster` for current-tier preparation signals and latest prep names
+- `live_raid_roster` with `gold_raid_team` fallback for the current team scope
+- `preparation_overrides.csv` for same-raider character replacement/pooling
+
+The page is intentionally current-tier only. Historical all-time aggregates are not
+used there unless the page is explicitly redesigned to support mixed-tier views.
+
+`gold_boss_kill_roster` now carries these preparation-facing columns used directly
+by the frontend:
+- `has_food_buff`, `food_buff_names`
+- `has_flask_or_phial_buff`, `flask_or_phial_names`
+- `has_weapon_enhancement`, `weapon_enhancement_names`
+- `potion_use`, `combat_potion_casts`, `combat_potion_names`
+
+Role-specific scoring rule:
+- combat potion usage is displayed for all roles
+- combat potion usage contributes to readiness scoring only for DPS
+
 ---
 
 ## Roster
