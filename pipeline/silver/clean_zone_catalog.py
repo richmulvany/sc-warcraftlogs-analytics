@@ -9,7 +9,7 @@ from pyspark.sql import functions as F
 
 
 @dlt.table(
-    name="silver_zone_catalog",
+    name="02_silver.sc_analytics_warcraftlogs.silver_zone_catalog",
     comment=(
         "WCL zone and encounter reference: one row per encounter per zone. "
         "Used to resolve encounter IDs to boss names across gold tables."
@@ -20,7 +20,7 @@ from pyspark.sql import functions as F
 @dlt.expect_or_drop("valid_encounter_id", "encounter_id IS NOT NULL")
 def silver_zone_catalog():
     return (
-        dlt.read("bronze_zone_catalog")  # batch — zone catalog is a slowly-changing reference
+        spark.read.table("01_bronze.warcraftlogs.bronze_zone_catalog")  # noqa: F821
         .filter(F.col("encounters").isNotNull())
         .select(
             F.col("id").alias("zone_id"),

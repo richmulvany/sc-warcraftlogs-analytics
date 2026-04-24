@@ -85,7 +85,7 @@ _TABLE_SCHEMA = StructType([
 # ── Parsed Player Death Events ─────────────────────────────────────────────────
 
 @dlt.table(
-    name="silver_player_deaths",
+    name="02_silver.sc_analytics_warcraftlogs.silver_player_deaths",
     comment=(
         "WCL death events per player per report. "
         "One row per death event with fight_id and killing blow. "
@@ -95,7 +95,7 @@ _TABLE_SCHEMA = StructType([
     table_properties={"quality": "silver"},
 )
 def silver_player_deaths():
-    raw = dlt.read("bronze_fight_deaths")  # batch — stable once ingested
+    raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_deaths")  # noqa: F821
 
     # Legacy bronze death files stored many fights in one record; WCL truncates
     # those responses on long reports. Once a report has any single-fight death
@@ -355,7 +355,7 @@ _join_consumable_names_udf = F.udf(join_consumable_names, StringType())
 # ── Parsed Player Cast Events ─────────────────────────────────────────────────
 
 @dlt.table(
-    name="silver_player_cast_events",
+    name="02_silver.sc_analytics_warcraftlogs.silver_player_cast_events",
     comment=(
         "WCL player cast events for raid boss pulls. "
         "Used for health potion, healthstone, and defensive usage analysis."
@@ -363,9 +363,9 @@ _join_consumable_names_udf = F.udf(join_consumable_names, StringType())
     table_properties={"quality": "silver"},
 )
 def silver_player_cast_events():
-    raw = dlt.read("bronze_fight_casts")
-    actors = dlt.read("silver_actor_roster")
-    fights = dlt.read("silver_fight_events")
+    raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_casts")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     parsed = (
         raw
@@ -435,7 +435,7 @@ def silver_player_cast_events():
 
 
 @dlt.table(
-    name="silver_player_combatant_buffs",
+    name="02_silver.sc_analytics_warcraftlogs.silver_player_combatant_buffs",
     comment=(
         "Per-player pull-start preparation signals from CombatantInfo events. "
         "Tracks food buffs, flask/phial buffs, and weapon enhancements."
@@ -443,9 +443,9 @@ def silver_player_cast_events():
     table_properties={"quality": "silver"},
 )
 def silver_player_combatant_buffs():
-    raw = dlt.read("bronze_fight_casts")
-    actors = dlt.read("silver_actor_roster")
-    fights = dlt.read("silver_fight_events")
+    raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_casts")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     parsed = (
         raw

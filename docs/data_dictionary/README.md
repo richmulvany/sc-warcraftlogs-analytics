@@ -2,7 +2,7 @@
 
 All gold tables are produced by the DLT pipeline and are the source of truth for the frontend dashboard. Updated on each pipeline run (nightly after ingestion).
 
-**Unity Catalog path**: `04_sdp.warcraftlogs.<table_name>`
+**Unity Catalog path**: `03_gold.sc_analytics.<table_name>`
 
 ---
 

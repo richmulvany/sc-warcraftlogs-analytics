@@ -17,7 +17,7 @@ from pyspark.sql.window import Window
 
 
 @dlt.table(
-    name="silver_guild_members",
+    name="02_silver.sc_analytics_blizzard.silver_guild_members",
     comment=(
         "Deduplicated guild roster from Blizzard API. "
         "One row per character name with rank label and raid-team flag."
@@ -29,7 +29,7 @@ from pyspark.sql.window import Window
 def silver_guild_members():
     # Read as batch — this is a slowly-changing dimension; gold tables always
     # want the latest full snapshot rather than appended history.
-    raw = dlt.read("bronze_guild_members")
+    raw = spark.read.table("01_bronze.blizzard.bronze_guild_members")  # noqa: F821
 
     # Keep the most recent record per character name when multiple ingestion
     # runs are present in the bronze table.

@@ -19,7 +19,7 @@ from pyspark.sql.window import Window
 # zone_name and boss_name carried through for display.
 
 @dlt.table(
-    name="gold_boss_progression",
+    name="03_gold.sc_analytics.gold_boss_progression",
     comment="Per-encounter kill/wipe summary across all raids, grouped by encounter and difficulty.",
     table_properties={
         "quality": "gold",
@@ -27,7 +27,7 @@ from pyspark.sql.window import Window
     },
 )
 def gold_boss_progression():
-    fights = dlt.read("silver_fight_events")
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
     return (
         fights
         .groupBy("encounter_id", "boss_name", "zone_id", "zone_name", "difficulty", "difficulty_label")
@@ -53,13 +53,13 @@ def gold_boss_progression():
 # "How did each raid night go?"
 
 @dlt.table(
-    name="gold_raid_summary",
+    name="03_gold.sc_analytics.gold_raid_summary",
     comment="One row per raid night with aggregate boss kill, wipe, and time stats.",
     table_properties={"quality": "gold"},
 )
 def gold_raid_summary():
-    reports = dlt.read("silver_guild_reports")
-    fights = dlt.read("silver_fight_events")
+    reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     fight_stats = fights.groupBy("report_code").agg(
         F.count("*").alias("total_pulls"),
@@ -103,12 +103,12 @@ def gold_raid_summary():
 # "How has our progression developed over time?"
 
 @dlt.table(
-    name="gold_progression_timeline",
+    name="03_gold.sc_analytics.gold_progression_timeline",
     comment="Cumulative boss first-kills over time, per difficulty.",
     table_properties={"quality": "gold"},
 )
 def gold_progression_timeline():
-    fights = dlt.read("silver_fight_events")
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     first_kills = (
         fights
@@ -128,7 +128,7 @@ def gold_progression_timeline():
 # "What is our fastest recorded kill for each boss?"
 
 @dlt.table(
-    name="gold_best_kills",
+    name="03_gold.sc_analytics.gold_best_kills",
     comment="Fastest kill duration per encounter per difficulty, with date context.",
     table_properties={
         "quality": "gold",
@@ -136,7 +136,7 @@ def gold_progression_timeline():
     },
 )
 def gold_best_kills():
-    fights = dlt.read("silver_fight_events")
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     return (
         fights
@@ -167,7 +167,7 @@ def gold_best_kills():
 # struggling and whether each raid night is making progress.
 
 @dlt.table(
-    name="gold_boss_wipe_analysis",
+    name="03_gold.sc_analytics.gold_boss_wipe_analysis",
     comment=(
         "Per-boss wipe breakdown: phase distribution, average wipe %, "
         "and progression trend across raid nights."
@@ -178,7 +178,7 @@ def gold_best_kills():
     },
 )
 def gold_boss_wipe_analysis():
-    fights = dlt.read("silver_fight_events")
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
     wipes = fights.filter(~F.col("is_kill"))
 
     return (
@@ -214,7 +214,7 @@ def gold_boss_wipe_analysis():
 # reached on that night (or 0 if the boss died in that report).
 
 @dlt.table(
-    name="gold_boss_progress_history",
+    name="03_gold.sc_analytics.gold_boss_progress_history",
     comment=(
         "Per-report boss progression history with best boss HP remaining over time. "
         "Used for encounter detail charts and progression log tables."
@@ -225,8 +225,8 @@ def gold_boss_wipe_analysis():
     },
 )
 def gold_boss_progress_history():
-    fights = dlt.read("silver_fight_events")
-    reports = dlt.read("silver_guild_reports")
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
+    reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
     report_context = (
         reports
@@ -296,7 +296,7 @@ def gold_boss_progress_history():
 
 
 @dlt.table(
-    name="gold_boss_pull_history",
+    name="03_gold.sc_analytics.gold_boss_pull_history",
     comment=(
         "Per-pull boss progression history with boss HP remaining for every tracked attempt. "
         "Used for pull-by-pull progression charts."
@@ -307,8 +307,8 @@ def gold_boss_progress_history():
     },
 )
 def gold_boss_pull_history():
-    fights = dlt.read("silver_fight_events")
-    reports = dlt.read("silver_guild_reports")
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
+    reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
     report_context = (
         reports
@@ -354,13 +354,13 @@ def gold_boss_pull_history():
 # "What encounters and zones exist?" (reference table for frontend filters)
 
 @dlt.table(
-    name="gold_encounter_catalog",
+    name="03_gold.sc_analytics.gold_encounter_catalog",
     comment="Zone and encounter reference catalog for frontend dropdowns and boss ID resolution.",
     table_properties={"quality": "gold"},
 )
 def gold_encounter_catalog():
     return (
-        dlt.read("silver_zone_catalog")
+        spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_zone_catalog")  # noqa: F821
         .filter(~F.col("zone_frozen"))  # active raid tiers only
         .select(
             "zone_id",

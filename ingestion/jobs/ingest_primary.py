@@ -64,8 +64,8 @@ def _config_value(name: str, default: str) -> str:
 
 
 logger.info(
-    "Ingesting guild=%s server=%s region=%s → %s.%s",
-    guild_name, server_slug, server_region, catalog, schema,
+    "Ingesting guild=%s server=%s region=%s",
+    guild_name, server_slug, server_region,
 )
 
 # COMMAND ----------
@@ -80,34 +80,63 @@ adapter.authenticate()
 # COMMAND ----------
 
 # DBTITLE 1,Volume setup
-spark.sql(f"CREATE VOLUME IF NOT EXISTS `{catalog}`.`{schema}`.landing")  # noqa: F821
+LANDING_ROOTS = {
+    "warcraftlogs": "/Volumes/01_bronze/warcraftlogs/landing",
+    "blizzard": "/Volumes/01_bronze/blizzard/landing",
+    "raiderio": "/Volumes/01_bronze/raiderio/landing",
+    "google_sheets": "/Volumes/01_bronze/google_sheets/landing",
+}
+SOURCE_SUBDIRS = {
+    "warcraftlogs": (
+        "guild_reports",
+        "report_fights",
+        "raid_attendance",
+        "actor_roster",
+        "player_details",
+        "zone_catalog",
+        "fight_rankings",
+        "fight_deaths",
+        "fight_casts",
+        "guild_zone_ranks",
+        "archived",
+    ),
+    "blizzard": (
+        "guild_members",
+        "character_media",
+        "character_equipment",
+        "character_achievements",
+        "item_media",
+    ),
+    "raiderio": ("raiderio_character_profiles",),
+    "google_sheets": ("live_raid_roster",),
+}
 
-landing = f"/Volumes/{catalog}/{schema}/landing"
-for subdir in (
-    "guild_reports",
-    "report_fights",
-    "raid_attendance",
-    "actor_roster",
-    "player_details",
-    "zone_catalog",
-    "guild_members",
-    "raiderio_character_profiles",
-    "fight_rankings",
-    "fight_deaths",
-    "fight_casts",
-    "archived",       # skip-marker directory — one empty file per archived report code
+for source_catalog, source_schema in (
+    ("01_bronze", "warcraftlogs"),
+    ("01_bronze", "blizzard"),
+    ("01_bronze", "raiderio"),
+    ("01_bronze", "google_sheets"),
 ):
-    os.makedirs(f"{landing}/{subdir}", exist_ok=True)
+    spark.sql(f"CREATE VOLUME IF NOT EXISTS `{source_catalog}`.`{source_schema}`.landing")  # noqa: F821
+
+for source_name, landing_root in LANDING_ROOTS.items():
+    for subdir in SOURCE_SUBDIRS[source_name]:
+        os.makedirs(f"{landing_root}/{subdir}", exist_ok=True)
+
+wcl_landing = LANDING_ROOTS["warcraftlogs"]
+blizzard_landing = LANDING_ROOTS["blizzard"]
+raiderio_landing = LANDING_ROOTS["raiderio"]
+google_sheets_landing = LANDING_ROOTS["google_sheets"]
 
 
 def _is_archived(report_code: str) -> bool:
     """Return True if this report has a permanent archived skip marker."""
-    return os.path.exists(f"{landing}/archived/{report_code}")
+    return os.path.exists(f"{wcl_landing}/archived/{report_code}")
 
 
 def _mark_archived(report_code: str) -> None:
     """Write an empty skip marker so future runs bypass this report immediately."""
-    open(f"{landing}/archived/{report_code}", "w").close()
+    open(f"{wcl_landing}/archived/{report_code}", "w").close()
     logger.warning("report_archived_marked: %s — will skip permanently", report_code)
 
 run_ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -125,7 +154,7 @@ def _sleep() -> None:
 # appear automatically.
 logger.info("Fetching zone catalog …")
 zone_result = adapter.fetch_zone_catalog()
-with open(f"{landing}/zone_catalog/{run_ts}_zones.jsonl", "w") as fh:
+with open(f"{wcl_landing}/zone_catalog/{run_ts}_zones.jsonl", "w") as fh:
     for zone in zone_result.records:
         fh.write(json.dumps({**zone, "_source": "wcl", "_ingested_at": ingested_at}) + "\n")
 logger.info("zone_catalog → %d zones", zone_result.total_records)
@@ -149,7 +178,7 @@ while has_more:
     records = [{**r, "_source": "wcl", "_ingested_at": ingested_at} for r in result.records]
     all_report_codes.extend(r["code"] for r in result.records if r.get("code"))
 
-    out_path = f"{landing}/guild_reports/{run_ts}_p{page}.jsonl"
+    out_path = f"{wcl_landing}/guild_reports/{run_ts}_p{page}.jsonl"
     with open(out_path, "w") as fh:
         for record in records:
             fh.write(json.dumps(record) + "\n")
@@ -183,7 +212,7 @@ for report_code in all_report_codes:
         continue
 
     # ── 3a: Fight details ──────────────────────────────────────────────────
-    fight_file = f"{landing}/report_fights/{report_code}.jsonl"
+    fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
     if not os.path.exists(fight_file):
         try:
             fight_result = adapter.fetch_report_fights(report_code)
@@ -211,7 +240,7 @@ for report_code in all_report_codes:
     fights = report_data.get("fights") or []
 
     # ── 3b: Actor roster ──────────────────────────────────────────────────
-    roster_file = f"{landing}/actor_roster/{report_code}.jsonl"
+    roster_file = f"{wcl_landing}/actor_roster/{report_code}.jsonl"
     if not os.path.exists(roster_file):
         try:
             roster_result = adapter.fetch_actor_roster(report_code)
@@ -246,7 +275,7 @@ for report_code in all_report_codes:
 
     for fight in kill_fights:
         fight_id = fight["id"]
-        details_file = f"{landing}/player_details/{report_code}_{fight_id}.jsonl"
+        details_file = f"{wcl_landing}/player_details/{report_code}_{fight_id}.jsonl"
         if os.path.exists(details_file):
             logger.info("player_details: %s fight %d already fetched — skipping", report_code, fight_id)
             continue
@@ -281,9 +310,9 @@ for report_code in all_report_codes:
         and (f.get("encounterID") or 0) > 0
     ]
     raid_fight_ids = [int(f["id"]) for f in raid_fights if f.get("id") is not None]
-    casts_file_pattern = f"{landing}/fight_casts/{report_code}*.jsonl"
+    casts_file_pattern = f"{wcl_landing}/fight_casts/{report_code}*.jsonl"
     cast_files = sorted(glob(casts_file_pattern))
-    casts_file = cast_files[-1] if cast_files else f"{landing}/fight_casts/{report_code}.jsonl"
+    casts_file = cast_files[-1] if cast_files else f"{wcl_landing}/fight_casts/{report_code}.jsonl"
     should_fetch_casts = bool(raid_fight_ids) and not cast_files
     if raid_fight_ids and cast_files:
         try:
@@ -300,11 +329,11 @@ for report_code in all_report_codes:
             )
             if should_fetch_casts:
                 logger.info("fight_casts: %s stale/incomplete — refetching", report_code)
-                casts_file = f"{landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+                casts_file = f"{wcl_landing}/fight_casts/{report_code}_{run_ts}.jsonl"
         except Exception as exc:
             logger.warning("fight_casts: %s unreadable (%s) — refetching", report_code, exc)
             should_fetch_casts = True
-            casts_file = f"{landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+            casts_file = f"{wcl_landing}/fight_casts/{report_code}_{run_ts}.jsonl"
 
     if raid_fight_ids and should_fetch_casts:
         try:
@@ -342,7 +371,7 @@ while has_more:
         break
 
     records = [{**r, "_source": "wcl", "_ingested_at": ingested_at} for r in result.records]
-    out_path = f"{landing}/raid_attendance/{run_ts}_p{page}.jsonl"
+    out_path = f"{wcl_landing}/raid_attendance/{run_ts}_p{page}.jsonl"
     with open(out_path, "w") as fh:
         for record in records:
             fh.write(json.dumps(record) + "\n")
@@ -390,7 +419,7 @@ try:
     ]
     guild_member_records = records
 
-    members_file = f"{landing}/guild_members/{run_ts}.jsonl"
+    members_file = f"{blizzard_landing}/guild_members/{run_ts}.jsonl"
     with open(members_file, "w") as fh:
         for record in records:
             fh.write(json.dumps(record) + "\n")
@@ -558,7 +587,7 @@ if RAIDER_IO_EXPORT_ENABLED:
         )
         rio_adapter.authenticate()
 
-        profiles_file = f"{landing}/raiderio_character_profiles/{run_ts}.jsonl"
+        profiles_file = f"{raiderio_landing}/raiderio_character_profiles/{run_ts}.jsonl"
         rows_written = 0
         with open(profiles_file, "w") as fh:
             for candidate in raiderio_candidates:
@@ -619,12 +648,12 @@ for report_code in all_report_codes:
         logger.info("fight_rankings: %s is archived — skipping", report_code)
         continue
 
-    rankings_file = f"{landing}/fight_rankings/{report_code}.jsonl"
+    rankings_file = f"{wcl_landing}/fight_rankings/{report_code}.jsonl"
     if os.path.exists(rankings_file):
         logger.info("fight_rankings: %s already fetched — skipping", report_code)
         continue
 
-    fight_file = f"{landing}/report_fights/{report_code}.jsonl"
+    fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
     if not os.path.exists(fight_file):
         logger.warning("fight_rankings: no fight file for %s — skipping", report_code)
         continue
@@ -675,11 +704,11 @@ for report_code in all_report_codes:
         logger.info("fight_deaths: %s is archived — skipping", report_code)
         continue
 
-    deaths_file_pattern = f"{landing}/fight_deaths/{report_code}*.jsonl"
+    deaths_file_pattern = f"{wcl_landing}/fight_deaths/{report_code}*.jsonl"
     death_files = sorted(glob(deaths_file_pattern))
-    deaths_file = death_files[-1] if death_files else f"{landing}/fight_deaths/{report_code}.jsonl"
+    deaths_file = death_files[-1] if death_files else f"{wcl_landing}/fight_deaths/{report_code}.jsonl"
 
-    fight_file = f"{landing}/report_fights/{report_code}.jsonl"
+    fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
     if not os.path.exists(fight_file):
         logger.warning("fight_deaths: no fight file for %s — skipping", report_code)
         continue
@@ -724,11 +753,11 @@ for report_code in all_report_codes:
             )
             if should_fetch_deaths:
                 logger.info("fight_deaths: %s stale/incomplete — refetching", report_code)
-                deaths_file = f"{landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
+                deaths_file = f"{wcl_landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
         except Exception as exc:
             logger.warning("fight_deaths: %s unreadable (%s) — refetching", report_code, exc)
             should_fetch_deaths = True
-            deaths_file = f"{landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
+            deaths_file = f"{wcl_landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
 
     if not should_fetch_deaths:
         logger.info("fight_deaths: %s already fetched — skipping", report_code)
@@ -755,5 +784,280 @@ for report_code in all_report_codes:
             len(deaths_result.records),
         )
     _sleep()
+
+
+# COMMAND ----------
+
+# DBTITLE 1,Guild Zone Ranks (WCL)
+# Fetches guildData.zoneRanking.progress per raid zone. The candidate zone list
+# is sourced from gold_boss_progression in the configured candidate catalog/schema
+# (parameterised so cutover remains a config flip — defaults can still point at
+# the legacy gold location, but should normally target 03_gold.sc_analytics).
+GUILD_ZONE_RANKS_ENABLED = _config_value("guild_zone_ranks_enabled", "true").lower() == "true"
+PROFILE_CANDIDATE_CATALOG = _config_value("profile_candidate_catalog", "03_gold")
+PROFILE_CANDIDATE_SCHEMA = _config_value("profile_candidate_schema", "sc_analytics")
+EXCLUDED_ZONE_NAMES = [
+    name.strip()
+    for name in _config_value("excluded_zone_names", "").split(",")
+    if name.strip()
+]
+
+if GUILD_ZONE_RANKS_ENABLED:
+    try:
+        zones_query = f"""
+            SELECT DISTINCT CAST(zone_id AS BIGINT) AS zone_id, zone_name
+            FROM `{PROFILE_CANDIDATE_CATALOG}`.`{PROFILE_CANDIDATE_SCHEMA}`.gold_boss_progression
+            WHERE zone_id IS NOT NULL AND zone_name IS NOT NULL
+        """
+        if EXCLUDED_ZONE_NAMES:
+            quoted = ", ".join(f"'{z}'" for z in EXCLUDED_ZONE_NAMES)
+            zones_query += f" AND zone_name NOT IN ({quoted})"
+
+        zone_rows = spark.sql(zones_query).collect()  # noqa: F821
+        zone_ranks_file = f"{wcl_landing}/guild_zone_ranks/{run_ts}.jsonl"
+        rank_count = 0
+        with open(zone_ranks_file, "w") as fh:
+            for row in zone_rows:
+                zone_id = int(row["zone_id"])
+                zone_name = str(row["zone_name"])
+                try:
+                    rank_result = adapter.fetch_guild_zone_ranks(
+                        guild_name=guild_name,
+                        server_slug=server_slug,
+                        server_region=server_region,
+                        zone_id=zone_id,
+                    )
+                except Exception as exc:
+                    logger.warning("guild_zone_ranks: zone %s failed (%s) — skipping", zone_id, exc)
+                    continue
+                if rank_result.records:
+                    record = {
+                        **rank_result.records[0],
+                        "zone_name": zone_name,
+                        "_source": "wcl",
+                        "_ingested_at": ingested_at,
+                    }
+                    fh.write(json.dumps(record) + "\n")
+                    rank_count += 1
+                _sleep()
+        logger.info("guild_zone_ranks → %d zones", rank_count)
+    except Exception as exc:
+        logger.warning("Guild zone ranks ingestion failed: %s — skipping", exc)
+else:
+    logger.info("Skipping guild zone ranks: GUILD_ZONE_RANKS_ENABLED=false")
+
+# COMMAND ----------
+
+# DBTITLE 1,Live Raid Roster (Google Sheets)
+# Pulls the manually-maintained raid roster sheet as raw CSV text for bronze.
+# Silver parses the CSV with an explicit schema. The sheet must be shared with
+# "anyone with the link" — no auth is performed.
+LIVE_ROSTER_SHEET_ID = _config_value("live_roster_sheet_id", "")
+LIVE_ROSTER_SHEET_GID = _config_value("live_roster_sheet_gid", "0")
+
+if LIVE_ROSTER_SHEET_ID:
+    try:
+        from ingestion.src.adapters.google_sheets.client import GoogleSheetsAdapter  # noqa: PLC0415
+
+        gs_adapter = GoogleSheetsAdapter()
+        gs_adapter.authenticate()
+        sheet_result = gs_adapter.fetch_sheet_csv(LIVE_ROSTER_SHEET_ID, LIVE_ROSTER_SHEET_GID)
+        gs_adapter.close()
+
+        roster_file = f"{google_sheets_landing}/live_raid_roster/{run_ts}.jsonl"
+        with open(roster_file, "w") as fh:
+            for r in sheet_result.records:
+                fh.write(
+                    json.dumps({**r, "_source": "google_sheets", "_ingested_at": ingested_at})
+                    + "\n"
+                )
+        logger.info("live_raid_roster → 1 csv payload (%d bytes)",
+                    len(sheet_result.records[0].get("csv_text", "")))
+    except Exception as exc:
+        logger.warning("Live raid roster ingestion failed: %s — skipping", exc)
+else:
+    logger.info("Skipping live raid roster: live_roster_sheet_id not configured")
+
+# COMMAND ----------
+
+# DBTITLE 1,Blizzard Character Profiles (media + equipment + achievements)
+# Fetches per-character Blizzard Profile API payloads for guild raiders.
+# Candidates come from the configured gold tables (gold_raid_team and
+# gold_boss_kill_roster). The export script previously did this work locally;
+# this section moves it into ingestion. Silver shapes the raw JSON.
+BLIZZARD_PROFILE_EXPORT_ENABLED = (
+    _config_value("blizzard_profile_export_enabled", "true").lower() == "true"
+)
+BLIZZARD_PROFILE_EXPORT_CAP = int(_config_value("blizzard_profile_export_cap", "0"))
+BLIZZARD_PROFILE_SLEEP_SECONDS = float(_config_value("blizzard_profile_sleep_seconds", "0.05"))
+
+if BLIZZARD_PROFILE_EXPORT_ENABLED:
+    try:
+        bz_client_id = dbutils.secrets.get(scope="warcraftlogs", key="blizzard_client_id")  # noqa: F821
+        bz_client_secret = dbutils.secrets.get(scope="warcraftlogs", key="blizzard_client_secret")  # noqa: F821
+
+        from ingestion.src.adapters.blizzard.client import BlizzardAdapter  # noqa: PLC0415
+
+        candidates_query = f"""
+            WITH candidates AS (
+              SELECT
+                name AS player_name,
+                COALESCE(NULLIF(realm, ''), '{server_slug}') AS realm,
+                true AS is_raid_team,
+                0 AS kills_tracked,
+                last_raid_date AS latest_seen_date
+              FROM `{PROFILE_CANDIDATE_CATALOG}`.`{PROFILE_CANDIDATE_SCHEMA}`.gold_raid_team
+              WHERE name IS NOT NULL AND name != ''
+
+              UNION ALL
+
+              SELECT
+                player_name,
+                '{server_slug}' AS realm,
+                false AS is_raid_team,
+                COUNT(*) AS kills_tracked,
+                MAX(raid_night_date) AS latest_seen_date
+              FROM `{PROFILE_CANDIDATE_CATALOG}`.`{PROFILE_CANDIDATE_SCHEMA}`.gold_boss_kill_roster
+              WHERE player_name IS NOT NULL AND player_name != ''
+              GROUP BY player_name
+            )
+            SELECT player_name, realm
+            FROM candidates
+            GROUP BY player_name, realm
+            ORDER BY MAX(is_raid_team) DESC,
+                     MAX(kills_tracked) DESC,
+                     MAX(latest_seen_date) DESC NULLS LAST,
+                     player_name
+        """
+        if BLIZZARD_PROFILE_EXPORT_CAP > 0:
+            candidates_query += f"\nLIMIT {BLIZZARD_PROFILE_EXPORT_CAP}"
+
+        candidate_rows = spark.sql(candidates_query).collect()  # noqa: F821
+        seen: set[tuple[str, str]] = set()
+        candidates_list: list[dict[str, str]] = []
+        for row in candidate_rows:
+            player_name = str(row["player_name"] or "").strip()
+            realm = _realm_to_slug(row["realm"])
+            key = (player_name.casefold(), realm)
+            if not player_name or key in seen:
+                continue
+            seen.add(key)
+            candidates_list.append({"player_name": player_name, "realm_slug": realm})
+
+        logger.info("blizzard_profiles: %d candidates queued", len(candidates_list))
+
+        bz_adapter = BlizzardAdapter()
+        bz_adapter.authenticate(bz_client_id, bz_client_secret, region=server_region.lower())
+
+        media_file = f"{blizzard_landing}/character_media/{run_ts}.jsonl"
+        equipment_file = f"{blizzard_landing}/character_equipment/{run_ts}.jsonl"
+        achievements_file = f"{blizzard_landing}/character_achievements/{run_ts}.jsonl"
+
+        media_count = equipment_count = achievement_count = 0
+        equipped_item_ids: set[int] = set()
+        with (
+            open(media_file, "w") as media_fh,
+            open(equipment_file, "w") as equip_fh,
+            open(achievements_file, "w") as ach_fh,
+        ):
+            for candidate in candidates_list:
+                player_name = candidate["player_name"]
+                realm_slug = candidate["realm_slug"]
+                try:
+                    media_res = bz_adapter.fetch_character_media(player_name, realm_slug)
+                except Exception as exc:
+                    logger.warning(
+                        "blizzard_profiles: %s-%s media failed (%s)",
+                        player_name, realm_slug, exc,
+                    )
+                    media_res = None
+
+                # If media is missing the character is likely transferred/renamed;
+                # skip the rest of the calls for that character.
+                if not media_res or not media_res.records:
+                    time.sleep(BLIZZARD_PROFILE_SLEEP_SECONDS)
+                    continue
+
+                for r in media_res.records:
+                    media_fh.write(
+                        json.dumps({**r, "_source": "blizzard", "_ingested_at": ingested_at}) + "\n"
+                    )
+                    media_count += 1
+
+                try:
+                    equip_res = bz_adapter.fetch_character_equipment(player_name, realm_slug)
+                    for r in equip_res.records:
+                        equip_fh.write(
+                            json.dumps({**r, "_source": "blizzard", "_ingested_at": ingested_at})
+                            + "\n"
+                        )
+                        equipment_count += 1
+                        try:
+                            equipment_payload = json.loads(r.get("equipment_json") or "{}")
+                            for equipped_item in equipment_payload.get("equipped_items", []):
+                                item_block = equipped_item.get("item") or {}
+                                item_id = item_block.get("id")
+                                if isinstance(item_id, int):
+                                    equipped_item_ids.add(item_id)
+                        except (TypeError, ValueError, json.JSONDecodeError):
+                            pass
+                except Exception as exc:
+                    logger.warning(
+                        "blizzard_profiles: %s-%s equipment failed (%s)",
+                        player_name, realm_slug, exc,
+                    )
+
+                try:
+                    ach_res = bz_adapter.fetch_character_achievements(player_name, realm_slug)
+                    for r in ach_res.records:
+                        ach_fh.write(
+                            json.dumps({**r, "_source": "blizzard", "_ingested_at": ingested_at})
+                            + "\n"
+                        )
+                        achievement_count += 1
+                except Exception as exc:
+                    logger.warning(
+                        "blizzard_profiles: %s-%s achievements failed (%s)",
+                        player_name, realm_slug, exc,
+                    )
+
+                time.sleep(BLIZZARD_PROFILE_SLEEP_SECONDS)
+
+        # Item media: fetch icon URLs for any equipped item we haven't seen yet.
+        # One file per item id under blizzard landing/item_media/{item_id}.jsonl
+        # means reruns skip already-known items cheaply.
+        item_media_count = 0
+        item_media_dir = f"{blizzard_landing}/item_media"
+        for item_id in sorted(equipped_item_ids):
+            item_file = f"{item_media_dir}/{item_id}.jsonl"
+            if os.path.exists(item_file):
+                continue
+            try:
+                media_res = bz_adapter.fetch_item_media(item_id)
+            except Exception as exc:
+                logger.warning("blizzard_profiles: item %s media failed (%s)", item_id, exc)
+                continue
+            if not media_res.records:
+                continue
+            with open(item_file, "w") as fh:
+                for r in media_res.records:
+                    fh.write(
+                        json.dumps({**r, "_source": "blizzard", "_ingested_at": ingested_at})
+                        + "\n"
+                    )
+                    item_media_count += 1
+            time.sleep(BLIZZARD_PROFILE_SLEEP_SECONDS)
+
+        bz_adapter.close()
+        logger.info(
+            "blizzard_profiles → media=%d equipment=%d achievements=%d item_media=%d",
+            media_count, equipment_count, achievement_count, item_media_count,
+        )
+    except Exception as exc:
+        logger.warning("Blizzard profile ingestion failed: %s — skipping", exc)
+else:
+    logger.info("Skipping Blizzard profiles: BLIZZARD_PROFILE_EXPORT_ENABLED=false")
+
+# COMMAND ----------
 
 logger.info("Ingestion complete.")

@@ -31,7 +31,7 @@ variables:
     default: WarcraftLogs Analytics
   developer_user:
     description: Email of the developer deploying in development mode
-    default: developer@example.com
+    default: ricard.mulvany@gmail.com
   guild_name:
     description: WoW guild name to ingest data for
     default: Student Council
@@ -41,6 +41,33 @@ variables:
   guild_server_region:
     description: WoW region (EU, US, KR, TW)
     default: EU
+  profile_candidate_catalog:
+    description: Catalog containing gold tables used to seed Blizzard / WCL zone-rank candidates
+    default: 03_gold
+  profile_candidate_schema:
+    description: Schema containing gold tables used to seed Blizzard / WCL zone-rank candidates
+    default: sc_analytics
+  excluded_zone_names:
+    description: Comma-separated zone names to skip in guild_zone_ranks ingestion
+    default: ""
+  live_roster_sheet_id:
+    description: Google Sheets document id for the live raid roster (empty disables ingestion)
+    default: "1fHtbnNTHrLVFqq5e7L7usN4qI4LGd1JKRKMdVuHnmRg"
+  live_roster_sheet_gid:
+    description: Sheet/gid within the live roster Google Sheets document
+    default: "0"
+  blizzard_profile_export_enabled:
+    description: Enable Blizzard character media/equipment/achievements ingestion
+    default: "true"
+  blizzard_profile_export_cap:
+    description: Cap on number of Blizzard character profile candidates per run (0 = no cap)
+    default: "0"
+  blizzard_profile_sleep_seconds:
+    description: Throttle between Blizzard character profile API calls
+    default: "0.05"
+  guild_zone_ranks_enabled:
+    description: Enable WCL guildData.zoneRanking ingestion
+    default: "true"
 
 targets:
   development:
@@ -66,10 +93,16 @@ resources:
       serverless: true
 
       libraries:
-        # Bronze — Auto Loader ingestion from Volume landing zone
+        # Bronze — per-source Auto Loader notebooks publishing to 01_bronze.<source>.
         - notebook:
-            path: pipeline/bronze/raw_source.py
-        # Silver — cleaning, filtering, enrichment
+            path: pipeline/bronze/warcraftlogs.py
+        - notebook:
+            path: pipeline/bronze/blizzard.py
+        - notebook:
+            path: pipeline/bronze/raiderio.py
+        - notebook:
+            path: pipeline/bronze/google_sheets.py
+        # Silver — per-source cleaning notebooks publishing to 02_silver.sc_analytics_<source>.
         - notebook:
             path: pipeline/silver/clean_reports.py
         - notebook:
@@ -86,7 +119,19 @@ resources:
             path: pipeline/silver/clean_events.py
         - notebook:
             path: pipeline/silver/clean_raiderio.py
-        # Gold — business-ready data products
+        - notebook:
+            path: pipeline/silver/clean_guild_zone_ranks.py
+        - notebook:
+            path: pipeline/silver/clean_character_media.py
+        - notebook:
+            path: pipeline/silver/clean_character_equipment.py
+        - notebook:
+            path: pipeline/silver/clean_character_achievements.py
+        - notebook:
+            path: pipeline/silver/clean_live_raid_roster.py
+        - notebook:
+            path: pipeline/silver/clean_item_media.py
+        # Gold — business-ready data products in 03_gold.sc_analytics.
         - notebook:
             path: pipeline/gold/summary_products.py
         - notebook:
@@ -100,9 +145,13 @@ resources:
         - notebook:
             path: pipeline/gold/survivability_products.py
         - notebook:
-            path: pipeline/gold/preparation_products.py
-        - notebook:
             path: pipeline/gold/mplus_products.py
+        - notebook:
+            path: pipeline/gold/utility_products.py
+        - notebook:
+            path: pipeline/gold/wipe_diagnostics.py
+        - notebook:
+            path: pipeline/gold/profile_products.py
 
       configuration:
         secret_scope: pipeline-secrets
@@ -111,6 +160,12 @@ resources:
       channel: CURRENT
 
   jobs:
+    migrate_bronze_landing_volumes:
+      name: Migrate Bronze Landing Volumes
+      tasks:
+        - task_key: copy_landing
+          notebook_task:
+            notebook_path: ingestion/jobs/migrate_bronze_landing_volumes.py
     nightly_ingestion:
       name: Nightly WarcraftLogs Ingestion
       schedule:
@@ -131,3 +186,12 @@ resources:
               raider_io_season: "current"
               raider_io_profile_export_cap: "0"
               raider_io_request_sleep_seconds: "0.25"
+              profile_candidate_catalog: ${var.profile_candidate_catalog}
+              profile_candidate_schema: ${var.profile_candidate_schema}
+              excluded_zone_names: ${var.excluded_zone_names}
+              live_roster_sheet_id: ${var.live_roster_sheet_id}
+              live_roster_sheet_gid: ${var.live_roster_sheet_gid}
+              blizzard_profile_export_enabled: ${var.blizzard_profile_export_enabled}
+              blizzard_profile_export_cap: ${var.blizzard_profile_export_cap}
+              blizzard_profile_sleep_seconds: ${var.blizzard_profile_sleep_seconds}
+              guild_zone_ranks_enabled: ${var.guild_zone_ranks_enabled}

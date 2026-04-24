@@ -16,7 +16,7 @@
 
 ```python
 @dlt.table(
-    name="gold_your_table_name",
+    name="03_gold.sc_analytics.gold_your_table_name",
     comment="What this table contains and what question it answers.",
     table_properties={
         "quality": "gold",
@@ -25,7 +25,7 @@
 )
 def gold_your_table_name():
     # Read from fact tables or dimensions — never from silver directly
-    perf = dlt.read("fact_player_fight_performance")
+    perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")
     return (
         perf
         .groupBy("player_name", "player_class")
@@ -70,8 +70,8 @@ Add an entry to `docs/data_dictionary/README.md` with all column names, types, a
 
 ```sql
 -- In Databricks SQL or a notebook
-SELECT COUNT(*) FROM 04_sdp.warcraftlogs.gold_your_table_name;
-SELECT * FROM 04_sdp.warcraftlogs.gold_your_table_name LIMIT 10;
+SELECT COUNT(*) FROM 03_gold.sc_analytics.gold_your_table_name;
+SELECT * FROM 03_gold.sc_analytics.gold_your_table_name LIMIT 10;
 ```
 
 ### 7. Export to frontend

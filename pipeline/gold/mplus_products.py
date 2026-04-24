@@ -7,12 +7,12 @@ from pyspark.sql.window import Window
 
 
 @dlt.table(
-    name="gold_player_mplus_score_history",
+    name="03_gold.sc_analytics.gold_player_mplus_score_history",
     comment="Raider.IO Mythic+ score snapshots over time.",
     table_properties={"quality": "gold"},
 )
 def gold_player_mplus_score_history():
-    scores = dlt.read("silver_raiderio_player_scores")
+    scores = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_scores")  # noqa: F821
     return (
         scores
         .select(
@@ -38,12 +38,12 @@ def gold_player_mplus_score_history():
 
 
 @dlt.table(
-    name="gold_player_mplus_run_history",
+    name="03_gold.sc_analytics.gold_player_mplus_run_history",
     comment="Governed Raider.IO Mythic+ run history from recent/best run payloads.",
     table_properties={"quality": "gold"},
 )
 def gold_player_mplus_run_history():
-    runs = dlt.read("silver_raiderio_player_runs")
+    runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
     return (
         runs
         .select(
@@ -71,13 +71,13 @@ def gold_player_mplus_run_history():
 
 
 @dlt.table(
-    name="gold_player_mplus_summary",
+    name="03_gold.sc_analytics.gold_player_mplus_summary",
     comment="Latest Raider.IO Mythic+ summary per player.",
     table_properties={"quality": "gold"},
 )
 def gold_player_mplus_summary():
-    scores = dlt.read("silver_raiderio_player_scores")
-    runs = dlt.read("silver_raiderio_player_runs")
+    scores = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_scores")  # noqa: F821
+    runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
 
     latest_scores = (
         scores
@@ -198,12 +198,12 @@ def gold_player_mplus_summary():
 
 
 @dlt.table(
-    name="gold_player_mplus_weekly_activity",
+    name="03_gold.sc_analytics.gold_player_mplus_weekly_activity",
     comment="Weekly Mythic+ activity derived from Raider.IO run payloads.",
     table_properties={"quality": "gold"},
 )
 def gold_player_mplus_weekly_activity():
-    runs = dlt.read("silver_raiderio_player_runs")
+    runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
     key_counts = (
         runs
         .withColumn("week_start", F.to_date(F.date_trunc("week", F.col("completed_at"))))
@@ -251,12 +251,12 @@ def gold_player_mplus_weekly_activity():
 
 
 @dlt.table(
-    name="gold_player_mplus_dungeon_breakdown",
+    name="03_gold.sc_analytics.gold_player_mplus_dungeon_breakdown",
     comment="Per-player per-dungeon Mythic+ summary from Raider.IO run payloads.",
     table_properties={"quality": "gold"},
 )
 def gold_player_mplus_dungeon_breakdown():
-    runs = dlt.read("silver_raiderio_player_runs")
+    runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
 
     best_runs = (
         runs

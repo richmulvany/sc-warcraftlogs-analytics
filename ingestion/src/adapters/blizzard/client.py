@@ -1,6 +1,7 @@
-"""Blizzard Game Data API adapter for guild roster."""
+"""Blizzard Game Data API adapter for guild roster and character profiles."""
 
-from typing import Any
+import json
+from typing import Any, cast
 
 import httpx
 import structlog
@@ -109,6 +110,166 @@ class BlizzardAdapter:
         return FetchResult(
             source="blizzard",
             endpoint="guild_roster",
+            records=records,
+            total_records=len(records),
+            has_more=False,
+        )
+
+    # ── Character profile endpoints ──────────────────────────────────────────
+    # Each method returns the raw Blizzard JSON payload as a string so that
+    # bronze can store it opaquely and silver can shape it with explicit
+    # schemas. Returns None when the character is missing (403/404), letting
+    # the caller skip a row without raising.
+
+    def _profile_get(
+        self,
+        path: str,
+        namespace: str | None = None,
+        locale: str = "en_GB",
+    ) -> dict[str, Any] | None:
+        if self._http is None:
+            raise RuntimeError("Call authenticate() before making API requests.")
+        response = self._http.get(
+            f"https://{self._region}.api.blizzard.com{path}",
+            params={
+                "namespace": namespace or f"profile-{self._region}",
+                "locale": locale,
+            },
+        )
+        if response.status_code in {403, 404}:
+            return None
+        response.raise_for_status()
+        payload = cast(dict[str, Any], response.json())
+        return payload
+
+    @staticmethod
+    def _character_slug(name: str) -> str:
+        from urllib.parse import quote
+
+        return quote(name.strip().lower(), safe="")
+
+    def fetch_character_media(
+        self,
+        player_name: str,
+        realm_slug: str,
+        locale: str = "en_GB",
+    ) -> FetchResult:
+        """Fetch a character's media (avatar/inset/main artwork) as raw JSON."""
+        slug = self._character_slug(player_name)
+        path = f"/profile/wow/character/{realm_slug}/{slug}/character-media"
+        payload = self._profile_get(path, locale=locale)
+        records: list[dict[str, Any]] = []
+        if payload is not None:
+            records.append(
+                {
+                    "player_name": player_name,
+                    "realm_slug": realm_slug,
+                    "media_json": json.dumps(payload),
+                }
+            )
+        log.info(
+            "blizzard.character_media",
+            player=player_name,
+            realm=realm_slug,
+            found=bool(records),
+        )
+        return FetchResult(
+            source="blizzard",
+            endpoint="character_media",
+            records=records,
+            total_records=len(records),
+            has_more=False,
+        )
+
+    def fetch_character_equipment(
+        self,
+        player_name: str,
+        realm_slug: str,
+        locale: str = "en_GB",
+    ) -> FetchResult:
+        """Fetch a character's full equipped items payload as raw JSON."""
+        slug = self._character_slug(player_name)
+        path = f"/profile/wow/character/{realm_slug}/{slug}/equipment"
+        payload = self._profile_get(path, locale=locale)
+        records: list[dict[str, Any]] = []
+        if payload is not None:
+            records.append(
+                {
+                    "player_name": player_name,
+                    "realm_slug": realm_slug,
+                    "equipment_json": json.dumps(payload),
+                }
+            )
+        log.info(
+            "blizzard.character_equipment",
+            player=player_name,
+            realm=realm_slug,
+            found=bool(records),
+        )
+        return FetchResult(
+            source="blizzard",
+            endpoint="character_equipment",
+            records=records,
+            total_records=len(records),
+            has_more=False,
+        )
+
+    def fetch_character_achievements(
+        self,
+        player_name: str,
+        realm_slug: str,
+        locale: str = "en_GB",
+    ) -> FetchResult:
+        """Fetch a character's full achievement payload as raw JSON."""
+        slug = self._character_slug(player_name)
+        path = f"/profile/wow/character/{realm_slug}/{slug}/achievements"
+        payload = self._profile_get(path, locale=locale)
+        records: list[dict[str, Any]] = []
+        if payload is not None:
+            records.append(
+                {
+                    "player_name": player_name,
+                    "realm_slug": realm_slug,
+                    "achievements_json": json.dumps(payload),
+                }
+            )
+        log.info(
+            "blizzard.character_achievements",
+            player=player_name,
+            realm=realm_slug,
+            found=bool(records),
+        )
+        return FetchResult(
+            source="blizzard",
+            endpoint="character_achievements",
+            records=records,
+            total_records=len(records),
+            has_more=False,
+        )
+
+    def fetch_item_media(
+        self,
+        item_id: int | str,
+        locale: str = "en_GB",
+    ) -> FetchResult:
+        """Fetch icon/media for a single item id from the static-data namespace."""
+        path = f"/data/wow/media/item/{item_id}"
+        payload = self._profile_get(
+            path,
+            namespace=f"static-{self._region}",
+            locale=locale,
+        )
+        records: list[dict[str, Any]] = []
+        if payload is not None:
+            records.append(
+                {
+                    "item_id": int(item_id) if str(item_id).isdigit() else item_id,
+                    "media_json": json.dumps(payload),
+                }
+            )
+        return FetchResult(
+            source="blizzard",
+            endpoint="item_media",
             records=records,
             total_records=len(records),
             has_more=False,

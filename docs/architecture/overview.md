@@ -2,7 +2,7 @@
 
 ## System Design
 
-Bronze → Silver → Gold medallion architecture on Databricks serverless DLT. A nightly ingestion job pulls from WarcraftLogs, Blizzard, and Raider.IO, landing raw data as JSONL in a Unity Catalog Volume. DLT Auto Loader streams these into Delta tables. A React dashboard consumes the gold layer and export-derived wipe utility datasets via static CSV export.
+Bronze → Silver → Gold medallion architecture on Databricks serverless DLT. A nightly ingestion job pulls from WarcraftLogs, Blizzard, Raider.IO, and Google Sheets, landing raw data as JSONL in source-matched Unity Catalog Volumes under `01_bronze`. DLT Auto Loader streams these into Delta tables. A React dashboard consumes the gold layer via static CSV export.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -11,7 +11,7 @@ Bronze → Silver → Gold medallion architecture on Databricks serverless DLT. 
 │  ┌─────────────────┐    ┌───────────────────────────────────┐   │
 │  │  ingest_primary │    │     DLT Pipeline (Lakeflow)        │   │
 │  │  (Workflow job) │───>│  Bronze ──> Silver ──> Gold        │   │
-│  │  9+ steps + APIs│    │ 11 tables  12 tables   40+ tables  │   │
+│  │  source fan-out │    │ source-split source-split 40+ tables│  │
 │  └─────────────────┘    └──────────────────┬──────────────────┘  │
 │         ▲                                  │                      │
 │  ┌──────┴──────┐                           │                      │
@@ -39,15 +39,15 @@ Bronze → Silver → Gold medallion architecture on Databricks serverless DLT. 
 - Orchestrates report discovery plus per-source fetch steps
 - Authenticates via OAuth2 client credentials where required (WCL + Blizzard)
 - Fetches Raider.IO current-season Mythic+ profiles through the public character profile API
-- Writes raw records as JSONL to Unity Catalog Volume landing zone
+- Writes raw records as JSONL to source-matched Unity Catalog Volume landing zones in `01_bronze`
 - Handles rate limiting (Retry-After header on 429), 5xx backoff, token refresh
 - Marks archived WCL reports with skip files to prevent re-processing
 - Caches per-report data (skips if JSONL already present for that report code)
 - Fetches WCL death tables one fight at a time to avoid multi-fight truncation on long reports
 - Fetches WCL cast events and combatant info for utility and cooldown analysis
 
-### Bronze (`pipeline/bronze/raw_source.py`)
-- Auto Loader streaming tables reading from the Volume landing zone
+### Bronze (`pipeline/bronze/*.py`)
+- Auto Loader streaming tables reading from source-matched Volume landing zones
 - Explicit `StructType` schemas — never `inferSchema` (required for empty-directory tolerance)
 - Adds `_ingested_at` (file modification time) and `_file_path` metadata columns
 - `@dlt.expect_or_drop` on critical keys (report_code, ingestion timestamp)
@@ -66,7 +66,7 @@ Bronze → Silver → Gold medallion architecture on Databricks serverless DLT. 
 - `silver_player_cast_events` normalises cast streams for healthstone, potion, and cooldown analysis
 
 ### Gold (`pipeline/gold/`)
-- All reads use `dlt.read()` (batch) — gold tables are not streaming
+- Gold tables publish into `03_gold.sc_analytics`
 - **Dimension tables** (`core_dimensions.py`): deduplicated, enriched, case-insensitive joins for guild membership
 - **Fact tables** (`core_facts.py`): join player performance + fight context + WCL rankings into a single denormalised row per player per kill fight
 - **Aggregation tables**: group/window on facts and dimensions to produce business metrics
@@ -89,18 +89,20 @@ See [ADR index](../adr/README.md) for documented decisions. Highlights:
 
 ```
 1. ingest_primary.py (Databricks Workflow, nightly)
-   ├── Step 1: zone catalog   → landing/zone_catalog/
-   ├── Step 2: guild reports  → landing/guild_reports/
+   ├── Step 1: zone catalog   → /Volumes/01_bronze/warcraftlogs/landing/zone_catalog/
+   ├── Step 2: guild reports  → /Volumes/01_bronze/warcraftlogs/landing/guild_reports/
    ├── Step 3: per report:
-   │     fight manifest       → landing/report_fights/{code}.jsonl (cached)
-   │     actor roster         → landing/actor_roster/{code}.jsonl (cached)
-   │     player details       → landing/player_details/{code}_{fight}.jsonl (cached)
-   ├── Step 4: attendance     → landing/raid_attendance/
-   ├── Step 5: guild members  → landing/guild_members/
-   ├── Step 6: Raider.IO      → landing/raiderio_character_profiles/
-   ├── Step 7: rankings       → landing/fight_rankings/{code}.jsonl (cached)
-   ├── Step 8: casts          → landing/fight_casts/{code}.jsonl (cached)
-   └── Step 9: deaths         → landing/fight_deaths/{code}_{ts}.jsonl (backfill-safe when stale)
+   │     fight manifest       → /Volumes/01_bronze/warcraftlogs/landing/report_fights/{code}.jsonl
+   │     actor roster         → /Volumes/01_bronze/warcraftlogs/landing/actor_roster/{code}.jsonl
+   │     player details       → /Volumes/01_bronze/warcraftlogs/landing/player_details/{code}_{fight}.jsonl
+   ├── Step 4: attendance     → /Volumes/01_bronze/warcraftlogs/landing/raid_attendance/
+   ├── Step 5: guild members  → /Volumes/01_bronze/blizzard/landing/guild_members/
+   ├── Step 6: Raider.IO      → /Volumes/01_bronze/raiderio/landing/raiderio_character_profiles/
+   ├── Step 7: rankings       → /Volumes/01_bronze/warcraftlogs/landing/fight_rankings/{code}.jsonl
+   ├── Step 8: casts          → /Volumes/01_bronze/warcraftlogs/landing/fight_casts/{code}.jsonl
+   ├── Step 9: deaths         → /Volumes/01_bronze/warcraftlogs/landing/fight_deaths/{code}_{ts}.jsonl
+   ├── Step 10: live roster   → /Volumes/01_bronze/google_sheets/landing/live_raid_roster/
+   └── Step 11: profiles      → /Volumes/01_bronze/blizzard/landing/{character_media,character_equipment,character_achievements,item_media}/
 
 2. DLT Pipeline (triggered after ingestion)
    Bronze:  Auto Loader reads new JSONL files → bronze_* tables

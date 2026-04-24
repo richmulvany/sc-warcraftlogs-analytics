@@ -17,7 +17,7 @@ from pyspark.sql.window import Window
 # case-insensitive name match to handle capitalisation differences.
 
 @dlt.table(
-    name="dim_player",
+    name="03_gold.sc_analytics.dim_player",
     comment=(
         "Canonical player identity across all WCL logs. "
         "One row per player name with class, realm, guild membership, and rank."
@@ -28,10 +28,10 @@ from pyspark.sql.window import Window
     },
 )
 def dim_player():
-    actors = dlt.read("silver_actor_roster")
-    attendance = dlt.read("silver_raid_attendance")
-    guild_members = dlt.read("silver_guild_members")
-    perf = dlt.read("silver_player_performance")
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
+    attendance = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_raid_attendance")  # noqa: F821
+    guild_members = spark.read.table("02_silver.sc_analytics_blizzard.silver_guild_members")  # noqa: F821
+    perf = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_player_performance")  # noqa: F821
 
     # Most recent class + realm snapshot per player from actor logs
     w_actor = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
@@ -151,7 +151,7 @@ def dim_player():
 # are always considered active regardless of recent attendance.
 
 @dlt.table(
-    name="dim_guild_member",
+    name="03_gold.sc_analytics.dim_guild_member",
     comment=(
         "Guild roster from Blizzard API enriched with WCL attendance statistics. "
         "One row per guild member with activity flag."
@@ -162,8 +162,8 @@ def dim_player():
     },
 )
 def dim_guild_member():
-    members = dlt.read("silver_guild_members")
-    attendance = dlt.read("silver_raid_attendance")
+    members = spark.read.table("02_silver.sc_analytics_blizzard.silver_guild_members")  # noqa: F821
+    attendance = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_raid_attendance")  # noqa: F821
 
     # Attendance stats per player (case-insensitive join to handle capitalisation)
     att_stats = (
