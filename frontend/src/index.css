@@ -1,18 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  html { @apply bg-surface-0 text-slate-100 antialiased; }
-  * { @apply box-border; }
+  html {
+    background-color: #1e1e2e;
+    color: #cdd6f4;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "ss01", "cv01";
+  }
+  * { box-sizing: border-box; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar       { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #45475a; border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: #585b70; }
+
+  /* ── Selection ── */
+  ::selection { background: rgba(203,166,247,0.25); color: #cdd6f4; }
 }
 
 @layer components {
-  .stat-card {
-    @apply bg-surface-2 rounded-xl p-5 shadow-card border border-white/5
-           hover:border-brand-400/30 transition-colors duration-200;
+  /* Shared card base — all cards inherit from this */
+  .ctp-card {
+    @apply bg-ctp-surface0 rounded-2xl border border-ctp-surface1 shadow-card;
   }
-  .section-heading {
-    @apply text-xs font-mono font-medium uppercase tracking-widest text-slate-500 mb-4;
+
+  .section-label {
+    @apply text-[10px] font-mono font-semibold uppercase tracking-[0.12em] text-ctp-overlay0;
+  }
+}
+
+@layer utilities {
+  /* Table row hover */
+  .table-row-hover tbody tr:hover > td {
+    background-color: rgba(255,255,255,0.025);
   }
 }

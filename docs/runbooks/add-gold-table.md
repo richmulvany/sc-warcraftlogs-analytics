@@ -9,6 +9,7 @@
 - **Death/survivability** → `pipeline/gold/survivability_products.py`
 - **Roster/profile** → `pipeline/gold/roster_products.py`
 - **Preparation** (consumables, stats) → `pipeline/gold/preparation_products.py`
+- **Mythic+ / Raider.IO** → `pipeline/gold/mplus_products.py`
 - **New category** → create a new file `pipeline/gold/your_category_products.py`
 
 ### 2. Write the table function
@@ -73,6 +74,12 @@ SELECT COUNT(*) FROM 04_sdp.warcraftlogs.gold_your_table_name;
 SELECT * FROM 04_sdp.warcraftlogs.gold_your_table_name LIMIT 10;
 ```
 
-### 7. Export to frontend (when ready)
+### 7. Export to frontend
 
-The static JSON export job is not yet implemented. When it is, add your table to the export list in `scripts/export_gold_tables.py`.
+If the React frontend needs the table, add it to `FRONTEND_TABLES` in `scripts/export_gold_tables.py`.
+
+The frontend consumes static CSVs from `frontend/public/data` through `useCSV()` / `useGoldData.ts`, so also add:
+
+- A TypeScript row interface in `frontend/src/types/index.ts`
+- A hook in `frontend/src/hooks/useGoldData.ts`
+- Any page/component wiring that consumes the new hook

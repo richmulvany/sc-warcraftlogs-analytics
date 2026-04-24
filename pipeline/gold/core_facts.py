@@ -14,6 +14,55 @@
 
 import dlt
 from pyspark.sql import functions as F
+from pyspark.sql.types import ArrayType, LongType, StringType, StructField, StructType
+
+MIDNIGHT_COMBAT_POTION_NAMES = [
+    "lights potential",
+    "potion of recklessness",
+    "potion of zealotry",
+    "draught of rampant abandon",
+]
+MIDNIGHT_COMBAT_POTION_IDS = [
+    1236616,  # Light's Potential buff
+    1236994,  # Potion of Recklessness buff
+    1238443,  # Potion of Zealotry buff
+    1237154,  # Draught of Rampant Abandon buff
+]
+
+_BUFF_ABILITY_STRUCT = StructType([
+    StructField("name", StringType(), True),
+    StructField("guid", LongType(), True),
+])
+
+_BUFF_EVENT_STRUCT = StructType([
+    StructField("timestamp", LongType(), True),
+    StructField("type", StringType(), True),
+    StructField("sourceID", LongType(), True),
+    StructField("targetID", LongType(), True),
+    StructField("fight", LongType(), True),
+    StructField("ability", _BUFF_ABILITY_STRUCT, True),
+    StructField("abilityGameID", LongType(), True),
+])
+
+_BUFF_EVENTS_SCHEMA = StructType([
+    StructField("data", ArrayType(_BUFF_EVENT_STRUCT), True),
+])
+
+def merge_consumable_name_strings(*parts):
+    seen = set()
+    names = []
+    for part in parts:
+        if not part:
+            continue
+        for piece in str(part).split("|"):
+            cleaned = piece.strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                names.append(cleaned)
+    return " | ".join(names) if names else None
+
+
+_merge_consumable_names_udf = F.udf(merge_consumable_name_strings, StringType())
 
 
 # ── Player Fight Performance Fact ──────────────────────────────────────────────
@@ -42,6 +91,9 @@ def fact_player_fight_performance():
     perf = dlt.read("silver_player_performance")
     fights = dlt.read("silver_fight_events")
     rankings = dlt.read("silver_player_rankings")
+    buffs = dlt.read("silver_player_combatant_buffs")
+    raw_casts = dlt.read("bronze_fight_casts")
+    actors = dlt.read("silver_actor_roster")
 
     # Kill fights only with full context
     kill_context = (
@@ -86,12 +138,80 @@ def fact_player_fight_performance():
         "player_class",
         "spec",
         "avg_item_level",
-        "potion_use",
         "healthstone_use",
+        "has_weapon_enhancement",
+        "weapon_enhancement_names",
         "crit_rating",
         "haste_rating",
         "mastery_rating",
         "versatility_rating",
+    )
+
+    buffs_slim = buffs.select(
+        F.col("report_code").alias("_b_report_code"),
+        F.col("fight_id").alias("_b_fight_id"),
+        F.col("player_name").alias("_b_player_name"),
+        "has_food_buff",
+        "food_buff_names",
+        "has_flask_or_phial_buff",
+        "flask_or_phial_names",
+        "has_weapon_enhancement_aura",
+        "weapon_enhancement_aura_names",
+    )
+
+    combat_potions_slim = (
+        raw_casts
+        .withColumn("parsed_buffs", F.from_json(F.col("buffs_json"), _BUFF_EVENTS_SCHEMA))
+        .filter(F.col("parsed_buffs").isNotNull())
+        .withColumn("event", F.explode("parsed_buffs.data"))
+        .withColumn("fight_id", F.col("event.fight"))
+        .withColumn(
+            "ability_name_normalized",
+            F.trim(
+                F.regexp_replace(
+                    F.regexp_replace(
+                        F.lower(F.coalesce(F.col("event.ability.name"), F.lit(""))),
+                        r"[^a-z0-9]+",
+                        " ",
+                    ),
+                    r"\s+",
+                    " ",
+                )
+            ),
+        )
+        .withColumn("actor_id", F.coalesce(F.col("event.targetID"), F.col("event.sourceID")))
+        .filter(
+            F.col("ability_name_normalized").isin(MIDNIGHT_COMBAT_POTION_NAMES)
+            | F.col("event.ability.guid").isin(MIDNIGHT_COMBAT_POTION_IDS)
+            | F.col("event.abilityGameID").isin(MIDNIGHT_COMBAT_POTION_IDS)
+        )
+        .join(
+            actors.select(
+                F.col("report_code").alias("_a_report_code"),
+                F.col("actor_id").alias("_a_actor_id"),
+                "player_name",
+            ),
+            (F.col("report_code") == F.col("_a_report_code"))
+            & (F.col("actor_id") == F.col("_a_actor_id")),
+            "inner",
+        )
+        .drop("_a_report_code", "_a_actor_id")
+        .groupBy("report_code", "fight_id", "player_name")
+        .agg(
+            F.countDistinct("event.timestamp").alias("combat_potion_casts"),
+            F.concat_ws(
+                " | ",
+                F.array_sort(F.collect_set(F.col("event.ability.name"))),
+            ).alias("combat_potion_names"),
+        )
+        .select(
+            F.col("report_code").alias("_p_report_code"),
+            F.col("fight_id").alias("_p_fight_id"),
+            F.col("player_name").alias("_p_player_name"),
+            F.lit(1).alias("cast_potion_use"),
+            "combat_potion_casts",
+            "combat_potion_names",
+        )
     )
 
     return (
@@ -106,7 +226,40 @@ def fact_player_fight_performance():
             & (perf_slim.player_name == rankings_slim._r_player_name),
             "left",
         )
+        .join(
+            buffs_slim,
+            (perf_slim.report_code == buffs_slim._b_report_code)
+            & (perf_slim.fight_id == buffs_slim._b_fight_id)
+            & (perf_slim.player_name == buffs_slim._b_player_name),
+            "left",
+        )
+        .join(
+            combat_potions_slim,
+            (perf_slim.report_code == combat_potions_slim._p_report_code)
+            & (perf_slim.fight_id == combat_potions_slim._p_fight_id)
+            & (perf_slim.player_name == combat_potions_slim._p_player_name),
+            "left",
+        )
         .drop("_r_report_code", "_r_fight_id", "_r_player_name")
+        .drop("_b_report_code", "_b_fight_id", "_b_player_name")
+        .drop("_p_report_code", "_p_fight_id", "_p_player_name")
+        .withColumn("potion_use", F.coalesce(F.col("cast_potion_use"), F.lit(0)))
+        .withColumn("has_food_buff", F.coalesce(F.col("has_food_buff"), F.lit(0)))
+        .withColumn("has_flask_or_phial_buff", F.coalesce(F.col("has_flask_or_phial_buff"), F.lit(0)))
+        .withColumn(
+            "has_weapon_enhancement",
+            F.greatest(
+                F.coalesce(F.col("has_weapon_enhancement"), F.lit(0)),
+                F.coalesce(F.col("has_weapon_enhancement_aura"), F.lit(0)),
+            ),
+        )
+        .withColumn(
+            "weapon_enhancement_names",
+            _merge_consumable_names_udf(
+                F.col("weapon_enhancement_names"),
+                F.col("weapon_enhancement_aura_names"),
+            ),
+        )
         .select(
             "report_code",
             "fight_id",
@@ -124,7 +277,15 @@ def fact_player_fight_performance():
             "spec",
             "avg_item_level",
             "potion_use",
+            "combat_potion_casts",
+            "combat_potion_names",
             "healthstone_use",
+            "has_food_buff",
+            "food_buff_names",
+            "has_flask_or_phial_buff",
+            "flask_or_phial_names",
+            "has_weapon_enhancement",
+            "weapon_enhancement_names",
             "crit_rating",
             "haste_rating",
             "mastery_rating",

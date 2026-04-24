@@ -36,7 +36,7 @@ export function SummaryTable({ data }: SummaryTableProps) {
               <td className="px-5 py-3 text-right text-slate-200">{formatNumber(row.total_count)}</td>
               <td className="px-5 py-3 text-right text-slate-400 hidden sm:table-cell">{formatNumber(row.unique_count)}</td>
               <td className="px-5 py-3 text-right hidden md:table-cell">
-                <Badge variant="info">{formatDate(row.latest_created_at)}</Badge>
+                <Badge variant="blue">{formatDate(row.latest_created_at)}</Badge>
               </td>
             </tr>
           ))}

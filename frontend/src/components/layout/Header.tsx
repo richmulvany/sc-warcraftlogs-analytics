@@ -30,6 +30,7 @@ export function Header({ title, subtitle }: HeaderProps) {
             href="https://github.com/richmulvany/databricks-pipeline-template"
             target="_blank"
             rel="noopener noreferrer"
+            title="view on github - opens in a new tab"
             className="text-xs font-mono text-slate-600 hover:text-slate-400 transition-colors"
           >
             github ↗

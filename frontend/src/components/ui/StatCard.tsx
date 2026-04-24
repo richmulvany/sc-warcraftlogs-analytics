@@ -1,37 +1,85 @@
 import { ReactNode } from 'react'
 import clsx from 'clsx'
 
+type Accent = 'mauve' | 'blue' | 'green' | 'peach' | 'red' | 'teal' | 'none'
+
+const ACCENT_STYLES: Record<Accent, { border: string; text: string; iconBg: string }> = {
+  mauve: { border: 'border-ctp-mauve/20',  text: 'text-ctp-mauve',  iconBg: 'bg-ctp-mauve/10' },
+  blue:  { border: 'border-ctp-blue/20',   text: 'text-ctp-blue',   iconBg: 'bg-ctp-blue/10' },
+  green: { border: 'border-ctp-green/20',  text: 'text-ctp-green',  iconBg: 'bg-ctp-green/10' },
+  peach: { border: 'border-ctp-peach/20',  text: 'text-ctp-peach',  iconBg: 'bg-ctp-peach/10' },
+  red:   { border: 'border-ctp-red/20',    text: 'text-ctp-red',    iconBg: 'bg-ctp-red/10' },
+  teal:  { border: 'border-ctp-teal/20',   text: 'text-ctp-teal',   iconBg: 'bg-ctp-teal/10' },
+  none:  { border: 'border-ctp-surface1',  text: 'text-ctp-text',   iconBg: 'bg-ctp-surface1' },
+}
+
 interface StatCardProps {
   label: string
-  value: string | number
+  value: ReactNode
   subValue?: string
   trend?: 'up' | 'down' | 'neutral'
   icon?: ReactNode
+  accent?: Accent
+  /** Override the value colour with a colourblind-aware inline colour */
+  valueColor?: string
+  /** Override the subValue colour with a colourblind-aware inline colour */
+  subValueColor?: string
   className?: string
 }
 
-export function StatCard({ label, value, subValue, trend, icon, className }: StatCardProps) {
+export function StatCard({ label, value, subValue, trend, icon, accent = 'none', valueColor, subValueColor, className }: StatCardProps) {
+  const style = ACCENT_STYLES[accent]
+
   return (
-    <div className={clsx('stat-card flex flex-col gap-2', className)}>
-      <div className="flex items-start justify-between">
-        <span className="text-xs font-mono uppercase tracking-widest text-slate-500">{label}</span>
-        {icon && <span className="text-slate-600">{icon}</span>}
+    <div
+      className={clsx(
+        'bg-ctp-surface0 rounded-2xl p-5 border shadow-card min-h-[132px] h-full flex flex-col',
+        style.border,
+        className
+      )}
+    >
+      {/* Label row */}
+      <div className="flex items-start justify-between gap-3 min-h-[28px]">
+        <span className="section-label">{label}</span>
+        {icon && (
+          <div className={clsx('w-7 h-7 rounded-lg flex items-center justify-center text-sm flex-shrink-0', style.iconBg)}>
+            <span className={style.text}>{icon}</span>
+          </div>
+        )}
       </div>
-      <div className="flex items-end gap-2">
-        <span className="text-3xl font-light tracking-tight text-slate-100">{value}</span>
+
+      {/* Value */}
+      <div className="flex items-end gap-2 mt-0.5">
+
+        <span
+          className={clsx('text-3xl font-semibold tracking-tight', !valueColor && style.text)}
+          style={valueColor ? { color: valueColor } : undefined}
+        >
+          {value}
+        </span>
         {trend && (
           <span
-            className={clsx('mb-1 text-sm font-medium', {
-              'text-accent-teal': trend === 'up',
-              'text-accent-coral': trend === 'down',
-              'text-slate-500': trend === 'neutral',
+            className={clsx('mb-0.5 text-sm font-medium', {
+              'text-ctp-green':   trend === 'up',
+              'text-ctp-red':     trend === 'down',
+              'text-ctp-overlay1':trend === 'neutral',
             })}
           >
             {trend === 'up' ? '↑' : trend === 'down' ? '↓' : '—'}
           </span>
         )}
       </div>
-      {subValue && <span className="text-xs text-slate-600">{subValue}</span>}
+
+      <div className="mt-auto pt-3.5 min-h-[28px]">
+        {subValue && (
+          <p
+            className={clsx('text-xs', !subValueColor && 'text-ctp-overlay0')}
+            style={subValueColor ? { color: subValueColor } : undefined}
+          >
+            {subValue}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

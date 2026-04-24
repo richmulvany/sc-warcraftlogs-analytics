@@ -9,7 +9,6 @@ import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-
 # ── Player Survivability ───────────────────────────────────────────────────────
 # Per-player death statistics derived from fact_player_events (death events) and
 # fact_player_fight_performance (kill counts for the deaths_per_kill metric).
@@ -64,6 +63,28 @@ def gold_player_survivability():
             F.col("blow_count").alias("most_common_killing_blow_count"),
         )
     )
+    top_killing_blows = (
+        killing_blow_counts
+        .withColumn("_rn", F.row_number().over(w_blow))
+        .filter(F.col("_rn") <= 3)
+        .groupBy("player_name")
+        .agg(
+            F.to_json(
+                F.expr(
+                    """
+                    transform(
+                      sort_array(collect_list(named_struct(
+                        'rank', _rn,
+                        'name', killing_blow_name,
+                        'count', blow_count
+                      ))),
+                      x -> named_struct('name', x.name, 'count', x.count)
+                    )
+                    """
+                )
+            ).alias("top_killing_blows_json")
+        )
+    )
 
     # Last death date (max zone-level date proxy using report join in fact_player_events)
     last_death = (
@@ -82,6 +103,7 @@ def gold_player_survivability():
     return (
         death_counts
         .join(top_killing_blow, "player_name", "left")
+        .join(top_killing_blows, "player_name", "left")
         .join(last_death, "player_name", "left")
         .join(kill_counts, "player_name", "left")
         .withColumn(
@@ -100,10 +122,82 @@ def gold_player_survivability():
             "deaths_per_kill",
             "most_common_killing_blow",
             "most_common_killing_blow_count",
+            "top_killing_blows_json",
             "zones_died_in",
             "last_death_timestamp_ms",
         )
         .orderBy(F.col("deaths_per_kill").desc(), F.col("total_deaths").desc())
+    )
+
+
+# ── Player Death Events With Boss Context ──────────────────────────────────────
+# Frontend-facing death event grain used for scoped player pages.  The aggregate
+# gold_player_survivability table is intentionally all-time; this table keeps the
+# boss, difficulty, and zone dimensions needed for page filters.
+
+@dlt.table(
+    name="gold_player_death_events",
+    comment=(
+        "One row per player death joined to boss fight context. "
+        "Used by frontend player profiles for tier/difficulty/boss-scoped survivability."
+    ),
+    table_properties={
+        "quality": "gold",
+        "pipelines.autoOptimize.zOrderCols": "player_name,encounter_id",
+    },
+)
+def gold_player_death_events():
+    deaths = dlt.read("fact_player_events")
+    fights = dlt.read("silver_fight_events")
+
+    fight_context = (
+        fights
+        .select(
+            F.col("report_code").alias("_report_code"),
+            F.col("fight_id").alias("_fight_id"),
+            "encounter_id",
+            "boss_name",
+            F.col("zone_name").alias("_zone_name"),
+            F.col("zone_id").alias("_zone_id"),
+            "difficulty",
+            "difficulty_label",
+            F.col("raid_night_date").alias("_raid_night_date"),
+            "is_kill",
+            F.col("fight_start_ms").alias("_fight_start_ms"),
+        )
+        .dropDuplicates(["_report_code", "_fight_id"])
+    )
+
+    return (
+        deaths
+        .drop("zone_name", "zone_id", "raid_night_date")
+        .join(
+            fight_context,
+            (F.col("report_code") == F.col("_report_code")) & (F.col("fight_id") == F.col("_fight_id")),
+            "left",
+        )
+        .drop("_report_code", "_fight_id")
+        .filter(F.col("encounter_id").isNotNull() & (F.col("encounter_id") > 0))
+        .select(
+            "report_code",
+            "fight_id",
+            "encounter_id",
+            "boss_name",
+            F.col("_zone_name").alias("zone_name"),
+            F.col("_zone_id").alias("zone_id"),
+            "difficulty",
+            "difficulty_label",
+            F.col("_raid_night_date").alias("raid_night_date"),
+            "is_kill",
+            "player_name",
+            "player_class",
+            "death_timestamp_ms",
+            F.col("_fight_start_ms").alias("fight_start_ms"),
+            "overkill",
+            "killing_blow_name",
+            "killing_blow_id",
+        )
+        .orderBy("raid_night_date", "report_code", "fight_id", "death_timestamp_ms")
     )
 
 
@@ -200,13 +294,6 @@ def gold_boss_mechanics():
             "pct_wipes_phase_3_plus",
             F.round(F.col("wipes_phase_3_plus") / F.greatest(F.col("total_wipes"), F.lit(1)) * 100, 1),
         )
-    )
-
-    # Weekly pull counts per boss — window function for trend
-    weekly_pulls = (
-        wipes_with_week
-        .groupBy("encounter_id", "difficulty", "iso_week")
-        .agg(F.count("*").alias("weekly_pulls"))
     )
 
     # Last week vs overall boss_percentage trend

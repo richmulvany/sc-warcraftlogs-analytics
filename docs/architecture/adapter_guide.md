@@ -71,3 +71,9 @@ Use `responses` to mock HTTP calls — see `test_example_adapter.py` for a templ
 For a complete real-world example using the WarcraftLogs GraphQL API v2,
 see the project this template was derived from:
 [github.com/richmulvany/wcl-guild-analytics](https://github.com/richmulvany/wcl-guild-analytics)
+
+## Current Project Adapters
+
+- `ingestion/src/adapters/wcl/client.py` — WarcraftLogs GraphQL OAuth2 adapter with query-specific fetch helpers and archived-report handling.
+- `ingestion/src/adapters/blizzard/client.py` — Blizzard OAuth2 REST adapter for guild roster ingestion.
+- `ingestion/src/adapters/raiderio/client.py` — Raider.IO public REST adapter for current-season Mythic+ character profiles. It intentionally uses a typed manual retry helper instead of an untyped decorator so `mypy` pre-commit checks pass.

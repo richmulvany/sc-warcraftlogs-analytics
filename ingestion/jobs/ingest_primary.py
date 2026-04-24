@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 import time
+from glob import glob
 from datetime import UTC, datetime
 
 # Derive bundle root from notebook workspace path — __file__ is undefined in
@@ -53,6 +54,15 @@ server_region = (
     else "EU"
 )
 
+
+def _config_value(name: str, default: str) -> str:
+    try:
+        value = dbutils.widgets.get(name)  # noqa: F821
+    except Exception:
+        value = ""
+    return value or os.environ.get(name.upper(), default)
+
+
 logger.info(
     "Ingesting guild=%s server=%s region=%s → %s.%s",
     guild_name, server_slug, server_region, catalog, schema,
@@ -81,8 +91,10 @@ for subdir in (
     "player_details",
     "zone_catalog",
     "guild_members",
+    "raiderio_character_profiles",
     "fight_rankings",
     "fight_deaths",
+    "fight_casts",
     "archived",       # skip-marker directory — one empty file per archived report code
 ):
     os.makedirs(f"{landing}/{subdir}", exist_ok=True)
@@ -100,6 +112,7 @@ def _mark_archived(report_code: str) -> None:
 
 run_ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 ingested_at = datetime.now(UTC).isoformat()
+guild_member_records: list[dict[str, object]] = []
 
 # Helper: throttle between API calls to stay within 30 req/min
 def _sleep() -> None:
@@ -261,6 +274,59 @@ for report_code in all_report_codes:
             logger.info("player_details: %s fight %d written", report_code, fight_id)
         _sleep()
 
+    # ── 3d: Cast events for consumable + defensive analysis ───────────────
+    raid_fights = [
+        f for f in fights
+        if f.get("difficulty", 0) in RAID_DIFFICULTIES
+        and (f.get("encounterID") or 0) > 0
+    ]
+    raid_fight_ids = [int(f["id"]) for f in raid_fights if f.get("id") is not None]
+    casts_file_pattern = f"{landing}/fight_casts/{report_code}*.jsonl"
+    cast_files = sorted(glob(casts_file_pattern))
+    casts_file = cast_files[-1] if cast_files else f"{landing}/fight_casts/{report_code}.jsonl"
+    should_fetch_casts = bool(raid_fight_ids) and not cast_files
+    if raid_fight_ids and cast_files:
+        try:
+            with open(casts_file) as fh:
+                existing_cast_record = json.loads(fh.readline() or "{}")
+            existing_fight_ids = {
+                int(fight_id) for fight_id in existing_cast_record.get("fight_ids", [])
+                if fight_id is not None
+            }
+            should_fetch_casts = (
+                "combatant_info_json" not in existing_cast_record
+                or "buffs_json" not in existing_cast_record
+                or not set(raid_fight_ids).issubset(existing_fight_ids)
+            )
+            if should_fetch_casts:
+                logger.info("fight_casts: %s stale/incomplete — refetching", report_code)
+                casts_file = f"{landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+        except Exception as exc:
+            logger.warning("fight_casts: %s unreadable (%s) — refetching", report_code, exc)
+            should_fetch_casts = True
+            casts_file = f"{landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+
+    if raid_fight_ids and should_fetch_casts:
+        try:
+            casts_result = adapter.fetch_fight_casts(report_code, raid_fight_ids)
+        except ArchivedReportError:
+            _mark_archived(report_code)
+            continue
+        if casts_result.records:
+            with open(casts_file, "w") as fh:
+                fh.write(
+                    json.dumps({**casts_result.records[0], "_source": "wcl", "_ingested_at": ingested_at})
+                    + "\n"
+                )
+            logger.info(
+                "fight_casts: %s → %d fights",
+                report_code,
+                len(raid_fight_ids),
+            )
+        _sleep()
+    elif raid_fight_ids:
+        logger.info("fight_casts: %s already fetched — skipping", report_code)
+
 # COMMAND ----------
 
 # DBTITLE 1,Raid Attendance
@@ -322,6 +388,7 @@ try:
         }
         for r in roster_result.records
     ]
+    guild_member_records = records
 
     members_file = f"{landing}/guild_members/{run_ts}.jsonl"
     with open(members_file, "w") as fh:
@@ -334,6 +401,209 @@ except Exception as e:
     logger.warning(
         "Blizzard API not configured or failed: %s — skipping guild members", e
     )
+
+# COMMAND ----------
+
+# DBTITLE 1,Raider.IO Character Profiles
+# Fetches current-season Mythic+ profile data for all guild members and lands
+# the raw profile payload as opaque JSON.  DLT owns parsing and product shaping.
+RAIDER_IO_EXPORT_ENABLED = _config_value("raider_io_export_enabled", "true").lower() == "true"
+RAIDER_IO_REGION = _config_value("raider_io_region", server_region).lower()
+RAIDER_IO_SEASON = _config_value("raider_io_season", "current")
+RAIDER_IO_PROFILE_EXPORT_CAP = int(_config_value("raider_io_profile_export_cap", "0"))
+RAIDER_IO_REQUEST_SLEEP_SECONDS = float(_config_value("raider_io_request_sleep_seconds", "0.25"))
+
+
+def _realm_to_slug(value: object) -> str:
+    text = str(value or server_slug or "").strip()
+    if not text:
+        return server_slug
+    cleaned = text.replace("'", "").replace("_", "-").replace(" ", "-")
+    cleaned = "".join(
+        f"-{char.lower()}" if char.isupper() else char
+        for char in cleaned
+    ).lower()
+    while "--" in cleaned:
+        cleaned = cleaned.replace("--", "-")
+    overrides = {
+        "twistingnether": "twisting-nether",
+        "twisting-nether": "twisting-nether",
+        "defiasbrotherhood": "defias-brotherhood",
+        "defias-brotherhood": "defias-brotherhood",
+        "argentdawn": "argent-dawn",
+        "argent-dawn": "argent-dawn",
+    }
+    return overrides.get(cleaned.replace("-", ""), cleaned.strip("-"))
+
+
+def _raiderio_candidates_from_current_roster() -> list[dict[str, str]]:
+    """All guild members from the current Blizzard API response."""
+    candidates: list[dict[str, str]] = []
+    for member in guild_member_records:
+        name = str(member.get("name") or "").strip()
+        if not name:
+            continue
+        candidates.append(
+            {
+                "player_name": name,
+                "realm_slug": _realm_to_slug(member.get("realm_slug")),
+                "region": RAIDER_IO_REGION,
+            }
+        )
+    return candidates
+
+
+def _raiderio_candidates_from_table(
+    table_name: str,
+    name_expr: str,
+    realm_expr: str,
+    where_clause: str,
+) -> list[dict[str, str]]:
+    """Seed Raider.IO candidates from a previously materialised identity table."""
+    try:
+        rows = spark.sql(  # noqa: F821
+            f"""
+            SELECT
+              {name_expr} AS player_name,
+              COALESCE(NULLIF({realm_expr}, ''), '{server_slug}') AS realm_slug
+            FROM `{catalog}`.`{schema}`.{table_name}
+            WHERE {where_clause}
+            """
+        ).collect()
+    except Exception as exc:
+        logger.info("raiderio: %s unavailable for candidate seed: %s", table_name, exc)
+        return []
+
+    candidates = [
+        {
+            "player_name": str(row["player_name"]).strip(),
+            "realm_slug": _realm_to_slug(row["realm_slug"]),
+            "region": RAIDER_IO_REGION,
+        }
+        for row in rows
+        if str(row["player_name"] or "").strip()
+    ]
+    logger.info("raiderio: %s contributed %d candidate rows", table_name, len(candidates))
+    return candidates
+
+
+def _raiderio_candidates_from_existing_player_tables() -> list[dict[str, str]]:
+    """Include known active/cross-realm players that are not in Blizzard guild membership."""
+    return (
+        _raiderio_candidates_from_table(
+            table_name="silver_guild_members",
+            name_expr="name",
+            realm_expr="realm_slug",
+            where_clause="name IS NOT NULL AND name != ''",
+        )
+        + _raiderio_candidates_from_table(
+            table_name="gold_guild_roster",
+            name_expr="name",
+            realm_expr="realm",
+            where_clause="""
+              name IS NOT NULL
+              AND name != ''
+              AND COALESCE(CAST(is_active AS BOOLEAN), false) = true
+            """,
+        )
+        + _raiderio_candidates_from_table(
+            table_name="gold_raid_team",
+            name_expr="name",
+            realm_expr="realm",
+            where_clause="name IS NOT NULL AND name != ''",
+        )
+    )
+
+
+if RAIDER_IO_EXPORT_ENABLED:
+    try:
+        from ingestion.src.adapters.raiderio.client import (  # noqa: PLC0415
+            RaiderIoAdapter,
+            RaiderIoNotFoundError,
+            RaiderIoTransientError,
+        )
+
+        seen_candidates: set[tuple[str, str, str]] = set()
+        raiderio_candidates: list[dict[str, str]] = []
+        for candidate in (
+            _raiderio_candidates_from_current_roster()
+            + _raiderio_candidates_from_existing_player_tables()
+        ):
+            key = (
+                candidate["player_name"].casefold(),
+                candidate["realm_slug"],
+                candidate["region"],
+            )
+            if key in seen_candidates:
+                continue
+            seen_candidates.add(key)
+            raiderio_candidates.append(candidate)
+
+        if RAIDER_IO_PROFILE_EXPORT_CAP > 0:
+            raiderio_candidates = raiderio_candidates[:RAIDER_IO_PROFILE_EXPORT_CAP]
+            logger.info(
+                "Fetching Raider.IO profiles for %d characters (cap=%d)",
+                len(raiderio_candidates),
+                RAIDER_IO_PROFILE_EXPORT_CAP,
+            )
+        else:
+            logger.info(
+                "Fetching Raider.IO profiles for all %d guild characters",
+                len(raiderio_candidates),
+            )
+
+        rio_adapter = RaiderIoAdapter(
+            region=RAIDER_IO_REGION,
+            request_sleep_seconds=RAIDER_IO_REQUEST_SLEEP_SECONDS,
+        )
+        rio_adapter.authenticate()
+
+        profiles_file = f"{landing}/raiderio_character_profiles/{run_ts}.jsonl"
+        rows_written = 0
+        with open(profiles_file, "w") as fh:
+            for candidate in raiderio_candidates:
+                player_name = candidate["player_name"]
+                realm_slug = candidate["realm_slug"]
+                try:
+                    result = rio_adapter.fetch_character_profile(
+                        name=player_name,
+                        realm_slug=realm_slug,
+                        season=RAIDER_IO_SEASON,
+                    )
+                except RaiderIoNotFoundError:
+                    logger.info("Raider.IO profile not found for %s-%s", player_name, realm_slug)
+                    time.sleep(RAIDER_IO_REQUEST_SLEEP_SECONDS)
+                    continue
+                except RaiderIoTransientError as exc:
+                    logger.warning(
+                        "Raider.IO transient error for %s-%s after retries: %s",
+                        player_name,
+                        realm_slug,
+                        exc,
+                    )
+                    time.sleep(RAIDER_IO_REQUEST_SLEEP_SECONDS)
+                    continue
+
+                profile = result.records[0] if result.records else {}
+                record = {
+                    "player_name": player_name,
+                    "realm_slug": realm_slug,
+                    "region": RAIDER_IO_REGION,
+                    "profile_url": profile.get("profile_url"),
+                    "profile_json": json.dumps(profile),
+                    "_source": "raiderio",
+                    "_ingested_at": ingested_at,
+                }
+                fh.write(json.dumps(record) + "\n")
+                rows_written += 1
+                time.sleep(RAIDER_IO_REQUEST_SLEEP_SECONDS)
+
+        rio_adapter.close()
+        logger.info("raiderio_character_profiles → %d profiles", rows_written)
+    except Exception as e:
+        logger.warning("Raider.IO API failed: %s — skipping Mythic+ profile ingestion", e)
+else:
+    logger.info("Skipping Raider.IO character profiles: RAIDER_IO_EXPORT_ENABLED=false")
 
 # COMMAND ----------
 
@@ -395,8 +665,8 @@ for report_code in all_report_codes:
 
 # DBTITLE 1,Fight Deaths
 # Fetches death events for ALL boss fights (kills + wipes) per report via the
-# WCL table API.  Deaths are aggregated across all requested fights — per-fight
-# attribution is not available from this endpoint (limitation of the table API).
+# WCL table API. Multi-fight Deaths responses can truncate on long reports, so
+# fetches are done one fight at a time and written as JSONL records.
 # Skip if already fetched.
 logger.info("Fetching fight deaths …")
 
@@ -405,10 +675,9 @@ for report_code in all_report_codes:
         logger.info("fight_deaths: %s is archived — skipping", report_code)
         continue
 
-    deaths_file = f"{landing}/fight_deaths/{report_code}.jsonl"
-    if os.path.exists(deaths_file):
-        logger.info("fight_deaths: %s already fetched — skipping", report_code)
-        continue
+    deaths_file_pattern = f"{landing}/fight_deaths/{report_code}*.jsonl"
+    death_files = sorted(glob(deaths_file_pattern))
+    deaths_file = death_files[-1] if death_files else f"{landing}/fight_deaths/{report_code}.jsonl"
 
     fight_file = f"{landing}/report_fights/{report_code}.jsonl"
     if not os.path.exists(fight_file):
@@ -430,21 +699,60 @@ for report_code in all_report_codes:
         logger.info("fight_deaths: %s has no qualifying boss fights — skipping", report_code)
         continue
 
+    should_fetch_deaths = not death_files
+    if death_files:
+        try:
+            line_count = 0
+            existing_fight_ids: set[int] = set()
+            has_legacy_multi_fight_record = False
+            with open(deaths_file) as fh:
+                for line in fh:
+                    raw_record = json.loads(line)
+                    line_count += 1
+                    record_fight_ids = {
+                        int(fight_id)
+                        for fight_id in raw_record.get("fight_ids", [])
+                        if fight_id is not None
+                    }
+                    existing_fight_ids.update(record_fight_ids)
+                    if len(record_fight_ids) > 1:
+                        has_legacy_multi_fight_record = True
+            should_fetch_deaths = (
+                has_legacy_multi_fight_record
+                or line_count < len(all_boss_fight_ids)
+                or not set(all_boss_fight_ids).issubset(existing_fight_ids)
+            )
+            if should_fetch_deaths:
+                logger.info("fight_deaths: %s stale/incomplete — refetching", report_code)
+                deaths_file = f"{landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
+        except Exception as exc:
+            logger.warning("fight_deaths: %s unreadable (%s) — refetching", report_code, exc)
+            should_fetch_deaths = True
+            deaths_file = f"{landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
+
+    if not should_fetch_deaths:
+        logger.info("fight_deaths: %s already fetched — skipping", report_code)
+        continue
+
     try:
         deaths_result = adapter.fetch_fight_deaths(report_code, all_boss_fight_ids)
     except ArchivedReportError:
         _mark_archived(report_code)
         continue
     if deaths_result.records:
-        record = {
-            **deaths_result.records[0],
-            "_source": "wcl",
-            "_ingested_at": ingested_at,
-        }
         with open(deaths_file, "w") as fh:
-            fh.write(json.dumps(record) + "\n")
+            for raw_record in deaths_result.records:
+                record = {
+                    **raw_record,
+                    "_source": "wcl",
+                    "_ingested_at": ingested_at,
+                }
+                fh.write(json.dumps(record) + "\n")
         logger.info(
-            "fight_deaths: %s written (%d boss fights)", report_code, len(all_boss_fight_ids)
+            "fight_deaths: %s written (%d boss fights, %d records)",
+            report_code,
+            len(all_boss_fight_ids),
+            len(deaths_result.records),
         )
     _sleep()
 

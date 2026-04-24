@@ -5,13 +5,13 @@ interface ErrorStateProps {
 
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
   return (
-    <div className="rounded-xl border border-accent-coral/20 bg-accent-coral/5 p-6 text-center">
-      <p className="text-sm font-mono text-accent-coral mb-1">Failed to load data</p>
-      <p className="text-xs text-slate-500 mb-4">{message}</p>
+    <div className="rounded-2xl border border-ctp-red/20 bg-ctp-red/5 p-6 text-center">
+      <p className="text-sm font-mono text-ctp-red mb-1">Failed to load data</p>
+      <p className="text-xs text-ctp-overlay1 mb-4">{message}</p>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="px-4 py-1.5 text-xs font-mono rounded-lg bg-surface-3 hover:bg-surface-4 text-slate-300 transition-colors"
+          className="px-4 py-1.5 text-xs font-mono rounded-xl bg-ctp-surface1 hover:bg-ctp-surface2 text-ctp-subtext1 transition-colors"
         >
           retry
         </button>
