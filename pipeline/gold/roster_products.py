@@ -17,7 +17,7 @@ from pyspark.sql import functions as F
 # "warcraftlogs" Databricks Secret Scope to populate this table.
 
 @dlt.table(
-    name="gold_guild_roster",
+    name="03_gold.sc_analytics.gold_guild_roster",
     comment=(
         "Authoritative guild roster from Blizzard API enriched with WCL attendance. "
         "All members at all ranks. Empty if Blizzard API is not configured."
@@ -28,7 +28,7 @@ from pyspark.sql import functions as F
     },
 )
 def gold_guild_roster():
-    members = dlt.read("dim_guild_member")
+    members = spark.read.table("03_gold.sc_analytics.dim_guild_member")  # noqa: F821
     return (
         members
         .select(
@@ -63,7 +63,7 @@ def gold_guild_roster():
 # This catches common alt naming patterns (e.g. "Rahmiel" → "Rahmieldk").
 
 @dlt.table(
-    name="gold_raid_team",
+    name="03_gold.sc_analytics.gold_raid_team",
     comment=(
         "Active raid team (ranks 0-3) with attendance stats and possible alt flags. "
         "Includes alt detection for non-guild players found in WCL logs."
@@ -74,8 +74,8 @@ def gold_guild_roster():
     },
 )
 def gold_raid_team():
-    members = dlt.read("dim_guild_member")
-    players = dlt.read("dim_player")
+    members = spark.read.table("03_gold.sc_analytics.dim_guild_member")  # noqa: F821
+    players = spark.read.table("03_gold.sc_analytics.dim_player")  # noqa: F821
 
     # Active raid team members only
     raid_team = members.filter(F.col("is_raid_team") == True)  # noqa: E712

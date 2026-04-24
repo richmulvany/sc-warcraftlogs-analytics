@@ -33,7 +33,7 @@ Then run the DLT update and re-export the frontend CSVs.
 |---------|-------|-----|
 | HTTP 429 in logs | WCL rate limit hit | Re-run the job. Retry handling is built in, but an interrupted run may still need another pass. |
 | HTTP 401 in logs | Invalid or rotated credentials | Update secrets in the `warcraftlogs` scope, then re-run ingestion. |
-| `ArchivedReportError` in logs | WCL report is archived | Expected. A skip marker is written under `landing/archived/`. |
+| `ArchivedReportError` in logs | WCL report is archived | Expected. A skip marker is written under `/Volumes/01_bronze/warcraftlogs/landing/archived/`. |
 | Missing later wipe deaths on long reports | Legacy multi-fight `Deaths` payload truncated by WCL | Re-run ingestion after deploying the one-fight-at-a-time death fetch fix. |
 | Empty or stale silver/gold after successful ingestion | DLT update not run, or pipeline state stale | Run a pipeline update. Use full refresh only if a normal update does not recover. |
 
@@ -45,8 +45,7 @@ Run in a Databricks notebook:
 
 ```python
 report_code = "aBcD1234"
-catalog, schema = "04_sdp", "warcraftlogs"
-base = f"/Volumes/{catalog}/{schema}/landing"
+base = "/Volumes/01_bronze/warcraftlogs/landing"
 
 # Per-report cached files
 for subdir in ["report_fights", "actor_roster", "fight_rankings", "fight_casts"]:
@@ -92,7 +91,7 @@ SELECT
   report_code,
   COUNT(*) AS bronze_rows,
   COLLECT_SET(CAST(fight_ids[0] AS INT)) AS single_fight_ids
-FROM 04_sdp.warcraftlogs.bronze_fight_deaths
+FROM 01_bronze.warcraftlogs.bronze_fight_deaths
 WHERE report_code IN ('VvyhHrk3P4Z18NKT', 'b9Afa8tD3GRmvr26')
   AND size(fight_ids) = 1
 GROUP BY report_code;
@@ -102,7 +101,7 @@ GROUP BY report_code;
 SELECT
   report_code,
   SORT_ARRAY(COLLECT_SET(fight_id)) AS death_fights
-FROM 04_sdp.warcraftlogs.gold_player_death_events
+FROM 03_gold.sc_analytics.gold_player_death_events
 WHERE boss_name = 'Vaelgor & Ezzorak'
   AND difficulty_label = 'Mythic'
   AND report_code IN ('VvyhHrk3P4Z18NKT', 'b9Afa8tD3GRmvr26')
@@ -115,7 +114,7 @@ If a report is no longer archived:
 
 ```python
 report_code = "aBcD1234"
-dbutils.fs.rm(f"/Volumes/04_sdp/warcraftlogs/landing/archived/{report_code}")
+dbutils.fs.rm(f"/Volumes/01_bronze/warcraftlogs/landing/archived/{report_code}")
 ```
 
 Then rerun ingestion.
@@ -125,8 +124,7 @@ Then rerun ingestion.
 Only use this when the landing volume is broadly corrupted and a targeted backfill is not enough.
 
 ```python
-catalog, schema = "04_sdp", "warcraftlogs"
-base = f"/Volumes/{catalog}/{schema}/landing"
+base = "/Volumes/01_bronze/warcraftlogs/landing"
 
 for subdir in [
     "guild_reports",

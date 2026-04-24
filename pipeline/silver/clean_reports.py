@@ -15,7 +15,7 @@ RAID_DIFFICULTIES = (3, 4, 5)  # Normal=3, Heroic=4, Mythic=5  (M+=10 excluded)
 
 
 @dlt.table(
-    name="silver_guild_reports",
+    name="02_silver.sc_analytics_warcraftlogs.silver_guild_reports",
     comment="Cleaned guild reports: timestamps parsed to UTC, zone fields extracted.",
     table_properties={"quality": "silver"},
 )
@@ -23,7 +23,7 @@ RAID_DIFFICULTIES = (3, 4, 5)  # Normal=3, Heroic=4, Mythic=5  (M+=10 excluded)
 @dlt.expect("valid_start_time", "start_time_utc IS NOT NULL")
 def silver_guild_reports():
     return (
-        dlt.read_stream("bronze_guild_reports")
+        spark.readStream.table("01_bronze.warcraftlogs.bronze_guild_reports")  # noqa: F821
         .select(
             F.col("code"),
             F.col("title"),
@@ -45,7 +45,7 @@ def silver_guild_reports():
 
 
 @dlt.table(
-    name="silver_fight_events",
+    name="02_silver.sc_analytics_warcraftlogs.silver_fight_events",
     comment=(
         "Normalised boss pull events — raid encounters only (Normal/Heroic/Mythic). "
         "One row per pull with duration, outcome, zone, and difficulty label."
@@ -57,10 +57,10 @@ def silver_guild_reports():
 @dlt.expect_or_drop("is_raid_encounter", "encounter_id IS NOT NULL AND encounter_id > 0")
 @dlt.expect_or_drop("is_raid_difficulty", "difficulty IN (3, 4, 5)")
 def silver_fight_events():
-    reports = dlt.read("silver_guild_reports")  # batch dimension join
+    reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
     return (
-        dlt.read_stream("bronze_report_fights")
+        spark.readStream.table("01_bronze.warcraftlogs.bronze_report_fights")  # noqa: F821
         .select(
             F.col("code").alias("report_code"),
             F.col("title").alias("report_title"),

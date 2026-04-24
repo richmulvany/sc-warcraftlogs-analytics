@@ -672,6 +672,71 @@ class WarcraftLogsAdapter(BaseAdapter):
 
         return events
 
+    def fetch_guild_zone_ranks(
+        self,
+        guild_name: str,
+        server_slug: str,
+        server_region: str,
+        zone_id: int,
+        size: int = 20,
+    ) -> FetchResult:
+        """
+        Fetch a guild's zoneRanking.progress for a single raid zone.
+
+        Returns a FetchResult with one record containing ``zone_id`` and a
+        ``progress_json`` opaque scalar string. Silver parses world/region/server
+        rank fields from this payload.
+        """
+        query = """
+        query GuildZoneRanks(
+          $guildName: String!
+          $serverSlug: String!
+          $serverRegion: String!
+          $zoneId: Int!
+          $size: Int
+        ) {
+          guildData {
+            guild(name: $guildName, serverSlug: $serverSlug, serverRegion: $serverRegion) {
+              zoneRanking(zoneId: $zoneId) {
+                progress(size: $size) {
+                  worldRank { number }
+                  regionRank { number }
+                  serverRank { number }
+                }
+              }
+            }
+          }
+        }
+        """
+        data = self._graphql_query(
+            query,
+            {
+                "guildName": guild_name,
+                "serverSlug": server_slug,
+                "serverRegion": server_region,
+                "zoneId": zone_id,
+                "size": size,
+            },
+        )
+        progress = (
+            ((data.get("guildData") or {}).get("guild") or {})
+            .get("zoneRanking", {})
+            .get("progress")
+        )
+        log.info("wcl.guild_zone_ranks", zone_id=zone_id, has_progress=bool(progress))
+        return FetchResult(
+            source="wcl",
+            endpoint="guild_zone_ranks",
+            records=[
+                {
+                    "zone_id": zone_id,
+                    "progress_json": json.dumps(progress) if progress is not None else None,
+                }
+            ],
+            total_records=1,
+            has_more=False,
+        )
+
     def fetch_fight_casts(self, report_code: str, fight_ids: list[int]) -> FetchResult:
         """
         Fetch player cast events for boss fights within a report.

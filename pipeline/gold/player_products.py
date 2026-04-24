@@ -14,7 +14,7 @@ from pyspark.sql.window import Window
 # "Who is turning up to raids and how often?"
 
 @dlt.table(
-    name="gold_player_attendance",
+    name="03_gold.sc_analytics.gold_player_attendance",
     comment="Per-player attendance rates and raid counts, enriched with zone and date context.",
     table_properties={
         "quality": "gold",
@@ -23,7 +23,7 @@ from pyspark.sql.window import Window
     },
 )
 def gold_player_attendance():
-    attendance = dlt.read("silver_raid_attendance")
+    attendance = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_raid_attendance")  # noqa: F821
     return (
         attendance
         .groupBy("player_name", "player_class")
@@ -53,7 +53,7 @@ def gold_player_attendance():
 # (from WCL rankings.amount) and fight context.
 
 @dlt.table(
-    name="gold_player_performance_summary",
+    name="03_gold.sc_analytics.gold_player_performance_summary",
     comment=(
         "Aggregated per-player performance across all boss kills: avg/best DPS/HPS, "
         "spec, item level, kill count, and WCL parse percentile. "
@@ -65,8 +65,8 @@ def gold_player_attendance():
     },
 )
 def gold_player_performance_summary():
-    perf = dlt.read("fact_player_fight_performance")
-    actors = dlt.read("silver_actor_roster")
+    perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
 
     # Most-recent realm per player
     w = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
@@ -134,7 +134,7 @@ def gold_player_performance_summary():
 # Reads directly from fact_player_fight_performance — fight context already joined.
 
 @dlt.table(
-    name="gold_boss_kill_roster",
+    name="03_gold.sc_analytics.gold_boss_kill_roster",
     comment=(
         "Per-player performance on every boss kill. "
         "One row per player per kill. Queryable by boss, player, or date. "
@@ -147,7 +147,7 @@ def gold_player_performance_summary():
 )
 def gold_boss_kill_roster():
     return (
-        dlt.read("fact_player_fight_performance")
+        spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
         .select(
             "report_code",
             "fight_id",
@@ -186,7 +186,7 @@ def gold_boss_kill_roster():
 # "How does each player perform on a specific boss, and are they improving?"
 
 @dlt.table(
-    name="gold_player_boss_performance",
+    name="03_gold.sc_analytics.gold_player_boss_performance",
     comment=(
         "Per-player per-boss kill performance aggregated across all kills. "
         "One row per (player, encounter, difficulty) with trend indicators. "
@@ -198,7 +198,7 @@ def gold_boss_kill_roster():
     },
 )
 def gold_player_boss_performance():
-    perf = dlt.read("fact_player_fight_performance")
+    perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
 
     # Aggregate across all kills of the same boss per player
     agg = (

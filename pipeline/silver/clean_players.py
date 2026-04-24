@@ -167,7 +167,7 @@ _join_consumable_names_udf = F.udf(join_consumable_names, StringType())
 # ── silver_actor_roster ───────────────────────────────────────────────────────
 
 @dlt.table(
-    name="silver_actor_roster",
+    name="02_silver.sc_analytics_warcraftlogs.silver_actor_roster",
     comment=(
         "Player actor roster per report from masterData. "
         "One row per player per report with class and realm."
@@ -179,7 +179,7 @@ _join_consumable_names_udf = F.udf(join_consumable_names, StringType())
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL AND LENGTH(player_name) > 0")
 def silver_actor_roster():
     return (
-        dlt.read_stream("bronze_actor_roster")
+        spark.readStream.table("01_bronze.warcraftlogs.bronze_actor_roster")  # noqa: F821
         .filter(F.col("actors").isNotNull())
         .select(
             F.col("report_code"),
@@ -204,7 +204,7 @@ def silver_actor_roster():
 # ── silver_player_performance ─────────────────────────────────────────────────
 
 @dlt.table(
-    name="silver_player_performance",
+    name="02_silver.sc_analytics_warcraftlogs.silver_player_performance",
     comment=(
         "Per-player combatant info on each boss kill: spec, item level, "
         "combat stats (Crit/Haste/Mastery/Vers), and consumable usage. "
@@ -217,7 +217,7 @@ def silver_actor_roster():
 @dlt.expect_or_drop("valid_fight_ref",   "report_code IS NOT NULL AND fight_id IS NOT NULL")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL AND LENGTH(player_name) > 0")
 def silver_player_performance():
-    raw = dlt.read("bronze_player_details")  # batch
+    raw = spark.read.table("01_bronze.warcraftlogs.bronze_player_details")  # noqa: F821
 
     parsed = raw.withColumn(
         "pd",

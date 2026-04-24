@@ -74,7 +74,7 @@ _PROFILE_SCHEMA = StructType([
 
 
 def _parsed_profiles():
-    raw = dlt.read("bronze_raiderio_character_profiles")
+    raw = spark.read.table("01_bronze.raiderio.bronze_raiderio_character_profiles")  # noqa: F821
     return (
         raw
         .withColumn("_profile", F.from_json("profile_json", _PROFILE_SCHEMA))
@@ -83,7 +83,7 @@ def _parsed_profiles():
 
 
 @dlt.table(
-    name="silver_raiderio_player_scores",
+    name="02_silver.sc_analytics_raiderio.silver_raiderio_player_scores",
     comment="Parsed Raider.IO Mythic+ score snapshots, one row per player per ingestion run.",
     table_properties={"quality": "silver"},
 )
@@ -114,7 +114,7 @@ def silver_raiderio_player_scores():
 
 
 @dlt.table(
-    name="silver_raiderio_player_runs",
+    name="02_silver.sc_analytics_raiderio.silver_raiderio_player_runs",
     comment="Parsed Raider.IO Mythic+ runs from recent and best run arrays.",
     table_properties={"quality": "silver"},
 )

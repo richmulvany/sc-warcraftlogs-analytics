@@ -9,7 +9,7 @@ from pyspark.sql import functions as F
 
 
 @dlt.table(
-    name="silver_raid_attendance",
+    name="02_silver.sc_analytics_warcraftlogs.silver_raid_attendance",
     comment=(
         "Exploded player attendance: one row per player per raid report. "
         "Includes zone context and raid night date joined from silver_guild_reports."
@@ -22,10 +22,10 @@ def silver_raid_attendance():
     # Join to silver_guild_reports (batch) for zone and date context.
     # Earlier attendance files don't carry zone/startTime fields, so we resolve
     # those from the guild reports dimension which reliably has them.
-    reports = dlt.read("silver_guild_reports")
+    reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
     return (
-        dlt.read_stream("bronze_raid_attendance")
+        spark.readStream.table("01_bronze.warcraftlogs.bronze_raid_attendance")  # noqa: F821
         .filter(F.col("players").isNotNull())
         .select(
             F.col("code").alias("report_code"),

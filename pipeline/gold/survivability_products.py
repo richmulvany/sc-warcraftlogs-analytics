@@ -18,7 +18,7 @@ from pyspark.sql.window import Window
 # wipe in the same report will inflate this metric relative to kills.
 
 @dlt.table(
-    name="gold_player_survivability",
+    name="03_gold.sc_analytics.gold_player_survivability",
     comment=(
         "Per-player death statistics across all raids. "
         "deaths_per_kill is an approximation — see note in table comment. "
@@ -30,8 +30,8 @@ from pyspark.sql.window import Window
     },
 )
 def gold_player_survivability():
-    deaths = dlt.read("fact_player_events")
-    perf = dlt.read("fact_player_fight_performance")
+    deaths = spark.read.table("03_gold.sc_analytics.fact_player_events")  # noqa: F821
+    perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
 
     # Total deaths per player
     death_counts = (
@@ -136,7 +136,7 @@ def gold_player_survivability():
 # boss, difficulty, and zone dimensions needed for page filters.
 
 @dlt.table(
-    name="gold_player_death_events",
+    name="03_gold.sc_analytics.gold_player_death_events",
     comment=(
         "One row per player death joined to boss fight context. "
         "Used by frontend player profiles for tier/difficulty/boss-scoped survivability."
@@ -147,8 +147,8 @@ def gold_player_survivability():
     },
 )
 def gold_player_death_events():
-    deaths = dlt.read("fact_player_events")
-    fights = dlt.read("silver_fight_events")
+    deaths = spark.read.table("03_gold.sc_analytics.fact_player_events")  # noqa: F821
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     fight_context = (
         fights
@@ -214,7 +214,7 @@ def gold_player_death_events():
 #     (positive = improving, negative = regressing)
 
 @dlt.table(
-    name="gold_boss_mechanics",
+    name="03_gold.sc_analytics.gold_boss_mechanics",
     comment=(
         "Enhanced wipe analysis per boss encounter. "
         "Phase breakdown, duration buckets, weekly pull counts, and progress trend."
@@ -225,7 +225,7 @@ def gold_player_death_events():
     },
 )
 def gold_boss_mechanics():
-    fights = dlt.read("silver_fight_events")
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     # Boss wipes only (raid difficulties, valid encounter, not a kill)
     wipes = (

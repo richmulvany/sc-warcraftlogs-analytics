@@ -75,7 +75,7 @@ _merge_consumable_names_udf = F.udf(merge_consumable_name_strings, StringType())
 # the latter).
 
 @dlt.table(
-    name="fact_player_fight_performance",
+    name="03_gold.sc_analytics.fact_player_fight_performance",
     comment=(
         "Per-player performance on every boss kill. "
         "Joins fight context, player stats (gear, consumables, combat stats), "
@@ -88,12 +88,12 @@ _merge_consumable_names_udf = F.udf(merge_consumable_name_strings, StringType())
     },
 )
 def fact_player_fight_performance():
-    perf = dlt.read("silver_player_performance")
-    fights = dlt.read("silver_fight_events")
-    rankings = dlt.read("silver_player_rankings")
-    buffs = dlt.read("silver_player_combatant_buffs")
-    raw_casts = dlt.read("bronze_fight_casts")
-    actors = dlt.read("silver_actor_roster")
+    perf = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_player_performance")  # noqa: F821
+    fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
+    rankings = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_player_rankings")  # noqa: F821
+    buffs = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_player_combatant_buffs")  # noqa: F821
+    raw_casts = spark.read.table("01_bronze.warcraftlogs.bronze_fight_casts")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
 
     # Kill fights only with full context
     kill_context = (
@@ -306,7 +306,7 @@ def fact_player_fight_performance():
 # silver_guild_reports via report_code.
 
 @dlt.table(
-    name="fact_player_events",
+    name="03_gold.sc_analytics.fact_player_events",
     comment=(
         "Per-player death events across all raid reports. "
         "One row per death event with fight_id, killing blow, and zone context."
@@ -317,8 +317,8 @@ def fact_player_fight_performance():
     },
 )
 def fact_player_events():
-    deaths = dlt.read("silver_player_deaths")
-    reports = dlt.read("silver_guild_reports")
+    deaths = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_player_deaths")  # noqa: F821
+    reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
     # Zone context from reports
     report_context = (
