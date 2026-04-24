@@ -12,6 +12,7 @@
 #   fact_player_fight_performance joins both sources correctly.
 
 import dlt
+import re
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
@@ -51,9 +52,18 @@ _STATS_STRUCT = StructType([
     StructField("Stamina",     _STAT_VALUE_STRUCT, True),
 ])
 
+_GEAR_STRUCT = StructType([
+    StructField("slot", LongType(), True),
+    StructField("name", StringType(), True),
+    StructField("temporaryEnchant", LongType(), True),
+    StructField("temporaryEnchantName", StringType(), True),
+    StructField("permanentEnchant", LongType(), True),
+    StructField("permanentEnchantName", StringType(), True),
+])
+
 _COMBATANT_INFO_STRUCT = StructType([
     StructField("stats", _STATS_STRUCT, True),
-    # talentTree and gear omitted — too complex to flatten usefully in silver
+    StructField("gear", ArrayType(_GEAR_STRUCT), True),
 ])
 
 _PLAYER_ENTRY_SCHEMA = StructType([
@@ -78,6 +88,80 @@ _PLAYER_DETAILS_SCHEMA = StructType([
         ]), True),
     ]), True),
 ])
+
+MIDNIGHT_WEAPON_ENHANCEMENT_NAMES = {
+    "thalassian phoenix oil",
+    "smuggler's enchanted edge",
+    "oil of dawn",
+    "refulgent weightstone",
+    "refulgent whetstone",
+    "refulgent razorstone",
+    "laced zoomshots",
+    "weighted boomshots",
+    "smuggler's lynxeye",
+    "farstrider's hawkeye",
+    "flametongue weapon",
+    "windfury weapon",
+    "earthliving weapon",
+}
+
+_SPACE_RE = re.compile(r"\s+")
+
+
+def _normalize_name(value: str | None) -> str:
+    if value is None:
+        return ""
+    return _SPACE_RE.sub(" ", value.strip().lower())
+
+
+def _unique_preserve(values):
+    seen = set()
+    ordered = []
+    for value in values:
+        if value not in seen:
+            seen.add(value)
+            ordered.append(value)
+    return ordered
+
+
+def classify_weapon_enhancement_names(names):
+    if not names:
+        return []
+    matched = []
+    for name in names:
+        trimmed = (name or "").strip()
+        normalized = _normalize_name(trimmed)
+        if not normalized:
+            continue
+        if normalized in MIDNIGHT_WEAPON_ENHANCEMENT_NAMES or any(
+            keyword in normalized
+            for keyword in (
+                " oil",
+                "oil ",
+                "whetstone",
+                "weightstone",
+                "razorstone",
+                "shots",
+                "enchanted edge",
+                "lynxeye",
+                "hawkeye",
+            )
+        ):
+            matched.append(trimmed)
+    return _unique_preserve(matched)
+
+
+def join_consumable_names(names):
+    cleaned = _unique_preserve(
+        (name or "").strip()
+        for name in (names or [])
+        if (name or "").strip()
+    )
+    return " | ".join(cleaned) if cleaned else None
+
+
+_classify_weapon_enhancement_udf = F.udf(classify_weapon_enhancement_names, ArrayType(StringType()))
+_join_consumable_names_udf = F.udf(join_consumable_names, StringType())
 
 
 # ── silver_actor_roster ───────────────────────────────────────────────────────
@@ -165,8 +249,38 @@ def silver_player_performance():
         .union(_role_df("tanks",   "tank"))
     )
 
-    return (
+    with_weapon_enhancements = (
         all_players
+        .withColumn(
+            "temporary_enchant_names",
+            F.expr(
+                """
+                transform(
+                  filter(
+                    coalesce(player.combatantInfo.gear, array()),
+                    g -> g.temporaryEnchantName is not null AND trim(g.temporaryEnchantName) <> ''
+                  ),
+                  g -> trim(g.temporaryEnchantName)
+                )
+                """
+            ),
+        )
+        .withColumn(
+            "weapon_enhancement_names_array",
+            _classify_weapon_enhancement_udf(F.col("temporary_enchant_names")),
+        )
+        .withColumn(
+            "weapon_enhancement_names",
+            _join_consumable_names_udf(F.col("weapon_enhancement_names_array")),
+        )
+        .withColumn(
+            "has_weapon_enhancement",
+            F.when(F.size(F.col("weapon_enhancement_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)),
+        )
+    )
+
+    return (
+        with_weapon_enhancements
         .select(
             F.col("report_code"),
             F.col("fight_id"),
@@ -196,6 +310,8 @@ def silver_player_performance():
             # Consumable usage — 0 = did not use, 1 = used
             F.col("player.potionUse").alias("potion_use"),
             F.col("player.healthstoneUse").alias("healthstone_use"),
+            F.col("has_weapon_enhancement"),
+            F.col("weapon_enhancement_names"),
             # Secondary combat stats (from combatantInfo — values are rating integers)
             F.col("player.combatantInfo.stats.Crit.min").alias("crit_rating"),
             F.col("player.combatantInfo.stats.Haste.min").alias("haste_rating"),

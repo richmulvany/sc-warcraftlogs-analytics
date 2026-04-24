@@ -409,6 +409,7 @@ _FIGHT_CASTS_SCHEMA = StructType([
     StructField("report_code", StringType(), True),
     StructField("fight_ids", ArrayType(LongType()), True),
     StructField("events_json", StringType(), True),
+    StructField("buffs_json", StringType(), True),
     StructField("combatant_info_json", StringType(), True),
     StructField("_source", StringType(), True),
     StructField("_ingested_at", StringType(), True),

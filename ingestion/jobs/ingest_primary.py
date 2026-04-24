@@ -295,6 +295,7 @@ for report_code in all_report_codes:
             }
             should_fetch_casts = (
                 "combatant_info_json" not in existing_cast_record
+                or "buffs_json" not in existing_cast_record
                 or not set(raid_fight_ids).issubset(existing_fight_ids)
             )
             if should_fetch_casts:

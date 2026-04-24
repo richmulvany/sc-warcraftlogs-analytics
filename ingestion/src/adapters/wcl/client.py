@@ -684,14 +684,17 @@ class WarcraftLogsAdapter(BaseAdapter):
         Raises ArchivedReportError if the report has been archived.
         """
         events: list[dict[str, Any]] = []
+        buff_events: list[dict[str, Any]] = []
         combatant_info_events: list[dict[str, Any]] = []
         for fight_id in fight_ids:
             events.extend(self._fetch_report_events(report_code, fight_id, "Casts"))
+            buff_events.extend(self._fetch_report_events(report_code, fight_id, "Buffs"))
             combatant_info_events.extend(
                 self._fetch_report_events(report_code, fight_id, "CombatantInfo")
             )
 
         casts_json = json.dumps({"data": events})
+        buffs_json = json.dumps({"data": buff_events})
         combatant_info_json = json.dumps({"data": combatant_info_events})
 
         log.info(
@@ -699,6 +702,7 @@ class WarcraftLogsAdapter(BaseAdapter):
             code=report_code,
             fight_count=len(fight_ids),
             event_count=len(events),
+            buff_event_count=len(buff_events),
             combatant_info_count=len(combatant_info_events),
         )
         return FetchResult(
@@ -709,6 +713,7 @@ class WarcraftLogsAdapter(BaseAdapter):
                     "report_code": report_code,
                     "fight_ids": fight_ids,
                     "events_json": casts_json,
+                    "buffs_json": buffs_json,
                     "combatant_info_json": combatant_info_json,
                 }
             ],

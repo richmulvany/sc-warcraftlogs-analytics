@@ -74,7 +74,15 @@ export interface BossKillRosterRow {
   spec: string
   avg_item_level: number
   potion_use: number
+  combat_potion_casts: number
+  combat_potion_names: string
   healthstone_use: number
+  has_food_buff: number
+  food_buff_names: string
+  has_flask_or_phial_buff: number
+  flask_or_phial_names: string
+  has_weapon_enhancement: number
+  weapon_enhancement_names: string
   throughput_per_second: number
   rank_percent: number
   bracket_percent: number
