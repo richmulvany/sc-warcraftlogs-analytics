@@ -8,7 +8,8 @@
 - **Progression/wipe analysis** → `pipeline/gold/summary_products.py`
 - **Death/survivability** → `pipeline/gold/survivability_products.py`
 - **Roster/profile** → `pipeline/gold/roster_products.py`
-- **Preparation** (consumables, stats) → `pipeline/gold/preparation_products.py`
+- **Profiles / exports / roster-adjacent products** → `pipeline/gold/profile_products.py`
+- **Utility / wipe diagnostics** → `pipeline/gold/utility_products.py` or `pipeline/gold/wipe_diagnostics.py`
 - **Mythic+ / Raider.IO** → `pipeline/gold/mplus_products.py`
 - **New category** → create a new file `pipeline/gold/your_category_products.py`
 

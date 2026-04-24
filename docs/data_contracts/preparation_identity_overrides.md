@@ -95,7 +95,7 @@ frontend parser.
 ## Change Management
 
 1. Update the UC table definition and this contract in the same change.
-2. Update `scripts/export_gold_tables.py` if the exported column set changes.
+2. Update the governed export in `scripts/export_gold_tables.py` if the exported column set changes.
 3. Update the Preparation page parser if a breaking change is introduced.
 
 ---

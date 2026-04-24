@@ -343,12 +343,6 @@ Full Blizzard guild roster with class, realm, rank, attendance stats, `is_active
 ### gold_raid_team
 Active raid team (is_raid_team = true) with `has_possible_alt_in_logs` flag (name-prefix heuristic).
 
-### gold_player_profile
-Comprehensive per-player summary: identity + guild rank + WCL performance aggregates (throughput, parse %, item level) + attendance stats.
-
-### gold_roster
-Active player roster from WCL actor logs (not Blizzard) with latest class/realm and attendance summary.
-
 ---
 
 ## Mythic+

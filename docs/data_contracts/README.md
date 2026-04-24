@@ -15,7 +15,6 @@ is purely descriptive reference material. A contract is a *promise*.
 
 | Contract | Table | Status |
 |----------|-------|--------|
-| [gold_entity_summary](gold_entity_summary.md) | `gold_entity_summary` | Active |
 | [preparation_identity_overrides](preparation_identity_overrides.md) | `00_governance.warcraftlogs_admin.preparation_identity_overrides` | Draft |
 
 ---
@@ -33,8 +32,7 @@ is purely descriptive reference material. A contract is a *promise*.
 
 ## Adding a Contract
 
-When you add a new gold table, create a corresponding contract here.
-Copy `gold_entity_summary.md` as a starting template and fill in all sections.
+When you add a new contract here, copy an existing contract as a starting template and fill in all sections.
 
 The contract should be created alongside the table — not after the fact.
 It forces the right questions to be asked before the table is built:
