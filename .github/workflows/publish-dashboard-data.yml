@@ -69,8 +69,18 @@ jobs:
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
           R2_PREFIX: ${{ secrets.R2_PREFIX }}
         run: |
-          ROOT_PREFIX="${R2_PREFIX:+${R2_PREFIX}/}"
-          aws s3 sync ./dashboard_exports/latest "s3://${R2_BUCKET}/${ROOT_PREFIX}latest" \
+          NORMALISED_PREFIX="${R2_PREFIX#/}"
+          NORMALISED_PREFIX="${NORMALISED_PREFIX%/}"
+          if [ -z "${NORMALISED_PREFIX}" ]; then
+            LATEST_KEY="latest"
+          elif [ "${NORMALISED_PREFIX}" = "latest" ]; then
+            LATEST_KEY="latest"
+          elif [ "${NORMALISED_PREFIX#*/}" != "${NORMALISED_PREFIX}" ] && [ "${NORMALISED_PREFIX##*/}" = "latest" ]; then
+            LATEST_KEY="${NORMALISED_PREFIX}"
+          else
+            LATEST_KEY="${NORMALISED_PREFIX}/latest"
+          fi
+          aws s3 sync ./dashboard_exports/latest "s3://${R2_BUCKET}/${LATEST_KEY}" \
             --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
             --delete \
             --cache-control "public, max-age=300"
@@ -91,8 +101,23 @@ jobs:
           print(manifest["snapshot_id"])
           PY
           )"
-          ROOT_PREFIX="${R2_PREFIX:+${R2_PREFIX}/}"
-          aws s3 sync ./dashboard_exports/latest "s3://${R2_BUCKET}/${ROOT_PREFIX}snapshots/${SNAPSHOT_ID}" \
+          NORMALISED_PREFIX="${R2_PREFIX#/}"
+          NORMALISED_PREFIX="${NORMALISED_PREFIX%/}"
+          if [ -z "${NORMALISED_PREFIX}" ]; then
+            SNAPSHOT_KEY="snapshots/${SNAPSHOT_ID}"
+          elif [ "${NORMALISED_PREFIX}" = "latest" ]; then
+            SNAPSHOT_KEY="snapshots/${SNAPSHOT_ID}"
+          elif [ "${NORMALISED_PREFIX#*/}" != "${NORMALISED_PREFIX}" ] && [ "${NORMALISED_PREFIX##*/}" = "latest" ]; then
+            SNAPSHOT_ROOT="${NORMALISED_PREFIX%/latest}"
+            if [ -n "${SNAPSHOT_ROOT}" ]; then
+              SNAPSHOT_KEY="${SNAPSHOT_ROOT}/snapshots/${SNAPSHOT_ID}"
+            else
+              SNAPSHOT_KEY="snapshots/${SNAPSHOT_ID}"
+            fi
+          else
+            SNAPSHOT_KEY="${NORMALISED_PREFIX}/snapshots/${SNAPSHOT_ID}"
+          fi
+          aws s3 sync ./dashboard_exports/latest "s3://${R2_BUCKET}/${SNAPSHOT_KEY}" \
             --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
             --delete \
             --cache-control "public, max-age=300"

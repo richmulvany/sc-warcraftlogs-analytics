@@ -96,6 +96,10 @@ Cloudflare R2:
 - optional `R2_PREFIX`
 - optional `PUBLIC_DATA_BASE_URL`
 
+`R2_PREFIX` is optional and should be a parent folder only. For a public URL like
+`https://data.sc-analytics.org/latest`, leave `R2_PREFIX` empty. Do not set it
+to `latest`, or you will end up publishing to `latest/latest/...`.
+
 ## Required Cloudflare R2 setup
 
 You need:
