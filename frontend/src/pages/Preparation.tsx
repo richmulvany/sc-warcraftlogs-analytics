@@ -104,13 +104,6 @@ function isTruthy(value: unknown): boolean {
   return value === true || value === 'True' || value === 'true'
 }
 
-function pctColor(pct: number): string {
-  if (pct >= 90) return '#a6e3a1'
-  if (pct >= 70) return '#f9e2af'
-  if (pct >= 50) return '#fab387'
-  return '#f38ba8'
-}
-
 function healthVariant(state: HealthFilter): 'red' | 'yellow' | 'green' | 'blue' {
   if (state === 'watch') return 'red'
   if (state === 'steady') return 'yellow'
@@ -767,7 +760,7 @@ export function Preparation() {
             label="Avg Readiness"
             value={`${summary.avgReadiness.toFixed(0)}%`}
             subValue="attendance plus current-tier consumable compliance"
-            valueColor={pctColor(summary.avgReadiness)}
+            valueColor={getAttendanceColor(summary.avgReadiness)}
             icon={<ShieldCheck size={14} />}
             accent="none"
           />
@@ -877,7 +870,7 @@ export function Preparation() {
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="text-base font-semibold" style={{ color: pctColor(row.readiness_score) }}>
+                        <span className="text-base font-semibold" style={{ color: getAttendanceColor(row.readiness_score) }}>
                           {row.readiness_score.toFixed(0)}%
                         </span>
                         <span className="text-[10px] font-mono text-ctp-overlay0">
@@ -930,7 +923,7 @@ export function Preparation() {
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
-                        <span className="text-base font-semibold" style={{ color: pctColor(row.readiness_score) }}>
+                        <span className="text-base font-semibold" style={{ color: getAttendanceColor(row.readiness_score) }}>
                           {row.readiness_score.toFixed(0)}%
                         </span>
                         <span className="text-[10px] font-mono text-ctp-overlay0">
@@ -1244,12 +1237,12 @@ export function Preparation() {
                         <div className="w-full lg:w-64">
                           <div className="flex items-center justify-between gap-3">
                             <span className="text-[10px] font-mono uppercase tracking-[0.12em] text-ctp-overlay0">Readiness</span>
-                            <span className="text-sm font-semibold" style={{ color: pctColor(row.readiness_score) }}>
+                            <span className="text-sm font-semibold" style={{ color: getAttendanceColor(row.readiness_score) }}>
                               {row.readiness_score.toFixed(0)}%
                             </span>
                           </div>
                           <div className="mt-2">
-                            <ProgressBar value={row.readiness_score} color={pctColor(row.readiness_score)} height="sm" />
+                            <ProgressBar value={row.readiness_score} color={getAttendanceColor(row.readiness_score)} height="sm" />
                           </div>
                         </div>
                       </div>

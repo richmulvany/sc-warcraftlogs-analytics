@@ -1,0 +1,17 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "https://sc-analytics.org",
+        "https://www.sc-analytics.org",
+        "https://richmulvany.github.io",
+        "http://localhost:3000",
+        "http://localhost:5173"
+      ],
+      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag", "Content-Length", "Last-Modified"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}

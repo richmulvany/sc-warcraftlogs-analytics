@@ -21,10 +21,17 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
 }
 
+function toFiniteParse(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n) || n < 0 || n > 100) return null
+  return n
+}
+
 export function getParseDistributionSummary(data: BossKillRosterRow[]): ParseDistributionSummary | null {
   const values = data
-    .map(row => Number(row.rank_percent))
-    .filter(value => Number.isFinite(value) && value >= 0 && value <= 100)
+    .map(row => toFiniteParse(row.rank_percent))
+    .filter((value): value is number => value !== null)
 
   if (values.length < 10) return null
 
@@ -104,8 +111,8 @@ export function ParseHistogramChart({ data, showCurve = false }: Props) {
     const counts = Array(20).fill(0) as number[]
     const values: number[] = []
     for (const row of data) {
-      const pct = Number(row.rank_percent)
-      if (!isFinite(pct) || pct < 0 || pct > 100) continue
+      const pct = toFiniteParse(row.rank_percent)
+      if (pct === null) continue
       values.push(pct)
       const idx = Math.min(Math.floor(pct / 5), 19)
       counts[idx]++

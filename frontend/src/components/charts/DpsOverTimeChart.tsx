@@ -9,7 +9,7 @@ interface DataPoint {
   date: string
   throughput: number
   boss: string
-  parse: number
+  parse: number | null
 }
 
 interface Props {
@@ -27,7 +27,7 @@ function Tip({ active, payload, label }: any) {
       <p className="text-ctp-overlay1 mb-1.5">{label}</p>
       <p className="text-ctp-subtext1 truncate mb-1">{d.boss}</p>
       <p className="text-ctp-text font-semibold">{formatThroughput(d.throughput)}</p>
-      {d.parse > 0 && (
+      {d.parse !== null && d.parse > 0 && (
         <p className="text-ctp-overlay1 mt-0.5">Parse: {d.parse.toFixed(1)}%</p>
       )}
     </div>

@@ -12,7 +12,7 @@ import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { useBossKillRoster, useRaidSummary } from '../hooks/useGoldData'
-import { formatNumber, formatDate } from '../utils/format'
+import { formatNumber, formatDate, toFiniteNumber } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { isIncludedZoneName } from '../utils/zones'
 import { formatThroughput, getThroughputColor, normaliseRole } from '../constants/wow'
@@ -120,13 +120,21 @@ export function Players() {
   )
 
   const aggregatedRows = useMemo(() => {
-    const grouped = new Map<string, AggregatedPlayerRow>()
+    type Acc = AggregatedPlayerRow & {
+      _rankSum: number
+      _rankCount: number
+      _throughputSum: number
+      _throughputCount: number
+      _ilvlSum: number
+      _ilvlCount: number
+    }
+    const grouped = new Map<string, Acc>()
 
     for (const row of filteredRosterRows) {
       const playerName = row.player_name
-      const rankPercent = Number(row.rank_percent) || 0
-      const throughput = Number(row.throughput_per_second) || 0
-      const itemLevel = Number(row.avg_item_level) || 0
+      const rankPercent = toFiniteNumber(row.rank_percent)
+      const throughput = toFiniteNumber(row.throughput_per_second)
+      const itemLevel = toFiniteNumber(row.avg_item_level)
       const existing = grouped.get(playerName)
 
       if (!existing) {
@@ -136,23 +144,37 @@ export function Players() {
           role: row.role,
           primary_spec: row.spec,
           kills_tracked: 1,
-          avg_throughput_per_second: throughput,
-          best_throughput_per_second: throughput,
-          avg_rank_percent: rankPercent,
-          best_rank_percent: rankPercent,
-          avg_item_level: itemLevel,
+          avg_throughput_per_second: throughput ?? 0,
+          best_throughput_per_second: throughput ?? 0,
+          avg_rank_percent: rankPercent ?? 0,
+          best_rank_percent: rankPercent ?? 0,
+          avg_item_level: itemLevel ?? 0,
           last_seen_date: row.raid_night_date,
+          _rankSum: rankPercent ?? 0,
+          _rankCount: rankPercent === null ? 0 : 1,
+          _throughputSum: throughput ?? 0,
+          _throughputCount: throughput === null ? 0 : 1,
+          _ilvlSum: itemLevel ?? 0,
+          _ilvlCount: itemLevel === null ? 0 : 1,
         })
         continue
       }
 
-      const nextKills = existing.kills_tracked + 1
-      existing.avg_throughput_per_second = ((existing.avg_throughput_per_second * existing.kills_tracked) + throughput) / nextKills
-      existing.best_throughput_per_second = Math.max(existing.best_throughput_per_second, throughput)
-      existing.avg_rank_percent = ((existing.avg_rank_percent * existing.kills_tracked) + rankPercent) / nextKills
-      existing.best_rank_percent = Math.max(existing.best_rank_percent, rankPercent)
-      existing.avg_item_level = ((existing.avg_item_level * existing.kills_tracked) + itemLevel) / nextKills
-      existing.kills_tracked = nextKills
+      existing.kills_tracked += 1
+      if (throughput !== null) {
+        existing._throughputSum += throughput
+        existing._throughputCount += 1
+        existing.best_throughput_per_second = Math.max(existing.best_throughput_per_second, throughput)
+      }
+      if (rankPercent !== null) {
+        existing._rankSum += rankPercent
+        existing._rankCount += 1
+        existing.best_rank_percent = Math.max(existing.best_rank_percent, rankPercent)
+      }
+      if (itemLevel !== null) {
+        existing._ilvlSum += itemLevel
+        existing._ilvlCount += 1
+      }
       if (String(row.raid_night_date).localeCompare(existing.last_seen_date) > 0) {
         existing.last_seen_date = row.raid_night_date
         existing.primary_spec = row.spec
@@ -161,7 +183,12 @@ export function Players() {
       }
     }
 
-    return [...grouped.values()]
+    return [...grouped.values()].map(acc => ({
+      ...acc,
+      avg_throughput_per_second: acc._throughputCount ? acc._throughputSum / acc._throughputCount : 0,
+      avg_rank_percent: acc._rankCount ? acc._rankSum / acc._rankCount : 0,
+      avg_item_level: acc._ilvlCount ? acc._ilvlSum / acc._ilvlCount : 0,
+    }))
   }, [filteredRosterRows])
 
   const stats = useMemo(() => {

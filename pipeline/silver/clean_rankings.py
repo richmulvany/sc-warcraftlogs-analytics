@@ -27,7 +27,7 @@
 # Note: "rank" is a string in "~1265" format, not a number.
 
 import dlt
-from pyspark.sql import functions as F
+from pyspark.sql import Window, functions as F
 from pyspark.sql.types import (
     ArrayType,
     DoubleType,
@@ -98,9 +98,20 @@ _RANKINGS_SCHEMA = StructType([
 def silver_player_rankings():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_rankings")  # noqa: F821
 
+    # If the ingestion job re-landed a rankings file (e.g. to backfill rankings
+    # WCL hadn't computed yet), bronze can have multiple rows per report_code.
+    # Keep only the most recently ingested payload per report.
+    latest_window = Window.partitionBy("report_code").orderBy(F.col("_ingested_at").desc_nulls_last())
+    raw_latest = (
+        raw
+        .withColumn("_rn", F.row_number().over(latest_window))
+        .filter(F.col("_rn") == 1)
+        .drop("_rn")
+    )
+
     # Parse the opaque JSON string into a typed struct
     fights = (
-        raw
+        raw_latest
         .withColumn("parsed", F.from_json(F.col("rankings_json"), _RANKINGS_SCHEMA))
         .filter(F.col("parsed").isNotNull())
         # Explode outer data array: one row per fight entry
