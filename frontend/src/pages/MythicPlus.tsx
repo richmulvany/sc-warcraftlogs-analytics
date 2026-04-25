@@ -1002,34 +1002,3 @@ function ThumbStat({
     </div>
   )
 }
-
-function KeyLevelLegend() {
-  const { getParseColor } = useColourBlind()
-  const range = { min: 1, max: 12 }
-  const tiers: { label: string; level: number }[] = [
-    { label: '+12 push',  level: 12 },
-    { label: '+10 vault', level: 10 },
-    { label: '+7 mid',    level: 7 },
-    { label: '+1 low',    level: 1 },
-    { label: 'untimed',   level: 0 },
-  ]
-  return (
-    <div className="rounded-lg border border-ctp-surface1 bg-ctp-surface0/50 px-3 py-2">
-      <p className="text-[10px] font-mono text-ctp-overlay0 uppercase tracking-wide mb-1.5">Legend</p>
-      <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-        {tiers.map(t => (
-          <div key={t.label} className="flex items-center gap-1.5">
-            <span
-              className="inline-block w-2.5 h-2.5 rounded-sm"
-              style={{
-                backgroundColor: t.level === 0 ? '#313244' : keyLevelHeatmapColor(t.level, { getParseColor, range }),
-                opacity: t.level === 0 ? 0.45 : 0.85,
-              }}
-            />
-            <span className="text-[10px] font-mono text-ctp-overlay1">{t.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
