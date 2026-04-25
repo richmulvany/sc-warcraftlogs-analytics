@@ -124,10 +124,20 @@ an `Access-Control-Allow-Origin` header for the frontend's origin.
 
 The CORS policy lives at
 [infra/cloudflare/r2-cors.json](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/infra/cloudflare/r2-cors.json)
-and is reapplied on every run of the `Publish Dashboard Data` workflow via
-`aws s3api put-bucket-cors`. Any new frontend origin (custom domain, preview
-domain, additional localhost port) must be added there or its requests will fail
-silently in the browser even though they return HTTP 200 to `curl`.
+as a reference policy, but it is **not** applied by the GitHub Action. CORS is
+bucket configuration, not data publishing, and the R2 access key used by CI only
+needs object read/write permissions. Any new frontend origin (custom domain,
+preview domain, additional localhost port) must be added to the bucket's CORS
+policy manually in Cloudflare or with a separately-privileged admin key.
+
+Apply it manually once with an admin-capable key:
+
+```bash
+aws s3api put-bucket-cors \
+  --bucket "$R2_BUCKET" \
+  --cors-configuration "file://infra/cloudflare/r2-cors.json" \
+  --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+```
 
 To verify CORS for an origin:
 

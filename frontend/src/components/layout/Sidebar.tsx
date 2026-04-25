@@ -22,12 +22,60 @@ const SECONDARY = [
 
 const CB_MODES: ColourBlindMode[] = ['normal', 'deuteranopia', 'protanopia', 'tritanopia']
 
-export function Sidebar() {
+type Variant = 'full' | 'rail' | 'drawer'
+
+interface Props {
+  variant?: Variant
+  onNavClick?: () => void
+}
+
+export function Sidebar({ variant = 'full', onNavClick }: Props) {
   const { mode, setMode } = useColourBlind()
   const [cbOpen, setCbOpen] = useState(false)
 
+  const isRail = variant === 'rail'
+
+  /* ── Rail variant: icon-only strip ── */
+  if (isRail) {
+    const allNav = [...NAV, ...SECONDARY]
+    return (
+      <aside className="flex-shrink-0 w-16 flex flex-col bg-ctp-mantle border-r border-ctp-surface0 overflow-hidden">
+        <div className="px-2 pt-4 pb-3 border-b border-ctp-surface0 flex justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-ctp-mauve/20 border border-ctp-mauve/30 flex items-center justify-center overflow-hidden">
+            <img src="/logo.jpg" alt="Student Council logo" className="w-7 h-7 rounded-[10px] object-cover" />
+          </div>
+        </div>
+        <nav className="flex-1 flex flex-col items-center px-2 py-3 gap-1 overflow-y-auto">
+          {allNav.map(({ to, label, Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              title={label}
+              className={({ isActive }) =>
+                clsx(
+                  'w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-150',
+                  isActive
+                    ? 'bg-ctp-surface0 text-ctp-mauve'
+                    : 'text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0/70'
+                )
+              }
+            >
+              <Icon className="w-4 h-4" />
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+    )
+  }
+
+  /* ── Full / drawer variant: labelled sidebar ── */
+  const asideClass = variant === 'drawer'
+    ? 'flex flex-col w-full h-full bg-ctp-mantle overflow-hidden'
+    : 'flex-shrink-0 w-56 flex flex-col bg-ctp-mantle border-r border-ctp-surface0 overflow-hidden'
+
   return (
-    <aside className="flex-shrink-0 w-56 flex flex-col bg-ctp-mantle border-r border-ctp-surface0 overflow-hidden">
+    <aside className={asideClass}>
 
       {/* Guild branding */}
       <div className="px-5 pt-6 pb-5 border-b border-ctp-surface0 flex-shrink-0">
@@ -50,6 +98,7 @@ export function Sidebar() {
             key={to}
             to={to}
             end={to === '/'}
+            onClick={onNavClick}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
@@ -77,6 +126,7 @@ export function Sidebar() {
             <NavLink
               key={to}
               to={to}
+              onClick={onNavClick}
               className={({ isActive }) =>
                 clsx(
                   'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150',
@@ -103,7 +153,6 @@ export function Sidebar() {
       {/* Colour blind mode toggle (collapsible) */}
       <div className="px-3 pb-3 flex-shrink-0">
         <div className="bg-ctp-surface0/50 rounded-xl border border-ctp-surface1/50 overflow-hidden">
-          {/* Header — always visible, click to expand */}
           <button
             onClick={() => setCbOpen(o => !o)}
             className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-ctp-surface1/30 transition-colors"
@@ -123,7 +172,6 @@ export function Sidebar() {
             )} />
           </button>
 
-          {/* Expandable button grid */}
           {cbOpen && (
             <div className="px-2 pb-2 grid grid-cols-2 gap-1">
               {CB_MODES.map(m => (

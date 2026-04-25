@@ -319,7 +319,7 @@ function DeathTimingBoxPlot({
         })}
       </svg>
 
-      <div className="mt-2 grid grid-cols-4 gap-2">
+      <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           { label: 'Q1', value: formatTimingLabel(summary.q1) },
           { label: 'Median', value: formatTimingLabel(summary.median) },
@@ -2177,7 +2177,7 @@ export function WipeAnalysis() {
                   <LoadingState rows={4} />
                 ) : (
                   <>
-                    <ResponsiveContainer width="100%" height={280}>
+                    <div className="h-56 md:h-72 2xl:h-80"><ResponsiveContainer width="100%" height="100%">
                       <BarChart data={topWipeBosses} margin={{ top: 4, right: 8, left: -20, bottom: 48 }}>
                         <XAxis
                           dataKey="boss"
@@ -2214,7 +2214,7 @@ export function WipeAnalysis() {
                           ))}
                         </Bar>
                       </BarChart>
-                    </ResponsiveContainer>
+                    </ResponsiveContainer></div>
 
                     <div className="mt-3 flex flex-wrap gap-2">
                       <StatusPill label={`${formatNumber(stats.activeProgressBosses)} active`} active />
@@ -2243,7 +2243,7 @@ export function WipeAnalysis() {
                   </p>
                 ) : (
                   <>
-                    <ResponsiveContainer width="100%" height={200}>
+                    <div className="h-48 md:h-64 2xl:h-72"><ResponsiveContainer width="100%" height="100%">
                       <BarChart data={phaseBreakdown} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <XAxis
                           dataKey="label"
@@ -2271,7 +2271,7 @@ export function WipeAnalysis() {
                           ))}
                         </Bar>
                       </BarChart>
-                    </ResponsiveContainer>
+                    </ResponsiveContainer></div>
 
                     <div className="mt-3 space-y-1.5">
                       {phaseBreakdown.map(row => (
@@ -2312,7 +2312,7 @@ export function WipeAnalysis() {
                   <LoadingState rows={4} />
                 ) : (
                   <>
-                    <ResponsiveContainer width="100%" height={200}>
+                    <div className="h-48 md:h-64 2xl:h-72"><ResponsiveContainer width="100%" height="100%">
                       <BarChart data={durationBuckets} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <XAxis
                           dataKey="label"
@@ -2340,7 +2340,7 @@ export function WipeAnalysis() {
                           ))}
                         </Bar>
                       </BarChart>
-                    </ResponsiveContainer>
+                    </ResponsiveContainer></div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       {durationBuckets.map(bucket => (
@@ -2471,22 +2471,22 @@ export function WipeAnalysis() {
                       <col className="w-[6%]" />
                       <col className="w-[13%]" />
                     </colgroup>
-                  <thead className="border-b border-ctp-surface1">
+                  <THead>
                     <tr>
-                      <th className="px-1.5 py-2 text-left font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Boss</th>
-                      <th className="px-1.5 py-2 text-left font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Diff</th>
-                      <th className="px-1.5 py-2 text-left font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Status</th>
-                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Wipes</th>
-                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Best</th>
-                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Avg</th>
-                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Phase</th>
-                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Dur</th>
-                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Trend</th>
-                      <th className="px-1.5 py-2 text-right font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Nights</th>
-                      <th className="px-1.5 py-2 text-left font-mono text-[9px] font-semibold uppercase tracking-[0.08em] text-ctp-overlay0">Last</th>
+                      <Th className="px-1.5 py-2 min-w-[160px]">Boss</Th>
+                      <Th className="px-1.5 py-2">Diff</Th>
+                      <Th className="px-1.5 py-2">Status</Th>
+                      <Th right className="px-1.5 py-2">Wipes</Th>
+                      <Th right className="px-1.5 py-2">Best</Th>
+                      <Th right className="px-1.5 py-2">Avg</Th>
+                      <Th right className="px-1.5 py-2">Phase</Th>
+                      <Th right className="px-1.5 py-2">Dur</Th>
+                      <Th right className="px-1.5 py-2">Trend</Th>
+                      <Th right className="px-1.5 py-2">Nights</Th>
+                      <Th className="px-1.5 py-2">Last</Th>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-ctp-surface0">
+                  </THead>
+                  <TBody>
                     {historicalProgressRows.map(row => {
                       const bestProgressPct = row.isCleared ? 0 : Number(row.best_wipe_pct)
 
@@ -2538,7 +2538,7 @@ export function WipeAnalysis() {
                       </tr>
                       )
                     })}
-                  </tbody>
+                  </TBody>
                 </table>
                 </div>
               </CardBody>
@@ -2559,7 +2559,7 @@ export function WipeAnalysis() {
                 {deathEvents.loading ? (
                   <LoadingState rows={5} />
                 ) : recurringKillers.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={240}>
+                  <div className="h-56 md:h-72 2xl:h-80"><ResponsiveContainer width="100%" height="100%">
                     <BarChart data={recurringKillers} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                       <XAxis
                         type="number"
@@ -2592,7 +2592,7 @@ export function WipeAnalysis() {
                         fillOpacity={0.85}
                       />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></div>
                 ) : (
                   <p className="py-8 text-center font-mono text-xs text-ctp-overlay0">
                     No wipe-only death events in the current scope.
@@ -2612,7 +2612,7 @@ export function WipeAnalysis() {
                 {deathEvents.loading ? (
                   <LoadingState rows={5} />
                 ) : killingBlows.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={240}>
+                  <div className="h-56 md:h-72 2xl:h-80"><ResponsiveContainer width="100%" height="100%">
                     <BarChart data={killingBlows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                       <XAxis
                         type="number"
@@ -2645,7 +2645,7 @@ export function WipeAnalysis() {
                         fillOpacity={0.78}
                       />
                     </BarChart>
-                  </ResponsiveContainer>
+                  </ResponsiveContainer></div>
                 ) : (
                   <p className="py-8 text-center font-mono text-xs text-ctp-overlay0">
                     No death events in the current scope.

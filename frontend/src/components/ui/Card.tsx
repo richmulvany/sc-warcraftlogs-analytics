@@ -22,7 +22,7 @@ export function Card({ children, className, hover = false }: CardProps) {
 
 export function CardHeader({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={clsx('px-5 py-4 border-b border-ctp-surface1', className)}>
+    <div className={clsx('px-4 py-3 md:px-5 md:py-4 border-b border-ctp-surface1', className)}>
       {children}
     </div>
   )
@@ -30,16 +30,16 @@ export function CardHeader({ children, className }: { children: React.ReactNode;
 
 export function CardTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <h3 className={clsx('text-sm font-semibold text-ctp-text', className)}>
+    <h3 className={clsx('text-sm 2xl:text-[15px] font-semibold text-ctp-text', className)}>
       {children}
     </h3>
   )
 }
 
 export function CardSubtitle({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs text-ctp-overlay1 mt-0.5">{children}</p>
+  return <p className="text-xs 2xl:text-sm text-ctp-overlay1 mt-0.5">{children}</p>
 }
 
 export function CardBody({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={clsx('p-5', className)}>{children}</div>
+  return <div className={clsx('p-4 md:p-5', className)}>{children}</div>
 }

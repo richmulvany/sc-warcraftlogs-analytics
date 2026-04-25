@@ -31,7 +31,7 @@
   }
 
   .section-label {
-    @apply text-[10px] font-mono font-semibold uppercase tracking-[0.12em] text-ctp-overlay0;
+    @apply text-[10px] xl:text-[11px] 2xl:text-xs font-mono font-semibold uppercase tracking-[0.12em] text-ctp-overlay0;
   }
 }
 

@@ -258,7 +258,7 @@ export function Attendance() {
             <THead>
               <tr>
                 <Th>#</Th>
-                <Th>Player</Th>
+                <Th className="min-w-[160px]">Player</Th>
                 <Th right>
                   <button onClick={() => toggleSort('attendance_rate_pct')} className="hover:text-ctp-text">
                     Rate <SortIcon k="attendance_rate_pct" />
