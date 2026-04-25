@@ -9,7 +9,7 @@ ADRs document significant technical decisions: what was decided, why, and what a
 | ADR | Title | Status |
 |-----|-------|--------|
 | [ADR-001](ADR-001-dlt-over-notebooks.md) | Use DLT instead of notebooks + jobs | Accepted |
-| [ADR-002](ADR-002-static-json-export.md) | Static CSV export for frontend data | Accepted |
+| [ADR-002](ADR-002-static-json-export.md) | Static JSON publish flow for frontend data | Accepted |
 | [ADR-003](ADR-003-adapter-pattern.md) | Adapter pattern for ingestion | Accepted |
 
 ## Creating a new ADR

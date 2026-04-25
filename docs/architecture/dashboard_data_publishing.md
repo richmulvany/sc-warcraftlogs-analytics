@@ -1,0 +1,183 @@
+# Dashboard Data Publishing
+
+## Why this exists
+
+The dashboard used to depend on generated CSV files being written into
+`frontend/public/data` and committed back to GitHub. That made deploys noisy,
+mixed generated artifacts with source code, and tied frontend hosting to the
+repository checkout.
+
+The project now uses a static data publishing flow instead:
+
+Databricks gold tables -> UC Volume JSON assets -> GitHub Actions -> Cloudflare R2 -> static frontend
+
+This keeps the frontend statically hostable while removing generated dashboard
+data from the repo.
+
+## Why GitHub Actions sits in the middle
+
+This repo runs on Databricks Free Edition. The implementation does **not**
+assume Databricks can upload directly to Cloudflare R2.
+
+Instead:
+
+1. Databricks writes dashboard JSON assets to a Unity Catalog volume.
+2. GitHub Actions downloads those files using the Databricks CLI.
+3. GitHub Actions uploads them to Cloudflare R2 using S3-compatible credentials.
+4. The frontend fetches them from a public R2 URL at runtime.
+
+## Databricks-side assets
+
+Publisher script:
+
+- [scripts/publish_dashboard_assets.py](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/scripts/publish_dashboard_assets.py)
+
+Databricks job wrapper:
+
+- [ingestion/jobs/publish_dashboard_assets.py](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/ingestion/jobs/publish_dashboard_assets.py)
+
+Default output path:
+
+- `/Volumes/03_gold/sc_analytics/dashboard_exports`
+
+Output layout:
+
+```text
+/Volumes/03_gold/sc_analytics/dashboard_exports/
+  latest/
+    manifest.json
+    raid_summary.json
+    player_attendance.json
+    ...
+  snapshots/
+    2026-04-25T02-15-00Z/
+      manifest.json
+      raid_summary.json
+      player_attendance.json
+      ...
+```
+
+The publisher writes:
+
+- `manifest.json`
+- one JSON file per exported dataset
+- a timestamped snapshot folder
+- a mirrored `latest/` folder for the frontend
+
+## GitHub Actions workflow
+
+Workflow:
+
+- [.github/workflows/publish-dashboard-data.yml](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/.github/workflows/publish-dashboard-data.yml)
+
+It:
+
+1. installs the Databricks CLI
+2. downloads `dbfs:/Volumes/03_gold/sc_analytics/dashboard_exports/latest`
+3. validates `manifest.json`
+4. prints a file size summary and fails if any single JSON file exceeds 25 MB
+5. fails if the downloaded `latest/` folder exceeds 125 MB
+6. uploads only `latest/*` to Cloudflare R2
+7. uploads the current snapshot to `snapshots/<snapshot_id>/`
+
+## Required GitHub secrets
+
+Databricks:
+
+- `DATABRICKS_HOST`
+- `DATABRICKS_TOKEN`
+
+Cloudflare R2:
+
+- `R2_ACCOUNT_ID`
+- `R2_ACCESS_KEY_ID`
+- `R2_SECRET_ACCESS_KEY`
+- `R2_BUCKET`
+- optional `R2_PREFIX`
+- optional `PUBLIC_DATA_BASE_URL`
+
+## Required Cloudflare R2 setup
+
+You need:
+
+- an R2 bucket
+- an access key / secret with write access to that bucket
+- a public read URL for the bucket contents
+
+Recommended:
+
+- attach a custom domain such as `https://data.your-domain.com/latest`
+- point the frontend at that public URL with `VITE_DASHBOARD_DATA_BASE_URL`
+- add an R2 lifecycle rule that deletes `snapshots/` objects after 14 days
+- configure a Cloudflare Budget Alert at the lowest available threshold, ideally £0.01 or £1
+
+## Frontend runtime config
+
+Environment variable:
+
+- `VITE_DASHBOARD_DATA_BASE_URL`
+
+Example:
+
+```bash
+VITE_DASHBOARD_DATA_BASE_URL=https://data.sc-analytics.org/latest
+```
+
+When it is set:
+
+- the frontend fetches `manifest.json`
+- datasets are loaded from the manifest-driven JSON paths
+- the header shows `generated_at` from the manifest
+
+When it is **not** set:
+
+- the frontend falls back to the old local static CSV path (`/data`)
+- this preserves local development and rollback options
+
+## Export guardrails
+
+The Databricks publisher enforces these defaults:
+
+- `MAX_DATASET_ROWS = 100_000`
+- `MAX_DATASET_BYTES = 25 MB`
+- `MAX_TOTAL_EXPORT_BYTES = 125 MB`
+
+They can be overridden with:
+
+- `DASHBOARD_EXPORT_MAX_DATASET_ROWS`
+- `DASHBOARD_EXPORT_MAX_DATASET_BYTES`
+- `DASHBOARD_EXPORT_MAX_TOTAL_EXPORT_BYTES`
+
+If any dataset or the overall export exceeds the configured limits, the publish fails loudly.
+
+## Manual runbook
+
+### 1. Publish assets in Databricks
+
+Run the Databricks job or notebook wrapper:
+
+```bash
+databricks bundle run publish_dashboard_assets
+```
+
+### 2. Push assets to R2
+
+Run the GitHub Actions workflow manually with `workflow_dispatch`:
+
+- `Publish Dashboard Data`
+
+### 3. Verify
+
+Check:
+
+- `manifest.json` exists in R2
+- dataset JSON files exist under the configured public URL
+- the frontend header shows a recent “updated” time
+
+## Rollback
+
+If the hosted JSON path is unavailable, remove `VITE_DASHBOARD_DATA_BASE_URL` from
+the frontend deployment environment and the app will fall back to local/static CSV
+loading.
+
+That gives a clean migration path without forcing a big-bang frontend rewrite.

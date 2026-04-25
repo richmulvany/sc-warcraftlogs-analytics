@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react'
 import Papa from 'papaparse'
+import {
+  fetchDataset,
+  getLocalCsvBaseUrl,
+  isRemoteDashboardDataEnabled,
+} from '../lib/dashboardDataClient'
 
 export interface CSVResult<T> {
   data: T[]
@@ -11,7 +16,40 @@ interface UseCSVOptions {
   optional?: boolean
 }
 
-const BASE = import.meta.env.VITE_DATA_BASE_URL ?? '/data'
+const CSV_FILENAME_TO_DATASET_KEY: Record<string, string> = {
+  'gold_raid_summary.csv': 'raid_summary',
+  'gold_player_performance_summary.csv': 'player_performance_summary',
+  'gold_boss_progression.csv': 'boss_progression',
+  'gold_encounter_catalog.csv': 'encounter_catalog',
+  'gold_boss_kill_roster.csv': 'boss_kill_roster',
+  'gold_player_attendance.csv': 'player_attendance',
+  'gold_player_utility_by_pull.csv': 'player_utility_by_pull',
+  'gold_wipe_survival_events.csv': 'wipe_survival_events',
+  'gold_wipe_cooldown_utilization.csv': 'wipe_cooldown_utilization',
+  'gold_guild_roster.csv': 'guild_roster',
+  'gold_weekly_activity.csv': 'weekly_activity',
+  'guild_zone_ranks.csv': 'guild_zone_ranks',
+  'gold_boss_wipe_analysis.csv': 'boss_wipe_analysis',
+  'gold_boss_progress_history.csv': 'boss_progress_history',
+  'gold_boss_pull_history.csv': 'boss_pull_history',
+  'gold_player_survivability.csv': 'player_survivability',
+  'gold_player_death_events.csv': 'player_death_events',
+  'gold_progression_timeline.csv': 'progression_timeline',
+  'gold_raid_team.csv': 'raid_team',
+  'live_raid_roster.csv': 'live_raid_roster',
+  'player_character_media.csv': 'player_character_media',
+  'player_character_equipment.csv': 'player_character_equipment',
+  'player_raid_achievements.csv': 'player_raid_achievements',
+  'gold_best_kills.csv': 'best_kills',
+  'gold_boss_mechanics.csv': 'boss_mechanics',
+  'gold_player_boss_performance.csv': 'player_boss_performance',
+  'gold_player_mplus_summary.csv': 'player_mplus_summary',
+  'gold_player_mplus_score_history.csv': 'player_mplus_score_history',
+  'gold_player_mplus_run_history.csv': 'player_mplus_run_history',
+  'gold_player_mplus_weekly_activity.csv': 'player_mplus_weekly_activity',
+  'gold_player_mplus_dungeon_breakdown.csv': 'player_mplus_dungeon_breakdown',
+  'preparation_overrides.csv': 'preparation_overrides',
+}
 
 function normaliseCSVValue(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString()
@@ -36,22 +74,47 @@ export function useCSV<T extends object>(filename: string, options: UseCSVOption
     setLoading(true)
     setError(null)
 
-    fetch(`${BASE}/${filename}`)
-      .then(res => {
-        if (!res.ok) {
-          if (optional && res.status === 404) return ''
-          throw new Error(`HTTP ${res.status} loading ${filename}`)
+    const datasetKey = CSV_FILENAME_TO_DATASET_KEY[filename]
+    const remoteEnabled = isRemoteDashboardDataEnabled() && Boolean(datasetKey)
+    const loadPromise: Promise<T[] | string> = remoteEnabled
+      ? fetchDataset<T>(datasetKey).then(rows =>
+          rows.map(row =>
+            Object.fromEntries(
+              Object.entries(row as Record<string, unknown>).map(([key, value]) => [
+                key,
+                Array.isArray(value) || (value && typeof value === 'object')
+                  ? JSON.stringify(value)
+                  : normaliseCSVValue(value),
+              ])
+            ) as T
+          )
+        )
+      : fetch(`${getLocalCsvBaseUrl()}/${filename}`)
+          .then(res => {
+            if (!res.ok) {
+              if (optional && res.status === 404) return ''
+              throw new Error(`HTTP ${res.status} loading ${filename}`)
+            }
+            return res.text()
+          })
+
+    loadPromise
+      .then(payload => {
+        if (Array.isArray(payload)) {
+          if (!cancelled) {
+            setData(payload)
+            setLoading(false)
+          }
+          return
         }
-        return res.text()
-      })
-      .then(text => {
-        if (optional && text.trim() === '') {
+
+        if (optional && payload.trim() === '') {
           setData([])
           setLoading(false)
           return
         }
 
-        const result = Papa.parse<T>(text, {
+        const result = Papa.parse<T>(payload, {
           header: true,
           skipEmptyLines: true,
           dynamicTyping: true,

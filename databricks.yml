@@ -18,6 +18,7 @@ sync:
   paths:
     - pipeline
     - ingestion
+    - scripts
 
 variables:
   catalog:
@@ -166,6 +167,12 @@ resources:
         - task_key: copy_landing
           notebook_task:
             notebook_path: ingestion/jobs/migrate_bronze_landing_volumes.py
+    publish_dashboard_assets:
+      name: Publish Dashboard Assets
+      tasks:
+        - task_key: publish_assets
+          notebook_task:
+            notebook_path: ingestion/jobs/publish_dashboard_assets.py
     nightly_ingestion:
       name: Nightly WarcraftLogs Ingestion
       schedule:

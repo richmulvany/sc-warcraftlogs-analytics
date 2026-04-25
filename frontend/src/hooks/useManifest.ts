@@ -1,13 +1,22 @@
 import { useState, useEffect } from 'react'
-import { api, ExportManifest } from '../api'
+import {
+  DashboardManifest,
+  fetchManifest,
+  isRemoteDashboardDataEnabled,
+} from '../lib/dashboardDataClient'
 
 export function useManifest() {
-  const [manifest, setManifest] = useState<ExportManifest | null>(null)
+  const [manifest, setManifest] = useState<DashboardManifest | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api
-      .fetchManifest()
+    if (!isRemoteDashboardDataEnabled()) {
+      setManifest(null)
+      setLoading(false)
+      return
+    }
+
+    fetchManifest()
       .then(setManifest)
       .catch(() => setManifest(null))
       .finally(() => setLoading(false))

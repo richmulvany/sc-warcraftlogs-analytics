@@ -1,0 +1,98 @@
+name: Publish Dashboard Data
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Databricks -> R2
+    runs-on: ubuntu-latest
+    if: github.repository != 'richmulvany/databricks-pipeline-template'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Databricks CLI
+        uses: databricks/setup-cli@main
+
+      - name: Download latest dashboard assets
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          mkdir -p dashboard_exports
+          databricks fs cp \
+            dbfs:/Volumes/03_gold/sc_analytics/dashboard_exports/latest \
+            ./dashboard_exports/latest \
+            -r
+
+      - name: Validate manifest, file sizes, and export size
+        run: |
+          test -f ./dashboard_exports/latest/manifest.json
+          find ./dashboard_exports/latest -name '*.json' | grep -q .
+          python - <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          latest = Path("dashboard_exports/latest")
+          manifest = json.loads((latest / "manifest.json").read_text())
+          json_files = sorted(latest.glob("*.json"))
+          total_bytes = 0
+
+          print("generated_at:", manifest["generated_at"])
+          print("snapshot_id:", manifest["snapshot_id"])
+          print("dataset_count:", len(manifest["datasets"]))
+          print("file size summary:")
+
+          for path in json_files:
+              size = path.stat().st_size
+              total_bytes += size
+              print(f"  {path.name}: {size} bytes")
+              if size > 25 * 1024 * 1024:
+                  print(f"ERROR: {path.name} exceeds 25 MB", file=sys.stderr)
+                  sys.exit(1)
+
+          print("total_bytes:", total_bytes)
+          if total_bytes > 125 * 1024 * 1024:
+              print("ERROR: latest/ exceeds 125 MB", file=sys.stderr)
+              sys.exit(1)
+          PY
+
+      - name: Upload latest assets to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PREFIX: ${{ secrets.R2_PREFIX }}
+        run: |
+          ROOT_PREFIX="${R2_PREFIX:+${R2_PREFIX}/}"
+          aws s3 sync ./dashboard_exports/latest "s3://${R2_BUCKET}/${ROOT_PREFIX}latest" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --delete \
+            --cache-control "public, max-age=300"
+
+      - name: Upload current snapshot to Cloudflare R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PREFIX: ${{ secrets.R2_PREFIX }}
+        run: |
+          SNAPSHOT_ID="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("dashboard_exports/latest/manifest.json").read_text())
+          print(manifest["snapshot_id"])
+          PY
+          )"
+          ROOT_PREFIX="${R2_PREFIX:+${R2_PREFIX}/}"
+          aws s3 sync ./dashboard_exports/latest "s3://${R2_BUCKET}/${ROOT_PREFIX}snapshots/${SNAPSHOT_ID}" \
+            --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
+            --delete \
+            --cache-control "public, max-age=300"

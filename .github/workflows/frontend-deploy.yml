@@ -5,17 +5,13 @@ on:
     branches: [main]
     paths:
       - "frontend/**"
-      - "data/exports/**"
-  workflow_run:
-    workflows: ["Export Data"]
-    types: [completed]
   workflow_dispatch:
 
 jobs:
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    if: github.repository != 'richmulvany/databricks-pipeline-template' && (github.event.workflow_run.conclusion == 'success' || github.event_name != 'workflow_run')
+    if: github.repository != 'richmulvany/databricks-pipeline-template'
     permissions:
       contents: read
       pages: write
@@ -34,9 +30,7 @@ jobs:
       - name: Install and build
         run: cd frontend && npm ci && npm run build
         env:
-          VITE_DATA_BASE_URL: ${{ vars.DATA_BASE_URL }}
-      - name: Copy exported data into build
-        run: cp -r data/exports frontend/dist/data 2>/dev/null || true
+          VITE_DASHBOARD_DATA_BASE_URL: ${{ vars.PUBLIC_DATA_BASE_URL }}
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
