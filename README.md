@@ -178,6 +178,33 @@ Implementation notes:
   `00_governance.warcraftlogs_admin.preparation_identity_overrides` and are exported
   by `scripts/export_gold_tables.py`
 
+## Mythic+ Page
+
+The `Mythic+` page is now split between a fixed raid-team KPI strip and a
+switchable analysis scope for the main panels.
+
+What it currently does:
+- keeps the top KPI strip (`Active Raiders`, `Avg Score`, `Top Scorer`, `Keys This Reset`)
+  scoped to active raid-team members with non-zero current Raider.IO score
+- resolves raid-team membership from `live_raid_roster.csv` when present, with
+  `gold_raid_team.csv` fallback
+- lets the main page panels toggle between `Guild` and `Raid Team` scope
+- applies the selected scope to leaderboard, vault progress, dungeon coverage,
+  score trajectory, and push-candidate panels
+- rescales the dungeon coverage heatmap against the currently visible filtered
+  key range instead of a fixed global key band
+- uses a relative y-axis for score trajectory so filtered score deltas remain
+  readable while keeping absolute score labels and tooltips
+
+Implementation notes:
+- Mythic+ page data comes from `gold_player_mplus_summary.csv`,
+  `gold_player_mplus_score_history.csv`, `gold_player_mplus_weekly_activity.csv`,
+  and `gold_player_mplus_dungeon_breakdown.csv`
+- raid-team scope follows the same live-roster-first resolution pattern already
+  used by the roster/preparation views
+- Raider.IO score history starts from the first successful nightly ingestion, so
+  early trend lines are relative only to captured snapshots, not true season start
+
 ### Blizzard Profile API
 - **Auth**: OAuth2 client credentials (basic auth)
 - **In Databricks ingestion**:

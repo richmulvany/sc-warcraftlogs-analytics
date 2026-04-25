@@ -17,7 +17,7 @@ import {
   useBossKillRoster,
   useBossWipeAnalysis,
 } from '../hooks/useGoldData'
-import { formatNumber, formatDateShort } from '../utils/format'
+import { formatNumber, formatDateShort, toFiniteNumber } from '../utils/format'
 import { isIncludedZoneName } from '../utils/zones'
 import { formatDuration, formatThroughput, getClassColor, getThroughputColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -162,12 +162,16 @@ export function Overview() {
   )
 
   const topPerformers = useMemo(() => {
-    const grouped = new Map<string, LeaderboardRow>()
+    type Acc = LeaderboardRow & {
+      _rankSum: number; _rankCount: number
+      _throughputSum: number; _throughputCount: number
+    }
+    const grouped = new Map<string, Acc>()
 
     for (const row of scopedBossRows) {
       const playerName = row.player_name
-      const rankPercent = num(row.rank_percent)
-      const throughput = num(row.throughput_per_second)
+      const rankPercent = toFiniteNumber(row.rank_percent)
+      const throughput = toFiniteNumber(row.throughput_per_second)
       const existing = grouped.get(playerName)
 
       if (!existing) {
@@ -176,21 +180,35 @@ export function Overview() {
           player_class: row.player_class,
           primary_spec: row.spec,
           role: row.role,
-          avg_rank_percent: rankPercent,
-          avg_throughput_per_second: throughput,
+          avg_rank_percent: rankPercent ?? 0,
+          avg_throughput_per_second: throughput ?? 0,
           kills_tracked: 1,
+          _rankSum: rankPercent ?? 0,
+          _rankCount: rankPercent === null ? 0 : 1,
+          _throughputSum: throughput ?? 0,
+          _throughputCount: throughput === null ? 0 : 1,
         })
         continue
       }
 
-      const nextKills = existing.kills_tracked + 1
-      existing.avg_rank_percent = ((existing.avg_rank_percent * existing.kills_tracked) + rankPercent) / nextKills
-      existing.avg_throughput_per_second = ((existing.avg_throughput_per_second * existing.kills_tracked) + throughput) / nextKills
-      existing.kills_tracked = nextKills
+      existing.kills_tracked += 1
+      if (rankPercent !== null) {
+        existing._rankSum += rankPercent
+        existing._rankCount += 1
+      }
+      if (throughput !== null) {
+        existing._throughputSum += throughput
+        existing._throughputCount += 1
+      }
     }
 
     return [...grouped.values()]
-      .filter(player => player.kills_tracked >= 2)
+      .filter(player => player.kills_tracked >= 2 && player._rankCount > 0)
+      .map(acc => ({
+        ...acc,
+        avg_rank_percent: acc._rankCount ? acc._rankSum / acc._rankCount : 0,
+        avg_throughput_per_second: acc._throughputCount ? acc._throughputSum / acc._throughputCount : 0,
+      }))
       .sort((a, b) => b.avg_rank_percent - a.avg_rank_percent)
       .slice(0, 9)
   }, [scopedBossRows])
@@ -341,11 +359,11 @@ export function Overview() {
               {activityMode === 'compare' ? (
                 <>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-0.5 rounded" style={{ backgroundColor: '#cba6f7' }} />
+                    <div className="w-4 h-0.5 rounded" style={{ backgroundColor: topTierColor }} />
                     <span className="text-[11px] font-mono text-ctp-overlay0">Current Tier</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-4 h-0.5 rounded" style={{ backgroundColor: '#89b4fa' }} />
+                    <div className="w-4 h-0.5 rounded" style={{ backgroundColor: chartColors.primary }} />
                     <span className="text-[11px] font-mono text-ctp-overlay0">Previous Tier</span>
                   </div>
                 </>

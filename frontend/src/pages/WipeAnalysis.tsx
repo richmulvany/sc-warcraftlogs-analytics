@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { SectionNav, useActiveSection } from '../components/ui/SectionNav'
 import {
   BarChart,
   Bar,
@@ -35,6 +36,13 @@ import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
 const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal'] as const
+
+const WA_SECTIONS = [
+  { id: 'overview',  label: 'Overview' },
+  { id: 'wipes',     label: 'Wipe Walls' },
+  { id: 'deaths',    label: 'Deaths' },
+  { id: 'survival',  label: 'Survival' },
+] as const
 
 type SurvivabilitySortKey =
   | 'deathsPerKill'
@@ -667,11 +675,13 @@ function RecurringKillerTooltip({ active, payload }: any) {
 
 export function WipeAnalysis() {
   const {
+    killColor,
     wipeColor,
     phaseColors,
     chartColors,
     getDeathRateColor,
     getParseColor,
+    getRoleColor,
     topTierColor,
   } = useColourBlind()
 
@@ -684,6 +694,8 @@ export function WipeAnalysis() {
   const utilityByPull = usePlayerUtilityByPull()
   const wipeSurvivalEvents = useWipeSurvivalEvents()
   const wipeCooldownUtilization = useWipeCooldownUtilization()
+
+  const activeSectionId = useActiveSection(WA_SECTIONS)
 
   const [diff, setDiff] = useState<string>('Mythic')
   const [selectedTier, setSelectedTier] = useState<string>('All')
@@ -1103,7 +1115,7 @@ export function WipeAnalysis() {
                   >
                     <div
                       className="h-full"
-                      style={{ width: `${actualPct}%`, backgroundColor: '#a6e3a1', opacity: 0.9 }}
+                      style={{ width: `${actualPct}%`, backgroundColor: killColor, opacity: 0.9 }}
                     />
                     <div
                       className="h-full"
@@ -1476,8 +1488,8 @@ export function WipeAnalysis() {
     return candles
   }, [pullHistory.data, currentProgressTarget, currentProgressTargetKey, selectedTier])
 
-  const progressImprovedColor = '#a6e3a1'
-  const progressWorseColor = '#f38ba8'
+  const progressImprovedColor = killColor
+  const progressWorseColor = wipeColor
   const progressNeutralColor = '#9399b2'
 
   const killingBlows = useMemo(() => {
@@ -1931,7 +1943,12 @@ export function WipeAnalysis() {
   const totalPhaseBreakdownWipes = sectionTotal(phaseBreakdown, 'wipes')
 
   return (
-    <AppLayout title="Wipe Analysis" subtitle="where progression stalls and what tends to kill raids">
+    <AppLayout
+      title="Wipe Analysis"
+      subtitle="where progression stalls and what tends to kill raids"
+      nav={<SectionNav sections={WA_SECTIONS} activeId={activeSectionId} />}
+    >
+      <section id="overview" className="space-y-4 scroll-mt-20">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {loading ? (
           Array(4)
@@ -2014,6 +2031,7 @@ export function WipeAnalysis() {
           className="w-48 rounded-xl border border-ctp-surface1 bg-ctp-surface0 px-3 py-1.5 font-mono text-xs text-ctp-subtext1 placeholder-ctp-overlay0 transition-colors focus:border-ctp-mauve/40 focus:outline-none"
         />
       </div>
+      </section>
 
       {!loading && !error && !hasBossData ? (
         <Card>
@@ -2026,7 +2044,8 @@ export function WipeAnalysis() {
       ) : null}
 
       {hasBossData && (
-        <div className="space-y-6">
+        <>
+          <section id="wipes" className="space-y-6 scroll-mt-20">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <Card className="h-full xl:col-span-2">
               <CardHeader>
@@ -2525,7 +2544,9 @@ export function WipeAnalysis() {
               </CardBody>
             )}
           </Card>
+          </section>
 
+          <section id="deaths" className="space-y-6 scroll-mt-20">
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card className="h-full">
               <CardHeader>
@@ -2782,8 +2803,8 @@ export function WipeAnalysis() {
                       {(() => {
                         const segments = (
                           [
-                            { key: 'Tank', color: '#89b4fa' },
-                            { key: 'Healer', color: '#a6e3a1' },
+                            { key: 'Tank', color: getRoleColor('tank') },
+                            { key: 'Healer', color: getRoleColor('healer') },
                             { key: 'DPS', color: wipeColor },
                             { key: 'Unknown', color: '#6c7086' },
                           ] as const
@@ -3004,7 +3025,7 @@ export function WipeAnalysis() {
                 title: 'External Cooldown Capacity',
                 detail: 'Single-target externals ranked by unused cast capacity across wipe pulls in scope.',
                 rows: externalCooldownRows,
-                accent: '#fab387',
+                accent: getParseColor(95),
               },
             ].map(panel => {
               const totalMissed = panel.rows.reduce((sum, row) => sum + row.missed_casts, 0)
@@ -3045,7 +3066,9 @@ export function WipeAnalysis() {
               )
             })}
           </div>
+          </section>
 
+          <section id="survival" className="space-y-6 scroll-mt-20">
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -3150,7 +3173,7 @@ export function WipeAnalysis() {
                         row.survival_failure_score >= 30
                           ? wipeColor
                           : row.survival_failure_score >= 15
-                            ? '#fab387'
+                            ? getParseColor(95)
                             : '#a6adc8'
 
                       return (
@@ -3457,7 +3480,8 @@ export function WipeAnalysis() {
               </CardBody>
             )}
           </Card>
-        </div>
+          </section>
+        </>
       )}
     </AppLayout>
   )

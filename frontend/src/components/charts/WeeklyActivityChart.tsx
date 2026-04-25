@@ -256,9 +256,10 @@ function CompareChart({
   metric: 'bossKills' | 'wipes'
   showDivider?: boolean
 }) {
+  const { topTierColor, chartColors } = useColourBlind()
   const data = buildComparisonData(currentTier, previousTier, metric)
-  const currentColor = '#cba6f7'
-  const previousColor = '#89b4fa'
+  const currentColor = topTierColor
+  const previousColor = chartColors.primary
 
   return (
     <div className={showDivider ? 'pt-4 border-t border-ctp-surface1' : ''}>

@@ -107,6 +107,7 @@ You need:
 - an R2 bucket
 - an access key / secret with write access to that bucket
 - a public read URL for the bucket contents
+- a CORS policy that allows the frontend's origin
 
 Recommended:
 
@@ -114,6 +115,29 @@ Recommended:
 - point the frontend at that public URL with `VITE_DASHBOARD_DATA_BASE_URL`
 - add an R2 lifecycle rule that deletes `snapshots/` objects after 14 days
 - configure a Cloudflare Budget Alert at the lowest available threshold, ideally £0.01 or £1
+
+### CORS
+
+The frontend fetches `manifest.json` and dataset JSON files cross-origin from the
+data subdomain. The browser will refuse to read those responses unless R2 returns
+an `Access-Control-Allow-Origin` header for the frontend's origin.
+
+The CORS policy lives at
+[infra/cloudflare/r2-cors.json](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/infra/cloudflare/r2-cors.json)
+and is reapplied on every run of the `Publish Dashboard Data` workflow via
+`aws s3api put-bucket-cors`. Any new frontend origin (custom domain, preview
+domain, additional localhost port) must be added there or its requests will fail
+silently in the browser even though they return HTTP 200 to `curl`.
+
+To verify CORS for an origin:
+
+```bash
+curl -sv -H "Origin: https://your.frontend" \
+  https://data.sc-analytics.org/latest/manifest.json -o /dev/null 2>&1 \
+  | grep -i access-control-allow-origin
+```
+
+A missing header means the origin is not in the allowlist.
 
 ## Frontend runtime config
 
@@ -137,6 +161,11 @@ When it is **not** set:
 
 - the frontend falls back to the old local static CSV path (`/data`)
 - this preserves local development and rollback options
+- in production builds without `frontend/public/data/` committed, those CSV
+  fetches will 404 — the manifest URL is the load-bearing config
+
+`useManifest` surfaces fetch failures via its `error` field and logs them to the
+browser console, so a missing manifest no longer fails silently.
 
 ## Export guardrails
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { SectionNav, useActiveSection } from '../components/ui/SectionNav'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   CartesianGrid,
@@ -42,7 +43,7 @@ import {
 } from '../hooks/useGoldData'
 import { formatThroughput, getClassColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
-import { formatDate, formatPct } from '../utils/format'
+import { formatDate, formatPct, toFiniteNumber, meanIgnoringNulls, getRelativeScoreDomain } from '../utils/format'
 import { isIncludedZoneName } from '../utils/zones'
 import type {
   PlayerBossPerformance,
@@ -57,6 +58,12 @@ type BossParseMode = 'average' | 'best'
 type MplusHeatmapMode = 'level' | 'quantity'
 
 const DIFFICULTIES: DifficultyFilter[] = ['All', 'Mythic', 'Heroic', 'Normal']
+
+const PD_SECTIONS = [
+  { id: 'profile',     label: 'Profile' },
+  { id: 'raid',        label: 'Raid' },
+  { id: 'mplus',       label: 'M+' },
+] as const
 const BOSS_PARSE_MODES: readonly { value: BossParseMode; label: string }[] = [
   { value: 'average', label: 'Average' },
   { value: 'best', label: 'Best' },
@@ -66,11 +73,6 @@ const MPLUS_HEATMAP_MODES: readonly { value: MplusHeatmapMode; label: string }[]
   { value: 'quantity', label: 'Quantity' },
 ]
 const COMPLETION_DIFFICULTIES: Exclude<DifficultyFilter, 'All'>[] = ['Mythic', 'Heroic', 'Normal']
-const COMPLETION_COLORS: Record<Exclude<DifficultyFilter, 'All'>, string> = {
-  Mythic: '#cba6f7',
-  Heroic: '#89b4fa',
-  Normal: '#a6e3a1',
-}
 const WARCRAFTLOGS_LINK_TITLE = 'view on warcraftlogs - opens in a new tab'
 const RAIDERIO_LINK_TITLE = 'view on raider.io - opens in a new tab'
 
@@ -363,6 +365,7 @@ function ItemTooltip({
   color: string
   position: { left: number; top: number }
 }) {
+  const { killColor } = useColourBlind()
   const enchants = parseGearJson(item.enchantments_json)
   const sockets = parseGearJson(item.sockets_json)
   const stats = parseGearJson(item.stats_json)
@@ -394,7 +397,7 @@ function ItemTooltip({
       {enchants.length > 0 && (
         <div className="mt-3 space-y-0.5">
           {enchants.map((enchant, index) => (
-            <p key={index} className="text-xs text-ctp-green">
+            <p key={index} className="text-xs" style={{ color: killColor }}>
               Enchanted: {enchantLabel(enchant)}
             </p>
           ))}
@@ -426,18 +429,19 @@ function ItemTooltip({
 }
 
 function GearSlot({ item, label, classColor }: { item?: PlayerCharacterEquipment; label: string; classColor: string }) {
+  const { killColor, wipeColor } = useColourBlind()
   const [tooltipPosition, setTooltipPosition] = useState<{ left: number; top: number } | null>(null)
   const qualityColor = item ? (QUALITY_COLORS[item.quality] ?? classColor) : '#45475a'
   const enchants = item ? parseGearJson(item.enchantments_json) : []
   const sockets = item ? parseGearJson(item.sockets_json) : []
   const missingEnchant = Boolean(item && ENCHANTABLE_SLOTS.has(item.slot_type) && enchants.length === 0)
   const missingGem = Boolean(item && SOCKET_EXPECTED_SLOTS.has(item.slot_type) && sockets.length === 0)
-  const slotBorderColor = missingEnchant ? '#f38ba8' : item ? qualityColor : '#313244'
+  const slotBorderColor = missingEnchant ? wipeColor : item ? qualityColor : '#313244'
 
   return (
     <div
       className="group relative flex min-h-[54px] items-center gap-2 rounded-xl border bg-ctp-surface0/55 px-2 py-1.5"
-      style={{ borderColor: missingEnchant ? '#f38ba8' : item ? `${qualityColor}88` : '#45475a' }}
+      style={{ borderColor: missingEnchant ? wipeColor : item ? `${qualityColor}88` : '#45475a' }}
       onMouseMove={(event) => {
         if (!item) return
         setTooltipPosition(clampTooltipPosition(event.clientX, event.clientY))
@@ -465,17 +469,17 @@ function GearSlot({ item, label, classColor }: { item?: PlayerCharacterEquipment
         {(enchants.length > 0 || sockets.length > 0 || missingEnchant || missingGem) && (
           <div className="mt-0.5 flex items-center gap-1.5">
             {enchants.length > 0 && (
-              <span className="text-[9px] font-mono text-ctp-green">
+              <span className="text-[9px] font-mono" style={{ color: killColor }}>
                 {enchantTierLabel(enchants) ?? 'ench'}
               </span>
             )}
-            {missingEnchant && <span className="text-[9px] font-mono text-ctp-red">missing enchant</span>}
+            {missingEnchant && <span className="text-[9px] font-mono" style={{ color: wipeColor }}>missing enchant</span>}
             {sockets.slice(0, 3).map((socket, index) => (
               <span key={index} className="h-1.5 w-1.5 rounded-full bg-ctp-sapphire" title={socket.item_name || socket.socket_type} />
             ))}
             {missingGem && (
-              <span className="inline-flex items-center gap-1 text-[9px] font-mono text-ctp-red">
-                <span className="h-1.5 w-1.5 rounded-full bg-ctp-red" />
+              <span className="inline-flex items-center gap-1 text-[9px] font-mono" style={{ color: wipeColor }}>
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: wipeColor }} />
                 missing gem
               </span>
             )}
@@ -494,6 +498,7 @@ function CompletionTooltip({
   row: TierCompletionRow
   position: { left: number; top: number }
 }) {
+  const { killColor, wipeColor } = useColourBlind()
   const killed = row.bosses.filter(boss => boss.killed)
   const missing = row.bosses.filter(boss => !boss.killed)
 
@@ -518,7 +523,7 @@ function CompletionTooltip({
               <div className="space-y-1">
                 {killed.map(boss => (
                   <p key={boss.name} className="truncate text-xs text-ctp-text">
-                    <span className="mr-2 text-ctp-green">✓</span>{boss.name}
+                    <span className="mr-2" style={{ color: killColor }}>✓</span>{boss.name}
                   </p>
                 ))}
               </div>
@@ -532,7 +537,7 @@ function CompletionTooltip({
               <div className="space-y-1">
                 {missing.map(boss => (
                   <p key={boss.name} className="truncate text-xs text-ctp-subtext1">
-                    <span className="mr-2 text-ctp-red">×</span>{boss.name}
+                    <span className="mr-2" style={{ color: wipeColor }}>×</span>{boss.name}
                   </p>
                 ))}
               </div>
@@ -588,11 +593,12 @@ function SectionDivider({ label, subtitle }: { label: string; subtitle?: string 
   )
 }
 
-function MplusScoreChart({ data }: { data: PlayerMplusScoreHistory[] }) {
+function MplusScoreChart({ data, lineColor }: { data: PlayerMplusScoreHistory[]; lineColor: string }) {
   const chartData = data.map(row => ({
     date: row.snapshot_date || row.snapshot_at,
-    score: Number(row.score_all) || 0,
+    score: toFiniteNumber(row.score_all),
   }))
+  const yDomain = getRelativeScoreDomain(chartData.map(row => row.score))
 
   if (chartData.length < 2) {
     return (
@@ -606,16 +612,21 @@ function MplusScoreChart({ data }: { data: PlayerMplusScoreHistory[] }) {
 
   return (
     <div className="h-56">
+      {yDomain && (
+        <p className="mb-2 text-[10px] font-mono text-ctp-overlay0">
+          Y-axis is scaled to this player&apos;s captured score range.
+        </p>
+      )}
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={chartData} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
           <CartesianGrid stroke="#313244" strokeDasharray="3 3" />
           <XAxis dataKey="date" tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
+          <YAxis domain={yDomain ?? undefined} tick={{ fill: '#6c7086', fontSize: 11 }} tickLine={false} axisLine={false} />
           <Tooltip
             contentStyle={{ background: '#11111b', border: '1px solid #45475a', borderRadius: 12 }}
             labelStyle={{ color: '#cdd6f4' }}
           />
-          <Line type="monotone" dataKey="score" stroke="#cba6f7" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+          <Line type="monotone" dataKey="score" stroke={lineColor} strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -792,30 +803,31 @@ function DungeonTimerBar({
   timed: boolean
   theme?: 'best' | 'timed' | 'overtime'
 }) {
+  const { topTierColor, killColor, wipeColor } = useColourBlind()
   const pct = timerUsedPct(clearTimeMs, parTimeMs)
   const visualMax = pct == null ? 100 : Math.min(Math.max(pct, 100), 140)
   const timerMarkerPct = (100 / visualMax) * 100
   const clearPct = pct == null ? 0 : Math.min((pct / visualMax) * 100, 100)
   const inTimePct = Math.min(clearPct, timerMarkerPct)
   const overtimePct = Math.max(0, clearPct - timerMarkerPct)
-  const inTimeColorClass = timed
-    ? theme === 'best' ? 'bg-ctp-mauve' : 'bg-ctp-green'
-    : 'bg-ctp-surface2'
-  const textClass = timed
-    ? theme === 'best' ? 'text-ctp-mauve' : 'text-ctp-green'
-    : 'text-ctp-red'
+  const inTimeColor = timed
+    ? theme === 'best' ? topTierColor : killColor
+    : '#45475a'
+  const textColor = timed
+    ? theme === 'best' ? topTierColor : killColor
+    : wipeColor
 
   return (
     <div className="mt-3">
       <div className="relative h-2.5 rounded-full bg-ctp-crust/80">
         <div
-          className={`absolute left-0 top-0 h-full rounded-l-full transition-all ${inTimeColorClass}`}
-          style={{ width: `${inTimePct}%` }}
+          className="absolute left-0 top-0 h-full rounded-l-full transition-all"
+          style={{ width: `${inTimePct}%`, backgroundColor: inTimeColor }}
         />
         {overtimePct > 0 && (
           <div
-            className="absolute top-0 h-full rounded-r-full bg-ctp-red/75"
-            style={{ left: `${timerMarkerPct}%`, width: `${overtimePct}%` }}
+            className="absolute top-0 h-full rounded-r-full"
+            style={{ left: `${timerMarkerPct}%`, width: `${overtimePct}%`, backgroundColor: wipeColor, opacity: 0.75 }}
           />
         )}
         <div
@@ -824,10 +836,10 @@ function DungeonTimerBar({
         />
       </div>
       <div className="mt-2 flex min-w-0 items-center justify-between gap-2 text-[10px] font-mono">
-        <span className={`min-w-0 truncate ${pct == null ? 'text-ctp-overlay0' : textClass}`}>
+        <span className="min-w-0 truncate" style={pct == null ? undefined : { color: textColor }}>
           {pct == null ? 'Timer unavailable' : `${Math.round(pct)}% of timer`}
         </span>
-        <span className={`shrink-0 whitespace-nowrap ${pct == null ? 'text-ctp-overlay0' : textClass}`}>
+        <span className="shrink-0 whitespace-nowrap" style={pct == null ? undefined : { color: textColor }}>
           {formatRunTime(clearTimeMs)} / {formatRunTime(parTimeMs)}
         </span>
       </div>
@@ -912,7 +924,7 @@ function RecentDungeonRunCard({ row, isNewBest }: { row: PlayerMplusRunHistory; 
 }
 
 export function PlayerDetail() {
-  const { getParseColor, wipeColor, getDeathRateColor, getAttendanceColor } = useColourBlind()
+  const { getParseColor, wipeColor, getDeathRateColor, getAttendanceColor, getDifficultyColor, getRoleColor, topTierColor, killColor } = useColourBlind()
   const { playerName } = useParams<{ playerName: string }>()
   const navigate = useNavigate()
 
@@ -935,6 +947,8 @@ export function PlayerDetail() {
   const mplusScoreHistory = usePlayerMplusScoreHistory()
   const mplusRunHistory = usePlayerMplusRunHistory()
   const mplusDungeonBreakdown = usePlayerMplusDungeonBreakdown()
+
+  const activeSectionId = useActiveSection(PD_SECTIONS)
 
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
@@ -1028,7 +1042,7 @@ export function PlayerDetail() {
       date: r.raid_night_date,
       throughput: Number(r.throughput_per_second),
       boss: r.boss_name,
-      parse: Number(r.rank_percent) || 0,
+      parse: toFiniteNumber(r.rank_percent),
       reportCode: r.report_code,
       fightId: r.fight_id,
     })),
@@ -1046,10 +1060,18 @@ export function PlayerDetail() {
   )
 
   const fallbackBossPerformance = useMemo((): PlayerBossPerformance[] => {
-    const grouped = new Map<string, PlayerBossPerformance>()
+    type Acc = PlayerBossPerformance & {
+      _rankSum: number; _rankCount: number
+      _throughputSum: number; _throughputCount: number
+      _ilvlSum: number; _ilvlCount: number
+    }
+    const grouped = new Map<string, Acc>()
 
     for (const row of scopedRosterRows) {
       const key = `${row.encounter_id}-${row.difficulty}`
+      const throughput = toFiniteNumber(row.throughput_per_second)
+      const rank = toFiniteNumber(row.rank_percent)
+      const ilvl = toFiniteNumber(row.avg_item_level)
       const existing = grouped.get(key)
       if (!existing) {
         grouped.set(key, {
@@ -1063,33 +1085,50 @@ export function PlayerDetail() {
           difficulty: row.difficulty,
           difficulty_label: row.difficulty_label,
           kills_on_boss: 1,
-          avg_throughput_per_second: Number(row.throughput_per_second) || 0,
-          best_throughput_per_second: Number(row.throughput_per_second) || 0,
-          latest_throughput_per_second: Number(row.throughput_per_second) || 0,
+          avg_throughput_per_second: throughput ?? 0,
+          best_throughput_per_second: throughput ?? 0,
+          latest_throughput_per_second: throughput ?? 0,
           throughput_trend: 0,
-          avg_rank_percent: Number(row.rank_percent) || 0,
-          best_rank_percent: Number(row.rank_percent) || 0,
-          avg_item_level: Number(row.avg_item_level) || 0,
+          avg_rank_percent: rank ?? 0,
+          best_rank_percent: rank ?? 0,
+          avg_item_level: ilvl ?? 0,
           first_kill_date: row.raid_night_date,
           latest_kill_date: row.raid_night_date,
+          _rankSum: rank ?? 0,
+          _rankCount: rank === null ? 0 : 1,
+          _throughputSum: throughput ?? 0,
+          _throughputCount: throughput === null ? 0 : 1,
+          _ilvlSum: ilvl ?? 0,
+          _ilvlCount: ilvl === null ? 0 : 1,
         })
         continue
       }
 
-      const nextKills = existing.kills_on_boss + 1
-      const throughput = Number(row.throughput_per_second) || 0
-      const rank = Number(row.rank_percent) || 0
-      existing.kills_on_boss = nextKills
-      existing.avg_throughput_per_second = ((existing.avg_throughput_per_second * (nextKills - 1)) + throughput) / nextKills
-      existing.best_throughput_per_second = Math.max(existing.best_throughput_per_second, throughput)
-      existing.latest_throughput_per_second = throughput
-      existing.avg_rank_percent = ((existing.avg_rank_percent * (nextKills - 1)) + rank) / nextKills
-      existing.best_rank_percent = Math.max(existing.best_rank_percent, rank)
-      existing.avg_item_level = ((existing.avg_item_level * (nextKills - 1)) + (Number(row.avg_item_level) || 0)) / nextKills
+      existing.kills_on_boss += 1
+      if (throughput !== null) {
+        existing._throughputSum += throughput
+        existing._throughputCount += 1
+        existing.best_throughput_per_second = Math.max(existing.best_throughput_per_second, throughput)
+        existing.latest_throughput_per_second = throughput
+      }
+      if (rank !== null) {
+        existing._rankSum += rank
+        existing._rankCount += 1
+        existing.best_rank_percent = Math.max(existing.best_rank_percent, rank)
+      }
+      if (ilvl !== null) {
+        existing._ilvlSum += ilvl
+        existing._ilvlCount += 1
+      }
       existing.latest_kill_date = row.raid_night_date
     }
 
-    return [...grouped.values()]
+    return [...grouped.values()].map(acc => ({
+      ...acc,
+      avg_throughput_per_second: acc._throughputCount ? acc._throughputSum / acc._throughputCount : 0,
+      avg_rank_percent: acc._rankCount ? acc._rankSum / acc._rankCount : 0,
+      avg_item_level: acc._ilvlCount ? acc._ilvlSum / acc._ilvlCount : 0,
+    }))
   }, [scopedRosterRows])
 
   const heatmapData = scopedBossPerformance.length > 0 ? scopedBossPerformance : fallbackBossPerformance
@@ -1198,10 +1237,12 @@ export function PlayerDetail() {
     if (scopedRosterRows.length === 0) return null
 
     const kills = scopedRosterRows.length
-    const avgThroughput = scopedRosterRows.reduce((sum, row) => sum + (Number(row.throughput_per_second) || 0), 0) / kills
-    const bestThroughput = Math.max(...scopedRosterRows.map(row => Number(row.throughput_per_second) || 0))
-    const avgRank = scopedRosterRows.reduce((sum, row) => sum + (Number(row.rank_percent) || 0), 0) / kills
-    const bestRank = Math.max(...scopedRosterRows.map(row => Number(row.rank_percent) || 0))
+    const throughputs = scopedRosterRows.map(row => toFiniteNumber(row.throughput_per_second))
+    const ranks = scopedRosterRows.map(row => toFiniteNumber(row.rank_percent))
+    const avgThroughput = meanIgnoringNulls(throughputs)
+    const bestThroughput = Math.max(0, ...throughputs.filter((v): v is number => v !== null))
+    const avgRank = meanIgnoringNulls(ranks)
+    const bestRank = Math.max(0, ...ranks.filter((v): v is number => v !== null))
 
     return {
       avgThroughput,
@@ -1552,7 +1593,9 @@ export function PlayerDetail() {
           ← All Players
         </button>
       }
+      nav={<SectionNav sections={PD_SECTIONS} activeId={activeSectionId} />}
     >
+      <section id="profile" className="space-y-7 scroll-mt-20">
       <div
         className="rounded-2xl border p-6 shadow-card"
         style={{
@@ -1696,7 +1739,9 @@ export function PlayerDetail() {
           </>
         )}
       </div>
+      </section>
 
+      <section id="raid" className="space-y-7 scroll-mt-20">
       {(characterEquipment.data.length > 0 || raidAchievements.data.length > 0) && (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
           <Card className="xl:col-span-2">
@@ -1806,7 +1851,7 @@ export function PlayerDetail() {
               ) : (
                 <div className="space-y-4">
                   {currentTierProgress.map(row => (
-                    <CompletionRow key={row.difficulty} row={row} color={COMPLETION_COLORS[row.difficulty]} />
+                    <CompletionRow key={row.difficulty} row={row} color={getDifficultyColor(row.difficulty)} />
                   ))}
                 </div>
               )}
@@ -1898,7 +1943,7 @@ export function PlayerDetail() {
               <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No fight data available in the current scope</p>
             ) : (
               [...dpsOverTime]
-                .filter(d => d.parse > 0)
+                .filter((d): d is typeof d & { parse: number } => d.parse !== null && d.parse > 0)
                 .sort((a, b) => String(b.date).localeCompare(String(a.date)))
                 .map((d, i) => (
                   <a
@@ -2044,7 +2089,9 @@ export function PlayerDetail() {
           )}
         </CardBody>
       </Card>
+      </section>
 
+      <section id="mplus" className="space-y-7 scroll-mt-20">
       <SectionDivider
         label="Mythic+ Performance"
         subtitle="Raider.IO-backed dungeon score and key history"
@@ -2076,7 +2123,7 @@ export function PlayerDetail() {
                   : undefined
               }
               icon="◆"
-              valueColor="#cba6f7"
+              valueColor={topTierColor}
               accent="none"
             />
             <StatCard
@@ -2084,16 +2131,16 @@ export function PlayerDetail() {
               value={formatKeyLevel(playerMplusSummary?.highest_timed_level)}
               subValue={bestTimedDungeon?.dungeon || (playerMplusSummary ? 'No timed keys' : '—')}
               icon="⏱"
-              valueColor="#89b4fa"
+              valueColor={getRoleColor('tank')}
               accent="none"
             />
             <StatCard
               label="Timed / Untimed"
               value={(
                 <>
-                  <span className="text-ctp-green">{Number(playerMplusSummary?.timed_runs) || 0}</span>
+                  <span style={{ color: killColor }}>{Number(playerMplusSummary?.timed_runs) || 0}</span>
                   <span className="mx-1 text-ctp-overlay0">/</span>
-                  <span className="text-ctp-red">{Number(playerMplusSummary?.untimed_runs) || 0}</span>
+                  <span style={{ color: wipeColor }}>{Number(playerMplusSummary?.untimed_runs) || 0}</span>
                 </>
               )}
               subValue={`${Number(playerMplusSummary?.total_runs) || 0} exported runs`}
@@ -2105,7 +2152,7 @@ export function PlayerDetail() {
               value={formatKeyLevel(playerMplusSummary?.most_common_key_level)}
               subValue={`${Number(playerMplusSummary?.most_common_key_count) || 0} runs at that level`}
               icon="◇"
-              valueColor="#cba6f7"
+              valueColor={topTierColor}
               accent="none"
             />
           </div>
@@ -2148,7 +2195,7 @@ export function PlayerDetail() {
               {mplusScoreHistory.loading ? (
                 <LoadingState rows={5} />
               ) : (
-                <MplusScoreChart data={playerMplusScoreHistory} />
+                <MplusScoreChart data={playerMplusScoreHistory} lineColor={topTierColor} />
               )}
             </CardBody>
           </Card>
@@ -2224,6 +2271,7 @@ export function PlayerDetail() {
           </div>
         </div>
       )}
+      </section>
     </AppLayout>
   )
 }

@@ -11,7 +11,7 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot } from '../components/ui/ClassLabel'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { useRaidSummary, useBossKillRoster } from '../hooks/useGoldData'
-import { formatNumber, formatDate } from '../utils/format'
+import { formatNumber, formatDate, toFiniteNumber, meanIgnoringNulls } from '../utils/format'
 import { formatDuration, formatThroughput, getThroughputColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
@@ -58,8 +58,11 @@ export function RaidDetail() {
 
   const topParses = useMemo(() =>
     [...bossRows]
-      .filter(r => Number(r.rank_percent) > 0)
-      .sort((a, b) => Number(b.rank_percent) - Number(a.rank_percent))
+      .filter(r => {
+        const v = toFiniteNumber(r.rank_percent)
+        return v !== null && v > 0
+      })
+      .sort((a, b) => (toFiniteNumber(b.rank_percent) ?? 0) - (toFiniteNumber(a.rank_percent) ?? 0))
       .slice(0, 10),
     [bossRows]
   )
@@ -138,7 +141,9 @@ export function RaidDetail() {
             </THead>
             <TBody>
               {bosses.map(b => {
-                const avgParse = b.players.reduce((s, p) => s + Number(p.rank_percent), 0) / (b.players.length || 1)
+                const parses = b.players.map(p => toFiniteNumber(p.rank_percent))
+                const haveParses = parses.some(v => v !== null)
+                const avgParse = meanIgnoringNulls(parses)
                 return (
                   <Tr key={b.encounterKey}>
                     <Td className="font-medium text-ctp-text">{b.bossName}</Td>
@@ -146,7 +151,9 @@ export function RaidDetail() {
                     <Td right mono className="text-ctp-subtext1">{formatDuration(b.duration)}</Td>
                     <Td right mono className="text-ctp-overlay1">{b.players.length}</Td>
                     <Td right mono>
-                      <span style={{ color: getParseColor(avgParse) }}>{avgParse.toFixed(0)}%</span>
+                      {haveParses
+                        ? <span style={{ color: getParseColor(avgParse) }}>{avgParse.toFixed(0)}%</span>
+                        : <span className="text-ctp-overlay0">—</span>}
                     </Td>
                   </Tr>
                 )
@@ -172,19 +179,29 @@ export function RaidDetail() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-ctp-text font-medium truncate">{p.player_name}</span>
-                      <span
-                        className="text-xs font-mono font-semibold flex-shrink-0"
-                        style={{ color: getParseColor(Number(p.rank_percent)) }}
-                      >
-                        {Number(p.rank_percent).toFixed(0)}%
-                      </span>
+                      {(() => {
+                        const v = toFiniteNumber(p.rank_percent) ?? 0
+                        return (
+                          <span
+                            className="text-xs font-mono font-semibold flex-shrink-0"
+                            style={{ color: getParseColor(v) }}
+                          >
+                            {v.toFixed(0)}%
+                          </span>
+                        )
+                      })()}
                     </div>
-                    <ProgressBar
-                      value={Number(p.rank_percent)}
-                      color={getParseColor(Number(p.rank_percent))}
-                      height="xs"
-                      className="mt-1"
-                    />
+                    {(() => {
+                      const v = toFiniteNumber(p.rank_percent) ?? 0
+                      return (
+                        <ProgressBar
+                          value={v}
+                          color={getParseColor(v)}
+                          height="xs"
+                          className="mt-1"
+                        />
+                      )
+                    })()}
                   </div>
                 </div>
                 <div className="mt-0.5 ml-10 flex items-center gap-3">
@@ -221,7 +238,7 @@ export function RaidDetail() {
             </THead>
             <TBody>
               {[...bossRows]
-                .sort((a, b) => Number(b.rank_percent) - Number(a.rank_percent))
+                .sort((a, b) => (toFiniteNumber(b.rank_percent) ?? -1) - (toFiniteNumber(a.rank_percent) ?? -1))
                 .map((row, i) => (
                   <Tr
                     key={`${row.fight_id}-${row.player_name}-${i}`}
@@ -241,9 +258,12 @@ export function RaidDetail() {
                       {formatThroughput(Number(row.throughput_per_second))}
                     </Td>
                     <Td right mono>
-                      <span style={{ color: getParseColor(Number(row.rank_percent)) }}>
-                        {Number(row.rank_percent).toFixed(0)}%
-                      </span>
+                      {(() => {
+                        const v = toFiniteNumber(row.rank_percent)
+                        return v === null
+                          ? <span className="text-ctp-overlay0">—</span>
+                          : <span style={{ color: getParseColor(v) }}>{v.toFixed(0)}%</span>
+                      })()}
                     </Td>
                   </Tr>
                 ))}
