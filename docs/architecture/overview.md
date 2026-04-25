@@ -2,7 +2,7 @@
 
 ## System Design
 
-Bronze → Silver → Gold medallion architecture on Databricks serverless DLT. A nightly ingestion job pulls from WarcraftLogs, Blizzard, Raider.IO, and Google Sheets, landing raw data as JSONL in source-matched Unity Catalog Volumes under `01_bronze`. DLT Auto Loader streams these into Delta tables. A React dashboard consumes the gold layer via static CSV export.
+Bronze → Silver → Gold medallion architecture on Databricks serverless DLT. A nightly ingestion job pulls from WarcraftLogs, Blizzard, Raider.IO, and Google Sheets, landing raw data as JSONL in source-matched Unity Catalog Volumes under `01_bronze`. DLT Auto Loader streams these into Delta tables. A publish step materialises dashboard-ready JSON assets plus `manifest.json` into a UC Volume, GitHub Actions mirrors those assets to Cloudflare R2, and the React dashboard fetches them at runtime.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -17,20 +17,27 @@ Bronze → Silver → Gold medallion architecture on Databricks serverless DLT. 
 │  ┌──────┴──────┐                           │                      │
 │  │  WCL API    │                           │                      │
 │  │  Blizzard   │                           │                      │
-│  │  Raider.IO  │                           │  CSV export script   │
+│  │  Raider.IO  │                           │ dashboard asset      │
+│  │  Google     │                           │ publisher            │
 └──┴─────────────┴───────────────────────────┼──────────────────────┘
                                              │
                                              ▼
-                                    ┌────────────────┐
-                                    │  Static CSV    │
-                                    │  (nightly)     │
-                                    └───────┬────────┘
+                                    ┌──────────────────────┐
+                                    │  UC Volume JSON      │
+                                    │  manifest + datasets │
+                                    └───────┬──────────────┘
                                             │ GitHub Actions
                                             ▼
-                                    ┌────────────────┐
-                                    │  React Frontend │
-                                    │  (Vite + TS)   │
-                                    └────────────────┘
+                                  ┌──────────────────────┐
+                                  │   Cloudflare R2      │
+                                  │ public static assets │
+                                  └──────────┬───────────┘
+                                             │
+                                             ▼
+                                    ┌─────────────────┐
+                                    │ React Frontend  │
+                                    │ (Vite + TS)     │
+                                    └─────────────────┘
 ```
 
 ## Layer Responsibilities
@@ -80,7 +87,7 @@ See [ADR index](../adr/README.md) for documented decisions. Highlights:
 | Decision | Choice | Reason |
 |----------|--------|--------|
 | Pipeline engine | DLT (Lakeflow) | Declarative, built-in lineage, serverless-compatible |
-| Frontend data | Static CSV export | No backend needed; free hosting; CDN-cached |
+| Frontend data | Published JSON manifest + datasets | No backend needed; CDN-cached; frontend remains statically hostable |
 | Ingestion pattern | Pluggable adapters + JSONL landing | Decouples API shape from pipeline; easy to add sources |
 | JSON scalar handling | Store as string in bronze, parse in silver | Preserves raw payload; allows schema changes in silver without touching bronze |
 | Type handling | All integers as LongType | Spark JSON inference always uses Long; avoids cast errors |
@@ -109,8 +116,11 @@ See [ADR index](../adr/README.md) for documented decisions. Highlights:
    Silver:  Parse, clean, deduplicate         → silver_* tables
    Gold:    Aggregate, join, enrich           → 40+ gold_* tables
 
-3. Export job
-   Read gold tables and derived wipe utility queries through Databricks SQL → write static CSV to `frontend/public/data` → GitHub Actions deploys frontend
+3. Dashboard publishing
+   Read persisted gold tables through Spark/Databricks SQL → write JSON datasets + `manifest.json` to `/Volumes/03_gold/sc_analytics/dashboard_exports/`
+
+4. Distribution
+   GitHub Actions downloads `latest/` from the UC Volume → uploads to Cloudflare R2 → frontend fetches `manifest.json` from the public base URL at runtime
 ```
 
 ## Ingestion Caching Strategy

@@ -75,12 +75,14 @@ SELECT COUNT(*) FROM 03_gold.sc_analytics.gold_your_table_name;
 SELECT * FROM 03_gold.sc_analytics.gold_your_table_name LIMIT 10;
 ```
 
-### 7. Export to frontend
+### 7. Publish to frontend
 
-If the React frontend needs the table, add it to `FRONTEND_TABLES` in `scripts/export_gold_tables.py`.
+If the React frontend needs the table, add it to `EXPORT_TABLES` in `scripts/publish_dashboard_assets.py`.
 
-The frontend consumes static CSVs from `frontend/public/data` through `useCSV()` / `useGoldData.ts`, so also add:
+The preferred frontend path is manifest-driven JSON fetched from the published dashboard assets, so also add:
 
-- A TypeScript row interface in `frontend/src/types/index.ts`
-- A hook in `frontend/src/hooks/useGoldData.ts`
-- Any page/component wiring that consumes the new hook
+- A dataset key mapping if the page currently loads through `useCSV()`
+- Any TypeScript row interface the consuming page needs
+- Any page/component wiring that consumes the dataset through the compatibility layer or `dashboardDataClient`
+
+If you need a temporary local fallback for development, `scripts/export_gold_tables.py` still exists, but it is no longer the primary production publishing path.

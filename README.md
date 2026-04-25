@@ -4,7 +4,7 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-A production-grade **Databricks medallion pipeline** that ingests WoW raid data from the [WarcraftLogs v2 GraphQL API](https://www.warcraftlogs.com/api/docs), [Blizzard Profile API](https://develop.battle.net/documentation), [Raider.IO API](https://raider.io/api), and Google Sheets, processes it through a Bronze → Silver → Gold architecture, and serves it to a React dashboard through static CSV exports.
+A production-grade **Databricks medallion pipeline** that ingests WoW raid data from the [WarcraftLogs v2 GraphQL API](https://www.warcraftlogs.com/api/docs), [Blizzard Profile API](https://develop.battle.net/documentation), [Raider.IO API](https://raider.io/api), and Google Sheets, processes it through a Bronze → Silver → Gold architecture, and serves it to a React dashboard through static JSON assets published from Databricks to Cloudflare R2.
 
 Built to run on **Databricks Free Edition** (serverless Lakeflow / DLT).
 
@@ -23,6 +23,10 @@ Pulls data from WarcraftLogs, Blizzard, Raider.IO, and Google Sheets nightly, tr
 - **Wipe diagnosis** — first deaths, repeat deaths, wipe survival discipline, raid cooldown capacity, healer external capacity
 - **Mythic+** — Raider.IO score snapshots, timed/untimed keys, dungeon breakdowns
 - **Character profiles** — Blizzard profile portraits, standing renders, equipped gear, enchants, gems, raid feats
+
+Recommended public data URL:
+
+- `https://data.sc-analytics.org/latest`
 
 ---
 
@@ -57,11 +61,16 @@ WarcraftLogs API          Blizzard Profile API          Raider.IO API
         │   Gold (DLT)         │  Fact tables, dimensions, aggregations
         │   40+ tables         │  Business-ready, frontend-focused products
         └──────────┬───────────┘
-                   │ Static CSV export
+                   │ Publish manifest + JSON
+                   ▼
+        ┌──────────────────────┐
+        │  UC Volume / R2      │  manifest.json + dataset JSON files
+        └──────────┬───────────┘
+                   │
                    ▼
         ┌──────────────────────┐
         │   React Frontend     │  Static dashboard (Vite + TypeScript)
-        │                      │  Served via GitHub Pages / Vercel
+        │                      │  Served via GitHub Pages / Vercel / Pages
         └──────────────────────┘
 ```
 
@@ -118,7 +127,8 @@ sc-warcraftlogs-analytics/
 │       ├── profile_products.py      # live roster, zone ranks, media, equipment, achievements
 │       └── _cooldown_rules.py       # shared cooldown/spec metadata
 ├── frontend/                     # React + Vite + TypeScript dashboard
-├── scripts/export_gold_tables.py  # gold tables → static frontend CSV export
+├── scripts/export_gold_tables.py    # legacy CSV export for local fallback
+├── scripts/publish_dashboard_assets.py  # gold tables -> UC Volume JSON assets
 ├── docs/                         # Architecture, data dictionary, runbooks, ADRs
 ├── databricks.yml                # Databricks Asset Bundle (pipeline + job config)
 ├── pyproject.toml                # Python deps, ruff, mypy config
@@ -280,7 +290,7 @@ Implementation notes:
 | `gold_player_mplus_weekly_activity` | Weekly M+ run counts, timed/untimed split, highest key |
 | `gold_player_mplus_dungeon_breakdown` | Per-player per-dungeon M+ summary |
 
-The export script is now intentionally thin: it reads from persisted gold tables and writes CSVs for the frontend, plus the governed `preparation_identity_overrides` export.
+The JSON publishing path is now the recommended deployment flow. The legacy CSV export remains available as a local/dev fallback during migration.
 
 ---
 
@@ -312,10 +322,10 @@ databricks bundle deploy
 databricks bundle run nightly_ingestion   # first ingestion run
 ```
 
-Then start the DLT pipeline update in Databricks and run the export script:
+Then start the DLT pipeline update in Databricks and publish dashboard assets:
 
 ```bash
-.venv/bin/python scripts/export_gold_tables.py
+databricks bundle run publish_dashboard_assets
 ```
 
 ### 3. Customise for your guild
@@ -327,6 +337,18 @@ variables:
   guild_server_slug: "realm-name"
   guild_server_region: EU   # EU / US / KR / TW
 ```
+
+---
+
+## Dashboard Data Hosting
+
+The recommended production flow is:
+
+Databricks gold tables -> UC Volume JSON assets -> GitHub Actions -> Cloudflare R2 -> frontend runtime fetch
+
+The frontend reads the public data base URL from `VITE_DASHBOARD_DATA_BASE_URL`.
+
+See [docs/architecture/dashboard_data_publishing.md](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/docs/architecture/dashboard_data_publishing.md).
 
 ---
 

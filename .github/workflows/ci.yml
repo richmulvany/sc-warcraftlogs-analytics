@@ -51,4 +51,4 @@ jobs:
       - name: Build
         run: cd frontend && npm run build
         env:
-          VITE_DATA_BASE_URL: https://example.com/data
+          VITE_DASHBOARD_DATA_BASE_URL: https://example.com/latest

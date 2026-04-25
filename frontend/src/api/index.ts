@@ -1,9 +1,4 @@
-/**
- * API layer — fetches static JSON exports from the data directory.
- * Add one function per gold table export.
- */
-
-const BASE_URL = import.meta.env.VITE_DATA_BASE_URL ?? '/data'
+import { DashboardManifest, fetchDataset, fetchManifest } from '../lib/dashboardDataClient'
 
 export interface ExportEnvelope<T> {
   exported_at: string
@@ -12,9 +7,13 @@ export interface ExportEnvelope<T> {
 }
 
 async function fetchExport<T>(tableName: string): Promise<ExportEnvelope<T>> {
-  const res = await fetch(`${BASE_URL}/${tableName}.json`)
-  if (!res.ok) throw new Error(`Failed to fetch ${tableName}: ${res.status} ${res.statusText}`)
-  return res.json() as Promise<ExportEnvelope<T>>
+  const data = await fetchDataset<T>(tableName)
+  const manifest = await fetchManifest()
+  return {
+    exported_at: manifest.generated_at,
+    record_count: data.length,
+    data,
+  }
 }
 
 export interface EntitySummaryRow {
@@ -57,17 +56,12 @@ export interface ProgressionTimelineRow {
   cumulative_kills: number
 }
 
-export interface ExportManifest {
-  exported_at: string
-  tables: string[]
-  total_records: number
-}
+export type ExportManifest = DashboardManifest
 
 export const api = {
   fetchEntitySummary: () => fetchExport<EntitySummaryRow>('entity_summary'),
   fetchBossProgression: () => fetchExport<BossProgressionRow>('boss_progression'),
   fetchRaidSummary: () => fetchExport<RaidSummaryRow>('raid_summary'),
   fetchProgressionTimeline: () => fetchExport<ProgressionTimelineRow>('progression_timeline'),
-  fetchManifest: () =>
-    fetch(`${BASE_URL}/manifest.json`).then((r) => r.json()) as Promise<ExportManifest>,
+  fetchManifest: () => fetchManifest(),
 }

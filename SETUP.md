@@ -26,7 +26,7 @@ Optional local checks:
 
 ```bash
 .venv/bin/ruff check .
-python3 -m py_compile scripts/export_gold_tables.py ingestion/src/adapters/wcl/client.py ingestion/src/adapters/blizzard/client.py
+python3 -m py_compile scripts/export_gold_tables.py scripts/publish_dashboard_assets.py ingestion/src/adapters/wcl/client.py ingestion/src/adapters/blizzard/client.py
 cd frontend && npm run build && cd ..
 ```
 
@@ -116,17 +116,31 @@ Expected high-level flow:
 
 If you are recovering from broken state or major source changes, use a full refresh only when required.
 
-## 8. Export frontend datasets
+## 8. Publish frontend datasets
 
-The frontend reads static CSVs from `frontend/public/data`.
+The preferred path is:
+
+- Databricks gold tables
+- `scripts/publish_dashboard_assets.py`
+- JSON datasets + `manifest.json` in `/Volumes/03_gold/sc_analytics/dashboard_exports/`
+- GitHub Actions publishes those files to Cloudflare R2
+- the frontend reads them at runtime via `VITE_DASHBOARD_DATA_BASE_URL`
 
 Run:
+
+```bash
+databricks bundle run publish_dashboard_assets
+```
+
+This writes dashboard-ready JSON assets from persisted gold tables in `03_gold.sc_analytics` into the UC Volume export path.
+
+Local CSV export still exists as a compatibility fallback:
 
 ```bash
 .venv/bin/python scripts/export_gold_tables.py
 ```
 
-This exports the governed datasets used by the dashboard from persisted gold tables in `03_gold.sc_analytics`.
+Use that only when you explicitly want local static assets for development or rollback.
 
 ## 9. Run the frontend
 
@@ -134,6 +148,20 @@ This exports the governed datasets used by the dashboard from persisted gold tab
 cd frontend
 npm run dev
 ```
+
+Remote JSON mode:
+
+```bash
+cp .env.example .env.local
+```
+
+Set:
+
+```bash
+VITE_DASHBOARD_DATA_BASE_URL=https://data.sc-analytics.org/latest
+```
+
+If `VITE_DASHBOARD_DATA_BASE_URL` is not set, the frontend falls back to local static CSVs under `/data`.
 
 For a production check:
 
@@ -159,13 +187,13 @@ SELECT COUNT(*) FROM 02_silver.sc_analytics_warcraftlogs.silver_player_deaths;
 SELECT COUNT(*) FROM 03_gold.sc_analytics.gold_player_death_events;
 ```
 
-And locally:
+And in the published dashboard export:
 
 ```bash
-ls frontend/public/data
+databricks fs ls dbfs:/Volumes/03_gold/sc_analytics/dashboard_exports/latest
 ```
 
-You should see the exported CSVs used by the dashboard.
+You should see `manifest.json` plus the exported dataset JSON files.
 
 ## When setup is not enough
 

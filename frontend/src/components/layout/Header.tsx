@@ -23,11 +23,11 @@ export function Header({ title, subtitle }: HeaderProps) {
         <div className="flex items-center gap-4">
           {manifest && (
             <span className="text-xs font-mono text-slate-600">
-              updated {formatRelativeTime(manifest.exported_at)}
+              updated {formatRelativeTime(manifest.generated_at)}
             </span>
           )}
           <a
-            href="https://github.com/richmulvany/databricks-pipeline-template"
+            href="https://github.com/richmulvany/sc-warcraftlogs-analytics"
             target="_blank"
             rel="noopener noreferrer"
             title="view on github - opens in a new tab"

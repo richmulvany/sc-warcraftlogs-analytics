@@ -27,6 +27,9 @@ bundle.lock
 
 # Exports (generated — not committed unless using GitHub Pages static export)
 data/exports/
+dashboard_exports/
+*.generated.json
+frontend/public/data/
 
 # Debug table exports — CSV samples ARE committed (for diagnosis); ignore nothing here
 # Large parquet/delta scratch files from ad-hoc analysis:
