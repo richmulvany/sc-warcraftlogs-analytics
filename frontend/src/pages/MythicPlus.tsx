@@ -753,7 +753,7 @@ export function MythicPlus() {
                   Y-axis is scaled to the visible score range.
                 </p>
               )}
-              <ResponsiveContainer width="100%" height={260}>
+              <div className="h-56 md:h-72 2xl:h-80"><ResponsiveContainer width="100%" height="100%">
                 <LineChart data={trajectoryData} margin={{ top: 4, right: 12, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#45475a" vertical={false} />
                   <XAxis
@@ -792,7 +792,7 @@ export function MythicPlus() {
                   <Line type="monotone" dataKey="healer" name="Healer" stroke={getRoleColor('healer')} strokeWidth={1.5} dot={false} connectNulls />
                   <Line type="monotone" dataKey="tank"   name="Tank"   stroke={getRoleColor('tank')}   strokeWidth={1.5} dot={false} connectNulls />
                 </LineChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer></div>
             </div>
           )}
         </Card>

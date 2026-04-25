@@ -632,7 +632,7 @@ export function Bosses() {
             <Table>
             <THead>
               <tr>
-                <Th>Boss</Th>
+                <Th className="min-w-[160px]">Boss</Th>
                 <Th>Zone</Th>
                 <Th>Diff</Th>
                 <Th right>Pulls</Th>

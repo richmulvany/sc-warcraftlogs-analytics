@@ -33,7 +33,7 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
   return (
     <div
       className={clsx(
-        'bg-ctp-surface0 rounded-2xl p-5 border shadow-card min-h-[132px] h-full flex flex-col',
+        'bg-ctp-surface0 rounded-2xl p-4 md:p-5 border shadow-card min-h-[112px] md:min-h-[132px] h-full flex flex-col',
         style.border,
         className
       )}
@@ -52,7 +52,7 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
       <div className="flex items-end gap-2 mt-0.5">
 
         <span
-          className={clsx('text-3xl font-semibold tracking-tight', !valueColor && style.text)}
+          className={clsx('text-2xl md:text-3xl font-semibold tracking-tight', !valueColor && style.text)}
           style={valueColor ? { color: valueColor } : undefined}
         >
           {value}

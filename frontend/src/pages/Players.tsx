@@ -293,18 +293,18 @@ export function Players() {
       </div>
 
       <Card>
-        <CardHeader className="flex items-center justify-between gap-3">
+        <CardHeader className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             <CardTitle>Rankings</CardTitle>
             <FilterTabs options={ROLES.map(r => ({ value: r.key, label: r.label }))} value={role} onChange={setRole} buttonClassName="min-w-[60px]" />
           </div>
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <input
               type="text"
               placeholder="Search player or class…"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-52"
+              className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-36 sm:w-52"
             />
             <span className="inline-flex items-center self-center rounded-xl border border-ctp-mauve/30 bg-ctp-mauve/12 px-3 py-2 text-xs font-mono text-ctp-mauve">
               {rows.length} players
@@ -322,7 +322,7 @@ export function Players() {
             <THead>
               <tr>
                 <Th className="w-8">#</Th>
-                <Th>Player</Th>
+                <Th className="min-w-[160px]">Player</Th>
                 <Th className="normal-case tracking-normal">Role</Th>
                 <Th right><SortBtn k="avg_rank_percent">Avg Parse</SortBtn></Th>
                 <Th right><SortBtn k="best_rank_percent">Best Parse</SortBtn></Th>

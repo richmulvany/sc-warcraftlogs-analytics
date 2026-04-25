@@ -42,7 +42,7 @@ debug_exports/**/*.delta
 *.swp
 a/
 .claude/
-CLAUDE.md
+# CLAUDE.md
 docs/ai/
 
 # OS

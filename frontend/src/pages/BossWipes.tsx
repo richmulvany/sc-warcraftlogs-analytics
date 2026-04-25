@@ -154,7 +154,7 @@ export function BossWipes() {
           </CardHeader>
           <CardBody>
             {wipes.loading ? <LoadingState rows={4} /> : (
-              <ResponsiveContainer width="100%" height={220}>
+              <div className="h-56 md:h-72 2xl:h-80"><ResponsiveContainer width="100%" height="100%">
                 <BarChart data={topWipes} margin={{ top: 4, right: 4, left: -20, bottom: 36 }}>
                   <XAxis
                     dataKey="name"
@@ -186,7 +186,7 @@ export function BossWipes() {
                     ))}
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer></div>
             )}
           </CardBody>
         </Card>
@@ -199,7 +199,7 @@ export function BossWipes() {
           </CardHeader>
           <CardBody>
             {mechs.loading ? <LoadingState rows={3} /> : phaseData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={200}>
+              <div className="h-48 md:h-64 2xl:h-72"><ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={phaseData}
@@ -235,7 +235,7 @@ export function BossWipes() {
                     }}
                   />
                 </PieChart>
-              </ResponsiveContainer>
+              </ResponsiveContainer></div>
             ) : (
               <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No mechanics data</p>
             )}
