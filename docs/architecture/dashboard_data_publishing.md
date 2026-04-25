@@ -76,7 +76,7 @@ It:
 2. downloads `dbfs:/Volumes/03_gold/sc_analytics/dashboard_exports/latest`
 3. validates `manifest.json`
 4. prints a file size summary and fails if any single JSON file exceeds 25 MB
-5. fails if the downloaded `latest/` folder exceeds 100 MB
+5. fails if the downloaded `latest/` folder exceeds 125 MB
 6. uploads only `latest/*` to Cloudflare R2
 7. uploads the current snapshot to `snapshots/<snapshot_id>/`
 
@@ -140,7 +140,7 @@ The Databricks publisher enforces these defaults:
 
 - `MAX_DATASET_ROWS = 100_000`
 - `MAX_DATASET_BYTES = 25 MB`
-- `MAX_TOTAL_EXPORT_BYTES = 100 MB`
+- `MAX_TOTAL_EXPORT_BYTES = 125 MB`
 
 They can be overridden with:
 

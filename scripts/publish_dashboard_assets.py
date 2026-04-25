@@ -46,7 +46,7 @@ DEFAULT_OUTPUT_PATH = os.environ.get(
 MAX_DATASET_ROWS = int(os.environ.get("DASHBOARD_EXPORT_MAX_DATASET_ROWS", "100000"))
 MAX_DATASET_BYTES = int(os.environ.get("DASHBOARD_EXPORT_MAX_DATASET_BYTES", str(25 * 1024 * 1024)))
 MAX_TOTAL_EXPORT_BYTES = int(
-    os.environ.get("DASHBOARD_EXPORT_MAX_TOTAL_EXPORT_BYTES", str(100 * 1024 * 1024))
+    os.environ.get("DASHBOARD_EXPORT_MAX_TOTAL_EXPORT_BYTES", str(125 * 1024 * 1024))
 )
 POLL_INTERVAL_SECONDS = float(os.environ.get("EXPORT_POLL_INTERVAL_SECONDS", "2"))
 POLL_TIMEOUT_SECONDS = int(os.environ.get("EXPORT_POLL_TIMEOUT_SECONDS", "300"))
@@ -742,6 +742,10 @@ def _local_writeable_path(output_path: str) -> bool:
     return not output_path.startswith("/Volumes/")
 
 
+def _volume_path_is_locally_writeable(output_path: str) -> bool:
+    return output_path.startswith("/Volumes/") and Path("/Volumes").exists()
+
+
 def _databricks_cp(local_path: Path, remote_path: str) -> None:
     target = f"dbfs:{remote_path}" if remote_path.startswith("/Volumes/") else remote_path
     subprocess.run(
@@ -906,7 +910,7 @@ def _publish_remote_tree(staging_root: Path, output_path: str) -> None:
 
 
 def _publish_tree(staging_root: Path, output_path: str) -> None:
-    if _local_writeable_path(output_path):
+    if _local_writeable_path(output_path) or _volume_path_is_locally_writeable(output_path):
         _publish_local_tree(staging_root, output_path)
     else:
         _publish_remote_tree(staging_root, output_path)
