@@ -69,6 +69,9 @@ variables:
   guild_zone_ranks_enabled:
     description: Enable WCL guildData.zoneRanking ingestion
     default: "true"
+  github_repo:
+    description: GitHub repo (owner/repo) containing the publish workflow for dashboard assets (empty defaults to value of secret 'github_repo')
+    default: "richmulvany/sc-warcraftlogs-analytics"
 
 targets:
   development:
@@ -227,7 +230,7 @@ resources:
             notebook_path: ingestion/jobs/trigger_publish_workflow.py
             base_parameters:
               secret_scope: github
-              github_repo: ""               # set via secret 'github_repo' if blank
+              github_repo: ${var.github_repo}               # set via secret 'github_repo' if blank
               github_workflow: publish-dashboard-data.yml
               github_ref: main
               poll_seconds: "1200"
