@@ -649,37 +649,45 @@ RANKINGS_BACKFILL_MAX_AGE_DAYS = 14
 logger.info("Fetching fight rankings …")
 
 
-def _rankings_completeness(path: str) -> tuple[int, int]:
-    """Return (incomplete_fights, total_fights) for a landed rankings file.
+# A fight is incomplete if more than this fraction of its characters have a
+# null rankPercent. Tolerates a small number of genuinely unrankable rows
+# (exotic off-spec, very recent spec) without thrashing the refetch loop.
+RANKINGS_INCOMPLETE_NULL_FRACTION = 0.10
 
-    A fight is considered incomplete if the WCL response contains character
-    entries for it but every character has a null `rankPercent`. That pattern
-    matches WCL's "rankings still computing" state — it has the players but
-    not the percentiles yet. Returns (0, 0) if the file cannot be parsed.
+
+def _rankings_completeness(path: str) -> tuple[int, int, int, int]:
+    """Return (incomplete_fights, total_fights, null_chars, total_chars).
+
+    A fight is considered incomplete if the fraction of characters with null
+    `rankPercent` exceeds RANKINGS_INCOMPLETE_NULL_FRACTION. This catches both
+    the "rankings still computing" state (all-null) and the partial-null state
+    where most players ranked but a subset are still pending. Returns
+    (0, 0, 0, 0) if the file cannot be parsed.
     """
     try:
         with open(path) as fh:
             record = json.loads(fh.readline())
         rankings_payload = json.loads(record.get("rankings_json") or "null")
     except (OSError, ValueError):
-        return (0, 0)
+        return (0, 0, 0, 0)
     fights = (rankings_payload or {}).get("data") or []
     incomplete = 0
+    null_chars_total = 0
+    chars_total = 0
     for fight in fights:
         roles = (fight or {}).get("roles") or {}
-        had_chars = False
-        had_rank = False
+        fight_chars = 0
+        fight_nulls = 0
         for role_key in ("tanks", "healers", "dps"):
             for character in ((roles.get(role_key) or {}).get("characters") or []):
-                had_chars = True
-                if character.get("rankPercent") is not None:
-                    had_rank = True
-                    break
-            if had_rank:
-                break
-        if had_chars and not had_rank:
+                fight_chars += 1
+                if character.get("rankPercent") is None:
+                    fight_nulls += 1
+        chars_total += fight_chars
+        null_chars_total += fight_nulls
+        if fight_chars > 0 and (fight_nulls / fight_chars) > RANKINGS_INCOMPLETE_NULL_FRACTION:
             incomplete += 1
-    return (incomplete, len(fights))
+    return (incomplete, len(fights), null_chars_total, chars_total)
 
 
 for report_code in all_report_codes:
@@ -689,20 +697,23 @@ for report_code in all_report_codes:
 
     rankings_file = f"{wcl_landing}/fight_rankings/{report_code}.jsonl"
     if os.path.exists(rankings_file):
-        incomplete, total = _rankings_completeness(rankings_file)
+        incomplete, total, null_chars, total_chars = _rankings_completeness(rankings_file)
         file_age_days = (time.time() - os.path.getmtime(rankings_file)) / 86400
         if incomplete == 0:
-            logger.info("fight_rankings: %s already fetched (complete) — skipping", report_code)
+            logger.info(
+                "fight_rankings: %s already fetched (complete, %d/%d null chars) — skipping",
+                report_code, null_chars, total_chars,
+            )
             continue
         if file_age_days >= RANKINGS_BACKFILL_MAX_AGE_DAYS:
             logger.info(
-                "fight_rankings: %s has %d/%d incomplete fights but is %.1fd old — accepting as final",
-                report_code, incomplete, total, file_age_days,
+                "fight_rankings: %s has %d/%d incomplete fights (%d/%d null chars) but is %.1fd old — accepting as final",
+                report_code, incomplete, total, null_chars, total_chars, file_age_days,
             )
             continue
         logger.info(
-            "fight_rankings: %s has %d/%d incomplete fights (age %.1fd) — re-fetching",
-            report_code, incomplete, total, file_age_days,
+            "fight_rankings: %s has %d/%d incomplete fights (%d/%d null chars, age %.1fd) — re-fetching",
+            report_code, incomplete, total, null_chars, total_chars, file_age_days,
         )
 
     fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"

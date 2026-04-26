@@ -339,40 +339,6 @@ def bronze_raiderio_character_profiles():
     )
 
 
-# ── Fight Rankings ─────────────────────────────────────────────────────────────
-# rankings_json is an opaque JSON string from the WCL rankings scalar.
-# Parsed in silver with an explicit schema.
-
-_FIGHT_RANKINGS_SCHEMA = StructType([
-    StructField("report_code", StringType(), True),
-    StructField("rankings_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
-
-
-@dlt.table(
-    name="bronze_fight_rankings",
-    comment="Raw WCL parse rankings per report (opaque JSON scalar), ingested via Auto Loader.",
-    table_properties={"quality": "bronze"},
-)
-@dlt.expect("has_report_code", "report_code IS NOT NULL")
-@dlt.expect("has_rankings_data", "rankings_json IS NOT NULL")
-def bronze_fight_rankings():
-    # allowOverwrites=true lets the ingestion job re-land a rankings file when
-    # WCL filled in previously-null `rankPercent` values. Silver dedupes per
-    # (report, fight, player) keeping the row with the latest `_ingested_at`.
-    return (
-        spark.readStream.format("cloudFiles")  # noqa: F821
-        .schema(_FIGHT_RANKINGS_SCHEMA)
-        .option("cloudFiles.format", "json")
-        .option("cloudFiles.allowOverwrites", "true")
-        .option("cloudFiles.schemaLocation", f"{LANDING}/fight_rankings/_schema")
-        .load(f"{LANDING}/fight_rankings/")
-        .withColumn("_file_path", F.col("_metadata.file_path"))
-    )
-
-
 # ── Fight Deaths ───────────────────────────────────────────────────────────────
 # table_json is an opaque JSON string from the WCL table(dataType: Deaths) scalar.
 # fight_ids records which boss fights were aggregated in this fetch.

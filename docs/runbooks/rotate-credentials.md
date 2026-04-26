@@ -2,13 +2,18 @@
 
 ## Scope
 
-The ingestion job currently reads secrets from the Databricks secret scope `warcraftlogs`.
+Two Databricks secret scopes are used.
 
-Required keys:
+`warcraftlogs` — read by the ingestion job:
 - `client_id`
 - `client_secret`
 - `blizzard_client_id`
 - `blizzard_client_secret`
+
+`github` — read by `sc-analytics-publish-post-write` to dispatch the
+GitHub Actions workflow that uploads dashboard assets to Cloudflare R2:
+- `github_token` — fine-grained PAT with `Actions: Read & Write` on this repo
+- `github_repo` — `owner/repo` (only required if the job parameter is left blank)
 
 Raider.IO does not require credentials.
 
@@ -37,7 +42,21 @@ No pipeline redeploy is required. Secrets are read at job runtime.
 Example:
 
 ```bash
-databricks bundle run nightly_ingestion
+databricks bundle run ingestion_daily
+```
+
+## Rotate GitHub trigger token
+
+```bash
+databricks secrets put-secret github github_token
+databricks secrets put-secret github github_repo  # owner/repo
+```
+
+To verify the token works without running the full pipeline, dispatch the
+publish stage on its own:
+
+```bash
+databricks bundle run publish_post_write
 ```
 
 ## After rotation

@@ -24,13 +24,24 @@ LANDING = "/Volumes/01_bronze/warcraftlogs/landing"
 TARGET_SCHEMA = "01_bronze.warcraftlogs"
 
 
-def _autoload(subdir: str, schema: StructType):
-    """Standard Auto Loader configuration for a WCL bronze landing subdir."""
-    return (
+def _autoload(subdir: str, schema: StructType, allow_overwrites: bool = False):
+    """Standard Auto Loader configuration for a WCL bronze landing subdir.
+
+    allow_overwrites=True lets re-landed files with the same path be re-ingested.
+    Required for sources whose ingestion job overwrites payloads in place
+    (e.g. fight_rankings, where WCL fills in previously-null rankPercent values
+    asynchronously and the ingestion job rewrites the same JSONL file).
+    """
+    reader = (
         spark.readStream.format("cloudFiles")  # noqa: F821
         .schema(schema)
         .option("cloudFiles.format", "json")
         .option("cloudFiles.schemaLocation", f"{LANDING}/{subdir}/_schema")
+    )
+    if allow_overwrites:
+        reader = reader.option("cloudFiles.allowOverwrites", "true")
+    return (
+        reader
         .load(f"{LANDING}/{subdir}/")
         .withColumn("_file_path", F.col("_metadata.file_path"))
     )
@@ -251,7 +262,10 @@ _FIGHT_RANKINGS_SCHEMA = StructType([
 @dlt.expect("has_report_code", "report_code IS NOT NULL")
 @dlt.expect("has_rankings_data", "rankings_json IS NOT NULL")
 def bronze_fight_rankings():
-    return _autoload("fight_rankings", _FIGHT_RANKINGS_SCHEMA)
+    # allow_overwrites=True: the ingestion job re-lands fight_rankings/<report>.jsonl
+    # in place when WCL has filled in previously-null `rankPercent` values.
+    # silver_player_rankings dedupes per report_code keeping the latest _ingested_at.
+    return _autoload("fight_rankings", _FIGHT_RANKINGS_SCHEMA, allow_overwrites=True)
 
 
 # ── Fight Deaths ───────────────────────────────────────────────────────────────

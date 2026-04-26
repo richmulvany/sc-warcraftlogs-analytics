@@ -1456,6 +1456,24 @@ export function PlayerDetail() {
   )
 
   const playerItemLevel = useMemo(() => {
+    // Prefer Blizzard armoury equipment (gold_player_character_equipment) over
+    // raid-log avg_item_level: WCL playerDetails reports the level of items
+    // worn during a kill, which can lag behind a swap/upgrade and undercount
+    // legendaries. Armoury reflects current equipped state.
+    // Exclude cosmetic slots (shirt, tabard) — matches Blizzard's reported
+    // equipped item level.
+    const armouryLevels = playerEquipment
+      .filter(item => {
+        const slot = String(item.slot_type ?? '').toUpperCase()
+        return slot !== 'SHIRT' && slot !== 'TABARD'
+      })
+      .map(item => toFiniteNumber(item.item_level))
+      .filter((v): v is number => v !== null && v > 0)
+    if (armouryLevels.length > 0) {
+      return armouryLevels.reduce((s, v) => s + v, 0) / armouryLevels.length
+    }
+
+    // Fallbacks for players with no armoury snapshot yet.
     const latestRosterRow = [...playerRosterRows]
       .filter(row => Number.isFinite(Number(row.avg_item_level)) && Number(row.avg_item_level) > 0)
       .sort((a, b) =>
@@ -1467,7 +1485,7 @@ export function PlayerDetail() {
 
     const summaryLevel = Number(summary?.avg_item_level)
     return Number.isFinite(summaryLevel) && summaryLevel > 0 ? summaryLevel : null
-  }, [playerRosterRows, summary])
+  }, [playerEquipment, playerRosterRows, summary])
 
   const survivabilityKillingBlows = useMemo(() => {
     if (scopedSurvivability) return scopedSurvivability.killingBlows

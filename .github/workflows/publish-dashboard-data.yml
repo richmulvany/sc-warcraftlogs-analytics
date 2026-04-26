@@ -1,8 +1,9 @@
 name: Publish Dashboard Data
 
 on:
-  schedule:
-    - cron: "30 2 * * *"
+  # Triggered exclusively by the Databricks parent orchestrator
+  # (sc-analytics-daily-orchestrator) via GitHub workflow_dispatch.
+  # Manual UI runs are also supported.
   workflow_dispatch:
 
 jobs:
