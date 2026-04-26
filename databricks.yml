@@ -167,17 +167,12 @@ resources:
         - task_key: copy_landing
           notebook_task:
             notebook_path: ingestion/jobs/migrate_bronze_landing_volumes.py
-    publish_dashboard_assets:
-      name: Publish Dashboard Assets
-      tasks:
-        - task_key: publish_assets
-          notebook_task:
-            notebook_path: ingestion/jobs/publish_dashboard_assets.py
-    nightly_ingestion:
-      name: Nightly WarcraftLogs Ingestion
-      schedule:
-        quartz_cron_expression: "0 0 1 * * ?"
-        timezone_id: UTC
+
+    # ── Stage 1: ingestion ─────────────────────────────────────────────────────
+    # Manually runnable for backfills. The daily 22:15 schedule lives on the
+    # orchestrator (sc-analytics-daily-orchestrator), not here.
+    ingestion_daily:
+      name: sc-analytics-ingestion-daily-2215
       tasks:
         - task_key: ingest_primary
           notebook_task:
@@ -202,3 +197,66 @@ resources:
               blizzard_profile_export_cap: ${var.blizzard_profile_export_cap}
               blizzard_profile_sleep_seconds: ${var.blizzard_profile_sleep_seconds}
               guild_zone_ranks_enabled: ${var.guild_zone_ranks_enabled}
+
+    # ── Stage 2: SDP/DLT pipeline ──────────────────────────────────────────────
+    # Triggers the bundle-managed DLT pipeline by ID — no hard-coded values.
+    sdp_post_ingestion:
+      name: sc-analytics-sdp-daily-post-ingestion
+      tasks:
+        - task_key: run_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.warcraftlogs_pipeline.id}
+            full_refresh: false
+
+    # ── Stage 3: write JSON gold-layer assets to UC Volume ─────────────────────
+    write_dashboard_assets:
+      name: sc-analytics-write-post-sdp
+      tasks:
+        - task_key: publish_assets
+          notebook_task:
+            notebook_path: ingestion/jobs/publish_dashboard_assets.py
+
+    # ── Stage 4: trigger GitHub Actions to publish UC Volume → Cloudflare R2 ──
+    # The R2 upload itself stays in GitHub Actions; this job only dispatches it
+    # via workflow_dispatch and waits for the run to complete.
+    publish_post_write:
+      name: sc-analytics-publish-post-write
+      tasks:
+        - task_key: dispatch_publish_workflow
+          notebook_task:
+            notebook_path: ingestion/jobs/trigger_publish_workflow.py
+            base_parameters:
+              secret_scope: github
+              github_repo: ""               # set via secret 'github_repo' if blank
+              github_workflow: publish-dashboard-data.yml
+              github_ref: main
+              poll_seconds: "1200"
+
+    # ── Parent orchestrator (the only job with a daily schedule) ──────────────
+    # Cron: 22:15 daily, Europe/London (handles BST/GMT automatically).
+    # Quartz format: "sec min hour day-of-month month day-of-week" → "0 15 22 * * ?".
+    daily_orchestrator:
+      name: sc-analytics-daily-orchestrator
+      schedule:
+        quartz_cron_expression: "0 15 22 * * ?"
+        timezone_id: Europe/London
+        pause_status: UNPAUSED
+      tasks:
+        - task_key: ingestion
+          run_job_task:
+            job_id: ${resources.jobs.ingestion_daily.id}
+        - task_key: sdp
+          depends_on:
+            - task_key: ingestion
+          run_job_task:
+            job_id: ${resources.jobs.sdp_post_ingestion.id}
+        - task_key: write_assets
+          depends_on:
+            - task_key: sdp
+          run_job_task:
+            job_id: ${resources.jobs.write_dashboard_assets.id}
+        - task_key: publish_to_r2
+          depends_on:
+            - task_key: write_assets
+          run_job_task:
+            job_id: ${resources.jobs.publish_post_write.id}

@@ -9,7 +9,7 @@ import { LoadingState } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { usePlayerPerformance, usePlayerSurvivability } from '../hooks/useGoldData'
-import { formatNumber, formatDate } from '../utils/format'
+import { formatNumber, formatDate, toFiniteNumber, meanIgnoringNulls } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { formatThroughput, getThroughputColor, normaliseRole } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -39,9 +39,14 @@ export function Performance() {
       )
     }
     return [...rows].sort((a, b) => {
-      const av = Number(a[sortKey]) || 0
-      const bv = Number(b[sortKey]) || 0
-      return sortDesc ? bv - av : av - bv
+      // Treat null/undefined parse fields as -Infinity when sorting desc and
+      // +Infinity when sorting asc, so missing data sinks to the bottom either
+      // way rather than being silently coerced to 0 (which would mid-rank it).
+      const av = toFiniteNumber(a[sortKey])
+      const bv = toFiniteNumber(b[sortKey])
+      const aSort = av ?? (sortDesc ? -Infinity : Infinity)
+      const bSort = bv ?? (sortDesc ? -Infinity : Infinity)
+      return sortDesc ? bSort - aSort : aSort - bSort
     })
   }, [perf.data, roleFilter, sortKey, sortDesc, search])
 
@@ -52,12 +57,18 @@ export function Performance() {
   }, [surv.data])
 
   const statsAll = useMemo(() => {
-    const withData = perf.data.filter(p => p.avg_rank_percent > 0)
-    if (!withData.length) return null
-    const avgParse = withData.reduce((s, p) => s + p.avg_rank_percent, 0) / withData.length
-    const topParse = Math.max(...withData.map(p => p.best_rank_percent))
-    const avgIlvl  = withData.reduce((s, p) => s + (p.avg_item_level || 0), 0) / withData.length
-    return { avgParse, topParse, avgIlvl, count: withData.length }
+    // Exclude players with null/missing parse data — do not coerce nulls to 0.
+    const avgParses = perf.data
+      .map(p => toFiniteNumber(p.avg_rank_percent))
+      .filter((v): v is number => v !== null && v > 0)
+    if (!avgParses.length) return null
+    const bestParses = perf.data
+      .map(p => toFiniteNumber(p.best_rank_percent))
+      .filter((v): v is number => v !== null)
+    const avgParse = meanIgnoringNulls(avgParses)
+    const topParse = bestParses.length ? Math.max(...bestParses) : 0
+    const avgIlvl  = meanIgnoringNulls(perf.data.map(p => toFiniteNumber(p.avg_item_level)))
+    return { avgParse, topParse, avgIlvl, count: avgParses.length }
   }, [perf.data])
 
   function toggleSort(key: SortKey) {

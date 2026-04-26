@@ -197,17 +197,30 @@ If any dataset or the overall export exceeds the configured limits, the publish 
 
 ### 1. Publish assets in Databricks
 
-Run the Databricks job or notebook wrapper:
+Run the asset-write stage job (writes JSON to the UC Volume only):
 
 ```bash
-databricks bundle run publish_dashboard_assets
+databricks bundle run write_dashboard_assets
 ```
 
 ### 2. Push assets to R2
 
-Run the GitHub Actions workflow manually with `workflow_dispatch`:
+Either trigger the publish stage from Databricks (which dispatches the
+GitHub Actions workflow and waits for completion):
+
+```bash
+databricks bundle run publish_post_write
+```
+
+…or run the GitHub Actions workflow manually with `workflow_dispatch`:
 
 - `Publish Dashboard Data`
+
+### 3. Run the full daily flow on demand
+
+```bash
+databricks bundle run daily_orchestrator
+```
 
 ### 3. Verify
 

@@ -12,10 +12,17 @@
 The ingestion job is incremental. Re-running it should only fetch missing or stale assets.
 
 ```bash
-databricks bundle run nightly_ingestion
+databricks bundle run ingestion_daily
 ```
 
-Then run the DLT update and re-export the frontend CSVs.
+Then run the DLT update (`sdp_post_ingestion`) and the asset write
+(`write_dashboard_assets`). To execute the full daily flow on demand, run the
+parent orchestrator instead — it chains all four stages with explicit
+dependencies.
+
+```bash
+databricks bundle run daily_orchestrator
+```
 
 ## Important current behaviour
 

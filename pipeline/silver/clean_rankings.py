@@ -95,6 +95,10 @@ _RANKINGS_SCHEMA = StructType([
 )
 @dlt.expect_or_drop("valid_ranking_ref", "report_code IS NOT NULL AND fight_id IS NOT NULL")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL")
+# Warn-only: tracks WCL parse-rankings completeness over time. Nulls are
+# legitimate (unrankable specs, archived/private reports, async compute lag),
+# but a sustained spike usually indicates an ingestion or Auto Loader issue.
+@dlt.expect("rank_percent_present", "rank_percent IS NOT NULL")
 def silver_player_rankings():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_rankings")  # noqa: F821
 
