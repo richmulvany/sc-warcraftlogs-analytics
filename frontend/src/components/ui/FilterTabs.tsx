@@ -32,7 +32,7 @@ export function FilterTabs<T extends string>({
           key={optionValue}
           onClick={() => onChange(optionValue)}
           className={clsx(
-            'px-3 py-2 rounded-md text-xs font-medium transition-all duration-150',
+            'px-3 py-2 rounded-md text-xs 2xl:text-[13px] font-medium transition-all duration-150',
             buttonClassName,
             value === optionValue ? activeClassName : inactiveClassName
           )}

@@ -2,10 +2,17 @@
 # Silver layer — parsed WCL fight rankings
 #
 # silver_player_rankings — one row per player per kill fight with WCL parse
-#                          percentiles.  Sourced by parsing the opaque
-#                          rankings_json scalar from bronze.
+#                          percentiles, role-aware.  Bronze persists two
+#                          payloads per report:
 #
-# Actual WCL rankings(compare: Parses) response structure:
+#   * rankings_json     — WCL rankings(playerMetric: dps), used for dps/tank rows.
+#   * rankings_hps_json — WCL rankings(playerMetric: hps), used for healer rows.
+#
+# We explode the role buckets from the *correct* payload per role so a healer's
+# `amount` and `rankPercent` reflect HPS, not DPS.  Tanks fall back to the dps
+# payload because WCL has no first-class tank parse comparator.
+#
+# WCL rankings(compare: Parses) response structure (per metric):
 # {
 #   "data": [
 #     {
@@ -113,21 +120,37 @@ def silver_player_rankings():
         .drop("_rn")
     )
 
-    # Parse the opaque JSON string into a typed struct
-    fights = (
+    # Parse both rankings payloads (DPS metric, HPS metric).  rankings_hps_json
+    # may be missing on legacy bronze rows that pre-date the dual-metric fetch;
+    # in that case healer rows simply fall through with null parses until those
+    # reports are re-ingested.
+    has_hps_col = "rankings_hps_json" in raw_latest.columns
+    fights_dps = (
         raw_latest
         .withColumn("parsed", F.from_json(F.col("rankings_json"), _RANKINGS_SCHEMA))
         .filter(F.col("parsed").isNotNull())
-        # Explode outer data array: one row per fight entry
         .withColumn("fight_entry", F.explode("parsed.data"))
     )
+    if has_hps_col:
+        fights_hps = (
+            raw_latest
+            .filter(F.col("rankings_hps_json").isNotNull())
+            .withColumn("parsed", F.from_json(F.col("rankings_hps_json"), _RANKINGS_SCHEMA))
+            .filter(F.col("parsed").isNotNull())
+            .withColumn("fight_entry", F.explode("parsed.data"))
+        )
+    else:
+        fights_hps = None
 
-    # Extract characters from each role separately, then union.
-    # Each role's characters array is independently exploded to avoid cross-product.
-    def _role_df(role_key: str, role_label: str):
+    # Extract characters from a specific role bucket of a specific payload.
+    # Role-payload pairing:
+    #   tanks   ← DPS payload (no first-class tank parse comparator in WCL)
+    #   dps     ← DPS payload
+    #   healers ← HPS payload (so amount/rankPercent are HPS-based)
+    def _role_df(fights_df, role_key: str, role_label: str):
         chars_col = f"fight_entry.roles.{role_key}.characters"
         return (
-            fights
+            fights_df
             .filter(F.col(chars_col).isNotNull())
             .filter(F.size(F.col(chars_col)) > 0)
             .select(
@@ -142,11 +165,15 @@ def silver_player_rankings():
             )
         )
 
-    all_players = (
-        _role_df("tanks",   "tank")
-        .union(_role_df("healers", "healer"))
-        .union(_role_df("dps",     "dps"))
-    )
+    role_dfs = [
+        _role_df(fights_dps, "tanks", "tank"),
+        _role_df(fights_dps, "dps", "dps"),
+    ]
+    if fights_hps is not None:
+        role_dfs.append(_role_df(fights_hps, "healers", "healer"))
+    all_players = role_dfs[0]
+    for df in role_dfs[1:]:
+        all_players = all_players.union(df)
 
     return (
         all_players

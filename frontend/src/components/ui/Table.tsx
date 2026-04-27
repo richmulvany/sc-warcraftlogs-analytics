@@ -20,7 +20,7 @@ export function Th({ children, className, right }: { children: React.ReactNode; 
   return (
     <th
       className={clsx(
-        'px-4 py-3 text-[10px] font-mono font-semibold uppercase tracking-[0.1em] text-ctp-overlay0 whitespace-nowrap',
+        'px-4 py-3 text-[10px] xl:text-[11px] 2xl:text-xs font-mono font-semibold uppercase tracking-[0.1em] text-ctp-overlay0 whitespace-nowrap',
         right ? 'text-right' : 'text-left',
         className
       )}
@@ -47,7 +47,7 @@ export function Td({
     <td
       style={style}
       className={clsx(
-        'px-4 py-3 text-sm text-ctp-subtext1 whitespace-nowrap',
+        'px-4 py-3 text-sm 2xl:text-[15px] text-ctp-subtext1 whitespace-nowrap',
         right && 'text-right',
         mono && 'font-mono',
         className

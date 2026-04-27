@@ -538,24 +538,45 @@ class WarcraftLogsAdapter(BaseAdapter):
         """
         Fetch WCL parse rankings for specific kill fights within a report.
 
-        The ``rankings`` field is an opaque JSON scalar in the WCL schema.  We
-        serialise it to a string (``rankings_json``) for safe storage in bronze;
-        the silver layer parses it with an explicit schema.
+        We query WCL twice and persist both payloads side-by-side:
+
+        * ``rankings_json`` — ``playerMetric: dps``: used for tank and dps parse
+          rankings (WCL has no first-class "tank parse" comparator; tanks are
+          historically ranked against DPS metric).
+        * ``rankings_hps_json`` — ``playerMetric: hps``: used for healer parse
+          rankings.  Without this, healer rows in the default rankings response
+          are computed against DPS, which produces unusably small throughput
+          and low rank percentiles for healers.
+
+        Both payloads are opaque JSON scalars in the WCL schema; the silver
+        layer parses them with explicit schemas and unions role-appropriate
+        rows.
 
         Raises ArchivedReportError if the report has been archived.
         """
         query = """
-        query ReportRankings($code: String!, $fightIDs: [Int]) {
+        query ReportRankings($code: String!, $fightIDs: [Int], $metric: ReportRankingMetricType!) {
           reportData {
             report(code: $code) {
-              rankings(fightIDs: $fightIDs, compare: Parses, timeframe: Historical)
+              rankings(fightIDs: $fightIDs, compare: Parses, timeframe: Historical, playerMetric: $metric)
             }
           }
         }
         """
-        data = self._graphql_query(query, {"code": report_code, "fightIDs": fight_ids})
-        raw = data["reportData"]["report"]["rankings"]
-        rankings_json = json.dumps(raw) if not isinstance(raw, str) else raw
+        dps_data = self._graphql_query(
+            query, {"code": report_code, "fightIDs": fight_ids, "metric": "dps"}
+        )
+        hps_data = self._graphql_query(
+            query, {"code": report_code, "fightIDs": fight_ids, "metric": "hps"}
+        )
+
+        def _serialise(raw: Any) -> str | None:
+            if raw is None:
+                return None
+            return json.dumps(raw) if not isinstance(raw, str) else raw
+
+        rankings_json = _serialise(dps_data["reportData"]["report"]["rankings"])
+        rankings_hps_json = _serialise(hps_data["reportData"]["report"]["rankings"])
 
         log.info("wcl.report_rankings", code=report_code, fight_count=len(fight_ids))
         return FetchResult(
@@ -565,6 +586,7 @@ class WarcraftLogsAdapter(BaseAdapter):
                 {
                     "report_code": report_code,
                     "rankings_json": rankings_json,
+                    "rankings_hps_json": rankings_hps_json,
                 }
             ],
             total_records=1,

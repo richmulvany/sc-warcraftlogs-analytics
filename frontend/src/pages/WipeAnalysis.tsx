@@ -44,27 +44,31 @@ const WA_SECTIONS = [
   { id: 'survival',  label: 'Survival' },
 ] as const
 
-type SurvivabilitySortKey =
-  | 'deathsPerKill'
-  | 'deathsPerPull'
-  | 'deaths'
-  | 'wipeDeath'
-  | 'killDeath'
-  | 'kills'
-  | 'pulls'
 type SortDirection = 'asc' | 'desc'
 type WipeSurvivalSortKey =
-  | 'survivalFailureScore'
+  | 'player'
+  | 'grade'
+  | 'wipePullsTracked'
   | 'wipeDeaths'
+  | 'deathsPerWipePull'
   | 'defensiveCapacityUsedPct'
   | 'noHealthstonePct'
   | 'noHealthPotionPct'
+  | 'survivalFailureScore'
+  | 'topMissing'
+  | 'mostKilledBy'
+  | 'killDeaths'
+  | 'killsTracked'
+  | 'deathsPerKill'
 
 interface WipeSurvivalFailureRow {
   player_name: string
   player_class: string
   wipe_pulls_tracked: number
   wipe_deaths: number
+  kill_deaths: number
+  kills_tracked: number
+  deaths_per_kill: number | null
   deaths_per_wipe_pull: number
   no_healthstone_deaths: number
   no_health_potion_deaths: number
@@ -72,6 +76,7 @@ interface WipeSurvivalFailureRow {
   defensive_actual_casts: number
   defensive_missed_casts: number
   defensive_capacity_used_pct: number
+  has_defensive_capacity_tracked: boolean
   no_healthstone_pct: number
   no_health_potion_pct: number
   weighted_failure_points: number
@@ -351,10 +356,6 @@ function isPositiveFlag(value: unknown) {
 
 function sectionTotal<T extends { [k: string]: unknown }>(rows: T[], key: keyof T) {
   return rows.reduce((sum, row) => sum + Number(row[key] ?? 0), 0)
-}
-
-function getDefaultSortDirection(key: SurvivabilitySortKey): SortDirection {
-  return key === 'deathsPerKill' || key === 'deathsPerPull' ? 'asc' : 'desc'
 }
 
 function pct(numerator: number, denominator: number) {
@@ -701,13 +702,6 @@ export function WipeAnalysis() {
   const [selectedTier, setSelectedTier] = useState<string>('All')
   const [selectedBoss, setSelectedBoss] = useState<string>('All')
   const [search, setSearch] = useState('')
-  const [survivabilitySort, setSurvivabilitySort] = useState<{
-    key: SurvivabilitySortKey
-    direction: SortDirection
-  }>({
-    key: 'deathsPerPull',
-    direction: 'desc',
-  })
   const [wipeSurvivalSort, setWipeSurvivalSort] = useState<{
     key: WipeSurvivalSortKey
     direction: SortDirection
@@ -1170,6 +1164,9 @@ export function WipeAnalysis() {
         player_class: playerClass || 'Unknown',
         wipe_pulls_tracked: 0,
         wipe_deaths: 0,
+        kill_deaths: 0,
+        kills_tracked: 0,
+        deaths_per_kill: null,
         deaths_per_wipe_pull: 0,
         no_healthstone_deaths: 0,
         no_health_potion_deaths: 0,
@@ -1177,6 +1174,7 @@ export function WipeAnalysis() {
         defensive_actual_casts: 0,
         defensive_missed_casts: 0,
         defensive_capacity_used_pct: 0,
+        has_defensive_capacity_tracked: false,
         no_healthstone_pct: 0,
         no_health_potion_pct: 0,
         weighted_failure_points: 0,
@@ -1190,16 +1188,28 @@ export function WipeAnalysis() {
       return row
     }
 
+    const survivabilityByKey = new Map(
+      scopedSurvivability.map(row => [row.player_name.toLowerCase(), row])
+    )
+
     for (const [playerKey, pulls] of wipePullsByPlayer.entries()) {
       const playerName = displayNameByPlayer.get(playerKey) ?? playerKey
       const player = ensurePlayer(playerName, classByPlayer.get(playerKey) ?? 'Unknown')
       player.wipe_pulls_tracked = pulls.size
 
       const defensiveCapacity = personalDefensiveCapacityByPlayer.get(playerKey)
-      if (defensiveCapacity) {
+      if (defensiveCapacity && defensiveCapacity.possible_casts > 0) {
         player.defensive_possible_casts = defensiveCapacity.possible_casts
         player.defensive_actual_casts = defensiveCapacity.actual_casts
         player.defensive_missed_casts = defensiveCapacity.missed_casts
+        player.has_defensive_capacity_tracked = true
+      }
+
+      const survivability = survivabilityByKey.get(playerKey)
+      if (survivability) {
+        player.kill_deaths = survivability.kill_deaths
+        player.kills_tracked = survivability.kills_tracked
+        player.deaths_per_kill = survivability.deaths_per_kill
       }
     }
 
@@ -1246,10 +1256,9 @@ export function WipeAnalysis() {
           ...row,
           wipe_pulls_tracked: wipePulls,
           deaths_per_wipe_pull: wipePulls > 0 ? row.wipe_deaths / wipePulls : 0,
-          defensive_capacity_used_pct:
-            row.defensive_possible_casts > 0
-              ? (row.defensive_actual_casts / row.defensive_possible_casts) * 100
-              : 0,
+          defensive_capacity_used_pct: row.has_defensive_capacity_tracked
+            ? (row.defensive_actual_casts / row.defensive_possible_casts) * 100
+            : 0,
           no_healthstone_pct: pct(row.no_healthstone_deaths, row.wipe_deaths),
           no_health_potion_pct: pct(row.no_health_potion_deaths, row.wipe_deaths),
           weighted_failure_points: weightedFailurePoints,
@@ -1280,7 +1289,7 @@ export function WipeAnalysis() {
     return scoredRows
       .map(row => ({ ...row, survival_grade: gradeByPlayer.get(row.player_name.toLowerCase()) ?? 'S' }))
       .sort((a, b) => b.survival_failure_score - a.survival_failure_score || b.wipe_deaths - a.wipe_deaths)
-  }, [personalDefensiveCapacityByPlayer, scopedWipeUtilityRows, scopedWipeSurvivalEventRows])
+  }, [personalDefensiveCapacityByPlayer, scopedWipeUtilityRows, scopedWipeSurvivalEventRows, scopedSurvivability])
 
   const historicalClosestPull = useMemo(
     () =>
@@ -1842,51 +1851,44 @@ export function WipeAnalysis() {
     ]
   }, [stats, recurringKillers, firstDeathLeaders])
 
-  const playerRows = useMemo(() => {
-    return [...scopedSurvivability]
-      .sort((a, b) => {
-        const valueFor = (row: ScopedSurvivabilityRow) => {
-          switch (survivabilitySort.key) {
-            case 'deathsPerKill':
-              return row.deaths_per_kill ?? Number.NEGATIVE_INFINITY
-            case 'deathsPerPull':
-              return row.deaths_per_pull ?? Number.NEGATIVE_INFINITY
-            case 'deaths':
-              return row.total_deaths
-            case 'wipeDeath':
-              return row.kill_deaths
-            case 'killDeath':
-              return row.wipe_deaths
-            case 'kills':
-              return row.kills_tracked
-            case 'pulls':
-              return row.pulls_tracked
-          }
-        }
-
-        const av = valueFor(a)
-        const bv = valueFor(b)
-
-        const comparison = survivabilitySort.direction === 'asc' ? av - bv : bv - av
-
-        return comparison || a.player_name.localeCompare(b.player_name)
-      })
-      .slice(0, 10)
-  }, [scopedSurvivability, survivabilitySort])
-
   const wipeSurvivalRows = useMemo(() => {
-    const valueFor = (row: WipeSurvivalFailureRow) => {
+    const GRADE_ORDER: Record<WipeSurvivalFailureRow['survival_grade'], number> = {
+      S: 0, A: 1, B: 2, C: 3, D: 4, E: 5, F: 6,
+    }
+    const valueFor = (row: WipeSurvivalFailureRow): number | string => {
       switch (wipeSurvivalSort.key) {
-        case 'survivalFailureScore':
-          return row.survival_failure_score
+        case 'player':
+          return row.player_name.toLowerCase()
+        case 'grade':
+          return GRADE_ORDER[row.survival_grade]
+        case 'wipePullsTracked':
+          return row.wipe_pulls_tracked
         case 'wipeDeaths':
           return row.wipe_deaths
+        case 'deathsPerWipePull':
+          return row.deaths_per_wipe_pull
         case 'defensiveCapacityUsedPct':
-          return row.defensive_capacity_used_pct
+          // Sort untracked-capacity players to the bottom of either direction —
+          // treat as -Infinity so they aren't confused with truly low usage.
+          return row.has_defensive_capacity_tracked
+            ? row.defensive_capacity_used_pct
+            : Number.NEGATIVE_INFINITY
         case 'noHealthstonePct':
           return row.no_healthstone_pct
         case 'noHealthPotionPct':
           return row.no_health_potion_pct
+        case 'survivalFailureScore':
+          return row.survival_failure_score
+        case 'topMissing':
+          return row.top_missing_category.toLowerCase()
+        case 'mostKilledBy':
+          return row.most_common_killing_blow.toLowerCase()
+        case 'killDeaths':
+          return row.kill_deaths
+        case 'killsTracked':
+          return row.kills_tracked
+        case 'deathsPerKill':
+          return row.deaths_per_kill ?? Number.NEGATIVE_INFINITY
       }
     }
 
@@ -1894,25 +1896,24 @@ export function WipeAnalysis() {
       .sort((a, b) => {
         const av = valueFor(a)
         const bv = valueFor(b)
-        const comparison = wipeSurvivalSort.direction === 'asc' ? av - bv : bv - av
+        let comparison: number
+        if (typeof av === 'string' || typeof bv === 'string') {
+          comparison = String(av).localeCompare(String(bv))
+        } else {
+          comparison = av - bv
+        }
+        if (wipeSurvivalSort.direction === 'desc') comparison = -comparison
         return comparison || b.wipe_deaths - a.wipe_deaths || a.player_name.localeCompare(b.player_name)
       })
       .slice(0, 12)
   }, [wipeSurvivalFailures, wipeSurvivalSort])
 
-  function sortSurvivabilityBy(key: SurvivabilitySortKey) {
-    setSurvivabilitySort(current =>
-      current.key === key
-        ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
-        : { key, direction: getDefaultSortDirection(key) }
-    )
-  }
-
   function sortWipeSurvivalBy(key: WipeSurvivalSortKey) {
+    const ascByDefault: WipeSurvivalSortKey[] = ['player', 'grade', 'topMissing', 'mostKilledBy', 'deathsPerKill']
     setWipeSurvivalSort(current =>
       current.key === key
         ? { key, direction: current.direction === 'asc' ? 'desc' : 'asc' }
-        : { key, direction: 'desc' }
+        : { key, direction: ascByDefault.includes(key) ? 'asc' : 'desc' }
     )
   }
 
@@ -3139,32 +3140,45 @@ export function WipeAnalysis() {
                 <Table>
                   <THead>
                     <tr>
-                      <Th>Player</Th>
-                      <Th right>Grade</Th>
-                      <Th right>Wipe Pulls</Th>
-                      <Th right>
-                        <WipeSurvivalSortButton k="wipeDeaths">Wipe Death Events</WipeSurvivalSortButton>
+                      <Th>
+                        <WipeSurvivalSortButton k="player">Player</WipeSurvivalSortButton>
                       </Th>
-                      <Th right>Deaths/Pull</Th>
                       <Th right>
-                        Def Casts
+                        <WipeSurvivalSortButton k="grade">Grade</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="wipePullsTracked">Wipe Pulls</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="wipeDeaths">Wipe Deaths</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="deathsPerWipePull">Deaths/Pull</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="killsTracked">Kills</WipeSurvivalSortButton>
+                      </Th>
+                      <Th right>
+                        <WipeSurvivalSortButton k="deathsPerKill">Deaths/Kill</WipeSurvivalSortButton>
                       </Th>
                       <Th right>
                         <WipeSurvivalSortButton k="defensiveCapacityUsedPct">Def Cap Used</WipeSurvivalSortButton>
                       </Th>
-                      <Th right>No Stone</Th>
                       <Th right>
                         <WipeSurvivalSortButton k="noHealthstonePct">No Stone Rate</WipeSurvivalSortButton>
                       </Th>
-                      <Th right>No HPot</Th>
                       <Th right>
                         <WipeSurvivalSortButton k="noHealthPotionPct">No HPot Rate</WipeSurvivalSortButton>
                       </Th>
                       <Th right>
                         <WipeSurvivalSortButton k="survivalFailureScore">Score</WipeSurvivalSortButton>
                       </Th>
-                      <Th>Top Missing</Th>
-                      <Th>Most Killed By</Th>
+                      <Th>
+                        <WipeSurvivalSortButton k="topMissing">Top Missing</WipeSurvivalSortButton>
+                      </Th>
+                      <Th>
+                        <WipeSurvivalSortButton k="mostKilledBy">Most Killed By</WipeSurvivalSortButton>
+                      </Th>
                     </tr>
                   </THead>
                   <TBody>
@@ -3201,26 +3215,38 @@ export function WipeAnalysis() {
                             {(row.deaths_per_wipe_pull * 100).toFixed(1)}%
                           </Td>
                           <Td right mono className="text-ctp-overlay1">
-                            {formatNumber(row.defensive_actual_casts)}
+                            {formatNumber(row.kills_tracked)}
                           </Td>
                           <Td
                             right
                             mono
-                            style={{ color: getDeathRateColor(Math.max(0, 1 - row.defensive_capacity_used_pct / 100)) }}
+                            style={row.deaths_per_kill != null ? { color: getDeathRateColor(row.deaths_per_kill) } : undefined}
+                            className={row.deaths_per_kill == null ? 'text-ctp-overlay0' : undefined}
                           >
-                            {row.defensive_possible_casts > 0 ? `${row.defensive_capacity_used_pct.toFixed(0)}%` : '—'}
+                            {row.deaths_per_kill != null ? row.deaths_per_kill.toFixed(1) : '—'}
                           </Td>
-                          <Td right mono className="text-ctp-overlay1">
-                            {formatNumber(row.no_healthstone_deaths)}
-                          </Td>
+                          {row.has_defensive_capacity_tracked ? (
+                            <Td
+                              right
+                              mono
+                              style={{ color: getDeathRateColor(Math.max(0, 1 - row.defensive_capacity_used_pct / 100)) }}
+                            >
+                              <span title={`${formatNumber(row.defensive_actual_casts)} cast / ${formatNumber(row.defensive_possible_casts)} possible`}>
+                                {`${row.defensive_capacity_used_pct.toFixed(0)}%`}
+                              </span>
+                            </Td>
+                          ) : (
+                            <Td right mono className="text-ctp-overlay0">
+                              <span title="No tracked defensive capacity for this spec — review _cooldown_rules.py">
+                                n/a
+                              </span>
+                            </Td>
+                          )}
                           <Td right mono style={{ color: getDeathRateColor(row.no_healthstone_pct / 100) }}>
-                            {row.no_healthstone_pct.toFixed(0)}%
-                          </Td>
-                          <Td right mono className="text-ctp-overlay1">
-                            {formatNumber(row.no_health_potion_deaths)}
+                            {row.wipe_deaths > 0 ? `${row.no_healthstone_pct.toFixed(0)}%` : '—'}
                           </Td>
                           <Td right mono style={{ color: getDeathRateColor(row.no_health_potion_pct / 100) }}>
-                            {row.no_health_potion_pct.toFixed(0)}%
+                            {row.wipe_deaths > 0 ? `${row.no_health_potion_pct.toFixed(0)}%` : '—'}
                           </Td>
                           <Td right mono>
                             <span className="font-semibold" style={{ color: scoreColor }}>
@@ -3256,230 +3282,12 @@ export function WipeAnalysis() {
 
                 <p className="mt-3 font-mono text-[10px] text-ctp-overlay0">
                   Score = ((missed personal defensive capacity × 0.5 + no healthstone before death × 0.3 + no health potion before death × 0.2) / player wipe pulls) × 100.
-                  Death columns count logged death events on wipe pulls; stone and potion rates use player wipe deaths as the denominator; defensive capacity is limited to tracked abilities for the spec seen on the pull.
+                  Wipe Deaths and Deaths/Kill count logged death events on wipe pulls and tracked kills respectively; stone and potion rates use player wipe deaths as the denominator; Def Cap Used is limited to tracked abilities for the spec seen on the pull. Players whose spec has no tracked defensive rules show <span className="text-ctp-overlay1">n/a</span> and contribute zero defensive penalty — review <span className="font-mono">_cooldown_rules.py</span> if a spec is consistently missing.
                 </p>
               </CardBody>
             )}
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Player Survivability</CardTitle>
-              <p className="mt-0.5 text-xs text-ctp-overlay1">
-                Top 10 in the current scope. Wipe deaths matter more than kill deaths when reading this table.
-              </p>
-            </CardHeader>
-
-            {deathEvents.loading || roster.loading ? (
-              <CardBody>
-                <LoadingState rows={6} />
-              </CardBody>
-            ) : (
-              <CardBody className="overflow-x-auto">
-                <Table>
-                  <THead>
-                    <tr>
-                      <Th>Player</Th>
-                      <Th right>
-                        <button
-                          type="button"
-                          onClick={() => sortSurvivabilityBy('deaths')}
-                          className="transition-colors hover:text-ctp-mauve"
-                        >
-                          Deaths
-                          {survivabilitySort.key === 'deaths'
-                            ? survivabilitySort.direction === 'asc'
-                              ? ' ↑'
-                              : ' ↓'
-                            : ''}
-                        </button>
-                      </Th>
-                      <Th right>
-                        <button
-                          type="button"
-                          onClick={() => sortSurvivabilityBy('killDeath')}
-                          className="transition-colors hover:text-ctp-mauve"
-                        >
-                          On Kills
-                          {survivabilitySort.key === 'killDeath'
-                            ? survivabilitySort.direction === 'asc'
-                              ? ' ↑'
-                              : ' ↓'
-                            : ''}
-                        </button>
-                      </Th>
-                      <Th right>
-                        <button
-                          type="button"
-                          onClick={() => sortSurvivabilityBy('wipeDeath')}
-                          className="transition-colors hover:text-ctp-mauve"
-                        >
-                          On Wipes
-                          {survivabilitySort.key === 'wipeDeath'
-                            ? survivabilitySort.direction === 'asc'
-                              ? ' ↑'
-                              : ' ↓'
-                            : ''}
-                        </button>
-                      </Th>
-                      <Th right>
-                        <button
-                          type="button"
-                          onClick={() => sortSurvivabilityBy('kills')}
-                          className="transition-colors hover:text-ctp-mauve"
-                        >
-                          Kills
-                          {survivabilitySort.key === 'kills'
-                            ? survivabilitySort.direction === 'asc'
-                              ? ' ↑'
-                              : ' ↓'
-                            : ''}
-                        </button>
-                      </Th>
-                      <Th right>
-                        <button
-                          type="button"
-                          onClick={() => sortSurvivabilityBy('pulls')}
-                          className="transition-colors hover:text-ctp-mauve"
-                        >
-                          Pulls
-                          {survivabilitySort.key === 'pulls'
-                            ? survivabilitySort.direction === 'asc'
-                              ? ' ↑'
-                              : ' ↓'
-                            : ''}
-                        </button>
-                      </Th>
-                      <Th right>
-                        <button
-                          type="button"
-                          onClick={() => sortSurvivabilityBy('deathsPerKill')}
-                          className="transition-colors hover:text-ctp-mauve"
-                        >
-                          Deaths/Kill
-                          {survivabilitySort.key === 'deathsPerKill'
-                            ? survivabilitySort.direction === 'asc'
-                              ? ' ↑'
-                              : ' ↓'
-                            : ''}
-                        </button>
-                      </Th>
-                      <Th right>
-                        <button
-                          type="button"
-                          onClick={() => sortSurvivabilityBy('deathsPerPull')}
-                          className="transition-colors hover:text-ctp-mauve"
-                        >
-                          Deaths/Pull
-                          {survivabilitySort.key === 'deathsPerPull'
-                            ? survivabilitySort.direction === 'asc'
-                              ? ' ↑'
-                              : ' ↓'
-                            : ''}
-                        </button>
-                      </Th>
-                      <Th>Most Killed By</Th>
-                    </tr>
-                  </THead>
-
-                  <TBody>
-                    {playerRows.map(row => {
-                      const deathPerKill = row.deaths_per_kill
-                      const deathPerPull = row.deaths_per_pull
-                      const onWipesDeaths = row.kill_deaths
-                      const onKillsDeaths = row.wipe_deaths
-
-                      return (
-                        <Tr key={row.player_name}>
-                          <Td>
-                            <div className="flex items-center gap-2">
-                              <ClassDot className={row.player_class} />
-                              <span className="text-xs font-medium text-ctp-text">{row.player_name}</span>
-                            </div>
-                          </Td>
-
-                          <Td right mono style={{ color: wipeColor }}>
-                            {formatNumber(row.total_deaths)}
-                          </Td>
-
-                          <Td right mono>
-                            <span
-                              style={{ color: onWipesDeaths > 0 ? wipeColor : undefined }}
-                              className={onWipesDeaths === 0 ? 'text-ctp-overlay0' : undefined}
-                            >
-                              {formatNumber(onWipesDeaths)}
-                            </span>
-                            {row.total_deaths > 0 ? (
-                              <span className="ml-1 text-[10px] text-ctp-overlay0">
-                                ({((onWipesDeaths / row.total_deaths) * 100).toFixed(0)}%)
-                              </span>
-                            ) : null}
-                          </Td>
-
-                          <Td right mono>
-                            <span
-                              style={{ color: onKillsDeaths > 0 ? topTierColor : undefined }}
-                              className={onKillsDeaths === 0 ? 'text-ctp-overlay0' : undefined}
-                            >
-                              {formatNumber(onKillsDeaths)}
-                            </span>
-                            {row.total_deaths > 0 ? (
-                              <span className="ml-1 text-[10px] text-ctp-overlay0">
-                                ({((onKillsDeaths / row.total_deaths) * 100).toFixed(0)}%)
-                              </span>
-                            ) : null}
-                          </Td>
-
-                          <Td right mono className="text-ctp-overlay1">
-                            {formatNumber(row.kills_tracked)}
-                          </Td>
-
-                          <Td right mono className="text-ctp-overlay1">
-                            {formatNumber(row.pulls_tracked)}
-                          </Td>
-
-                          <Td
-                            right
-                            mono
-                            style={deathPerKill != null ? { color: getDeathRateColor(deathPerKill) } : undefined}
-                            className={deathPerKill == null ? 'text-ctp-overlay0' : undefined}
-                          >
-                            {deathPerKill != null ? deathPerKill.toFixed(1) : '—'}
-                          </Td>
-
-                          <Td
-                            right
-                            mono
-                            style={deathPerPull != null ? { color: getDeathRateColor(deathPerPull) } : undefined}
-                            className={deathPerPull == null ? 'text-ctp-overlay0' : undefined}
-                          >
-                            {deathPerPull != null ? deathPerPull.toFixed(1) : '—'}
-                          </Td>
-
-                          <Td className="max-w-[220px] font-mono text-[10px] text-ctp-overlay0">
-                            {row.most_common_killing_blow ? (
-                              <span title={row.most_common_killing_blow} className="block truncate">
-                                {row.most_common_killing_blow.length > 30
-                                  ? `${row.most_common_killing_blow.slice(0, 29)}…`
-                                  : row.most_common_killing_blow}
-                                {row.most_common_killing_blow_count > 1 ? (
-                                  <span className="ml-1 text-ctp-overlay0">
-                                    ×{row.most_common_killing_blow_count}
-                                  </span>
-                                ) : null}
-                              </span>
-                            ) : (
-                              '—'
-                            )}
-                          </Td>
-                        </Tr>
-                      )
-                    })}
-                  </TBody>
-                </Table>
-              </CardBody>
-            )}
-          </Card>
           </section>
         </>
       )}

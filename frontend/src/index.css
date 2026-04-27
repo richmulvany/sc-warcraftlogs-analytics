@@ -31,7 +31,7 @@
   }
 
   .section-label {
-    @apply text-[10px] xl:text-[11px] 2xl:text-xs font-mono font-semibold uppercase tracking-[0.12em] text-ctp-overlay0;
+    @apply text-[10px] xl:text-[11px] 2xl:text-[13px] font-mono font-semibold uppercase tracking-[0.12em] text-ctp-overlay0;
   }
 }
 
@@ -39,5 +39,20 @@
   /* Table row hover */
   .table-row-hover tbody tr:hover > td {
     background-color: rgba(255,255,255,0.025);
+  }
+}
+
+/* Chart text readability bump on high-res screens.
+   Recharts applies tick fontSize via inline style — !important is required to override. */
+@media (min-width: 1536px) {
+  .recharts-cartesian-axis-tick text,
+  .recharts-polar-angle-axis-tick text,
+  .recharts-polar-radius-axis-tick text {
+    font-size: 12px !important;
+  }
+  .recharts-legend-item-text,
+  .recharts-label,
+  .recharts-text.recharts-label {
+    font-size: 12px !important;
   }
 }

@@ -37,8 +37,8 @@ One row per player per boss kill fight. The primary fact table for all performan
 | `haste_rating` | LONG | Haste rating |
 | `mastery_rating` | LONG | Mastery rating |
 | `versatility_rating` | LONG | Versatility rating |
-| `throughput_per_second` | LONG | DPS/HPS from WCL rankings.amount (nullable — null when no WCL ranking for this fight/player) |
-| `rank_percent` | DOUBLE | WCL parse percentile (0–100) |
+| `throughput_per_second` | LONG | Role-aware throughput from WCL rankings.amount: DPS for dps/tank rows, HPS for healer rows (nullable — null when no WCL ranking for this fight/player) |
+| `rank_percent` | DOUBLE | WCL parse percentile (0–100), role-aware (DPS parse for dps/tank, HPS parse for healer) |
 | `bracket_percent` | DOUBLE | WCL bracket (item level bracket) percentile |
 | `rank_string` | STRING | Approximate rank position (e.g. "~1265") |
 
@@ -182,10 +182,10 @@ Aggregated performance per player across all kill fights.
 | `role` | STRING | dps / healer / tank |
 | `primary_spec` | STRING | Most frequently played spec |
 | `kills_tracked` | LONG | Number of kill fights included |
-| `avg_throughput_per_second` | LONG | Average DPS/HPS (from WCL rankings) |
-| `best_throughput_per_second` | LONG | Single-fight best DPS/HPS |
-| `avg_rank_percent` | DOUBLE | Average WCL parse percentile |
-| `best_rank_percent` | DOUBLE | Highest single-fight parse |
+| `avg_throughput_per_second` | LONG | Average role-aware throughput (DPS for dps/tank, HPS for healer) |
+| `best_throughput_per_second` | LONG | Single-fight best role-aware throughput (DPS for dps/tank, HPS for healer) |
+| `avg_rank_percent` | DOUBLE | Average WCL parse percentile, role-aware (DPS parse / HPS parse) |
+| `best_rank_percent` | DOUBLE | Highest single-fight parse, role-aware (DPS parse / HPS parse) |
 | `avg_item_level` | DOUBLE | Average equipped item level |
 | `last_seen_date` | DATE | Most recent kill date |
 
