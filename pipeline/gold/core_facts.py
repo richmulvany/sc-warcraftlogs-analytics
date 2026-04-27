@@ -9,7 +9,9 @@
 #
 # NOTE on throughput:
 #   throughput_per_second comes from silver_player_rankings.amount which is the
-#   DPS/HPS value WCL uses for ranking — already normalised per fight second.
+#   role-appropriate per-second value WCL uses for ranking — DPS for dps/tank
+#   rows, HPS for healer rows (silver picks from the matching playerMetric
+#   payload).  Already normalised per fight second.
 #   silver_player_performance (playerDetails endpoint) does NOT carry damage totals.
 
 import dlt
@@ -114,7 +116,8 @@ def fact_player_fight_performance():
     )
 
     # Rankings keyed on (report_code, fight_id, player_name).
-    # amount = WCL DPS/HPS metric (per-second throughput, already fight-normalised).
+    # amount = WCL role-appropriate metric (DPS for dps/tank, HPS for healer)
+    # per-second throughput, already fight-normalised.
     rankings_slim = (
         rankings
         .select(
@@ -290,7 +293,7 @@ def fact_player_fight_performance():
             "haste_rating",
             "mastery_rating",
             "versatility_rating",
-            "throughput_per_second",   # from rankings.amount (DPS/HPS, nullable)
+            "throughput_per_second",   # from rankings.amount (DPS for dps/tank, HPS for healer; nullable)
             "rank_percent",
             "bracket_percent",
             "rank_string",

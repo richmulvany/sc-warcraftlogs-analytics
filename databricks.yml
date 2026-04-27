@@ -229,7 +229,7 @@ resources:
           notebook_task:
             notebook_path: ingestion/jobs/trigger_publish_workflow.py
             base_parameters:
-              secret_scope: github
+              secret_scope: sc-analytics  # the notebook reads GitHub repo from this secret if 'github_repo' variable is blank
               github_repo: ${var.github_repo}               # set via secret 'github_repo' if blank
               github_workflow: publish-dashboard-data.yml
               github_ref: main

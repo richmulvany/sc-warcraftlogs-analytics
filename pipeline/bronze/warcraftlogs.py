@@ -248,7 +248,13 @@ def bronze_zone_catalog():
 
 _FIGHT_RANKINGS_SCHEMA = StructType([
     StructField("report_code", StringType(), True),
+    # rankings_json: WCL rankings(playerMetric: dps) — used for dps/tank rows.
     StructField("rankings_json", StringType(), True),
+    # rankings_hps_json: WCL rankings(playerMetric: hps) — used for healer rows.
+    # Nullable so old bronze landings (which only carry rankings_json) still load;
+    # silver gracefully nulls healer parses for those legacy reports until
+    # re-ingested.
+    StructField("rankings_hps_json", StringType(), True),
     StructField("_source", StringType(), True),
     StructField("_ingested_at", StringType(), True),
 ])

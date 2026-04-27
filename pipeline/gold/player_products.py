@@ -55,9 +55,9 @@ def gold_player_attendance():
 @dlt.table(
     name="03_gold.sc_analytics.gold_player_performance_summary",
     comment=(
-        "Aggregated per-player performance across all boss kills: avg/best DPS/HPS, "
+        "Aggregated per-player performance across all boss kills: avg/best role-aware throughput, "
         "spec, item level, kill count, and WCL parse percentile. "
-        "throughput_per_second = WCL rankings.amount (DPS/HPS, null when no ranking)."
+        "throughput_per_second = WCL rankings.amount, role-appropriate (DPS for dps/tank, HPS for healer; null when no ranking)."
     ),
     table_properties={
         "quality": "gold",
@@ -97,7 +97,7 @@ def gold_player_performance_summary():
         .groupBy("player_name", "player_class", "role")
         .agg(
             F.count("*").alias("kills_tracked"),
-            # throughput_per_second = WCL DPS/HPS; null when no ranking available
+            # throughput_per_second = WCL role-aware (DPS dps/tank, HPS healer); null when no ranking available
             F.avg("throughput_per_second").cast("long").alias("avg_throughput_per_second"),
             F.max("throughput_per_second").cast("long").alias("best_throughput_per_second"),
             F.avg("rank_percent").alias("avg_rank_percent"),

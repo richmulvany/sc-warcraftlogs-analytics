@@ -17,7 +17,7 @@ import time
 import urllib.error
 import urllib.request
 
-dbutils.widgets.text("secret_scope", "github")  # noqa: F821
+dbutils.widgets.text("secret_scope", "sc-analytics")  # noqa: F821
 dbutils.widgets.text("github_repo", "")                   # noqa: F821
 dbutils.widgets.text("github_workflow", "publish-dashboard-data.yml")  # noqa: F821
 dbutils.widgets.text("github_ref", "main")                # noqa: F821
