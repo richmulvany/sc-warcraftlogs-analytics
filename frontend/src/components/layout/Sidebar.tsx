@@ -84,8 +84,8 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
             <img src="/logo.jpg" alt="Student Council logo" className="w-7 h-7 rounded-[10px] object-cover" />
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-ctp-text truncate">Student Council</p>
-            <p className="text-[10px] font-mono text-ctp-overlay0 mt-0.5">Twisting Nether · EU</p>
+            <p className="text-sm 2xl:text-[15px] font-semibold text-ctp-text truncate">Student Council</p>
+            <p className="text-[10px] 2xl:text-[11px] font-mono text-ctp-overlay1 mt-0.5">Twisting Nether · EU</p>
           </div>
         </div>
       </div>
@@ -101,7 +101,7 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
             onClick={onNavClick}
             className={({ isActive }) =>
               clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm 2xl:text-[15px] font-medium transition-all duration-150',
                 isActive
                   ? 'bg-ctp-surface0 text-ctp-text'
                   : 'text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0/70'
@@ -129,7 +129,7 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
               onClick={onNavClick}
               className={({ isActive }) =>
                 clsx(
-                  'flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150',
+                  'flex items-center gap-3 px-3 py-2 rounded-xl text-sm 2xl:text-[15px] font-medium transition-all duration-150',
                   isActive
                     ? 'bg-ctp-surface0 text-ctp-text'
                     : 'text-ctp-overlay1 hover:text-ctp-subtext1 hover:bg-ctp-surface0/50'

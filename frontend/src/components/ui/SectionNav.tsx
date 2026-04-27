@@ -40,7 +40,7 @@ export function SectionNav({
           key={s.id}
           href={`#${s.id}`}
           className={
-            'px-2.5 py-1 rounded-lg text-[11px] font-mono whitespace-nowrap transition-colors ' +
+            'px-2.5 py-1 rounded-lg text-[11px] 2xl:text-xs font-mono whitespace-nowrap transition-colors ' +
             (activeId === s.id
               ? 'bg-ctp-mauve/15 text-ctp-mauve border border-ctp-mauve/30'
               : 'text-ctp-overlay1 hover:text-ctp-text border border-transparent hover:bg-ctp-surface0/60')

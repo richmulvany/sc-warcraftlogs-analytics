@@ -41,9 +41,9 @@ export function AppLayout({ children, title, subtitle, actions, nav, hideHeader 
           <header className="hidden md:block flex-shrink-0 z-30 bg-ctp-base/80 backdrop-blur-md border-b border-ctp-surface0">
             <div className="mx-auto w-full max-w-none xl:max-w-[1400px] 2xl:max-w-[1600px] px-4 py-4 md:px-6 md:py-4 lg:px-8 flex items-center gap-4">
               <div className="flex-1 min-w-0">
-                <h1 className="text-base font-semibold text-ctp-text leading-tight">{title}</h1>
+                <h1 className="text-base 2xl:text-lg font-semibold text-ctp-text leading-tight">{title}</h1>
                 {subtitle && (
-                  <p className="text-xs font-mono text-ctp-overlay0 mt-0.5">{subtitle}</p>
+                  <p className="text-xs 2xl:text-[13px] font-mono text-ctp-overlay1 mt-0.5">{subtitle}</p>
                 )}
               </div>
               {actions && (

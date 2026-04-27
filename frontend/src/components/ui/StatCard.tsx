@@ -73,7 +73,7 @@ export function StatCard({ label, value, subValue, trend, icon, accent = 'none',
       <div className="mt-auto pt-3.5 min-h-[28px]">
         {subValue && (
           <p
-            className={clsx('text-xs', !subValueColor && 'text-ctp-overlay0')}
+            className={clsx('text-xs 2xl:text-[13px]', !subValueColor && 'text-ctp-overlay1')}
             style={subValueColor ? { color: subValueColor } : undefined}
           >
             {subValue}

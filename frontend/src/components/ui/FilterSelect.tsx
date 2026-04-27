@@ -34,7 +34,7 @@ export function FilterSelect<T extends string>({
         onMouseDown={onMouseDown}
         onChange={e => onChange(e.target.value as T)}
         className={clsx(
-          'bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors',
+          'bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs 2xl:text-[13px] text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors',
           className
         )}
       >

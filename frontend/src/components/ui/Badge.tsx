@@ -30,9 +30,9 @@ export function Badge({ children, variant = 'default', size = 'sm', className, s
       style={style}
       className={clsx(
         'inline-flex items-center font-mono font-medium border rounded-lg',
-        size === 'xs' ? 'text-[9px] px-1 py-0.5' :
-        size === 'sm' ? 'text-[10px] px-1.5 py-0.5' :
-                        'text-xs px-2 py-1',
+        size === 'xs' ? 'text-[9px] xl:text-[10px] 2xl:text-[11px] px-1 py-0.5' :
+        size === 'sm' ? 'text-[10px] xl:text-[11px] 2xl:text-xs px-1.5 py-0.5' :
+                        'text-xs 2xl:text-[13px] px-2 py-1',
         VARIANTS[variant],
         className
       )}
@@ -49,9 +49,9 @@ function ColourBadge({ label, color, size = 'sm' }: { label: string; color: stri
     <span
       className={clsx(
         'inline-flex items-center font-mono font-medium border rounded-lg',
-        size === 'xs' ? 'text-[9px] px-1 py-0.5' :
-        size === 'sm' ? 'text-[10px] px-1.5 py-0.5' :
-                        'text-xs px-2 py-1',
+        size === 'xs' ? 'text-[9px] xl:text-[10px] 2xl:text-[11px] px-1 py-0.5' :
+        size === 'sm' ? 'text-[10px] xl:text-[11px] 2xl:text-xs px-1.5 py-0.5' :
+                        'text-xs 2xl:text-[13px] px-2 py-1',
       )}
       style={{
         color,
