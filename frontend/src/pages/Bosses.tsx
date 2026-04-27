@@ -667,7 +667,7 @@ export function Bosses() {
                       {bk?.best_kill_mm_ss || (killed ? formatDuration(Number(b.best_kill_seconds)) : '—')}
                     </Td>
                     <Td right mono className="text-ctp-overlay1">
-                      {killed ? formatDuration(Number(b.avg_pull_duration_seconds)) : '—'}
+                      {(killed && bk) ? formatDuration(Number(bk.avg_kill_seconds)) : '—'}
                     </Td>
                     <Td className="text-xs text-ctp-overlay1">
                       {killed ? formatDate(b.first_kill_date) : <span className="italic text-ctp-overlay0">In progress</span>}
