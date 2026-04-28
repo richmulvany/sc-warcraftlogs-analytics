@@ -172,6 +172,8 @@ resources:
             path: pipeline/gold/wipe_diagnostics.py
         - notebook:
             path: pipeline/gold/profile_products.py
+        - notebook:
+            path: pipeline/gold/_monitoring/parse_null_rate.py
 
       configuration:
         secret_scope: pipeline-secrets

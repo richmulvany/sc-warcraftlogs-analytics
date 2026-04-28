@@ -461,6 +461,27 @@ def _realm_to_slug(value: object) -> str:
     return REALM_SLUG_OVERRIDES.get(cleaned.replace("-", ""), cleaned.strip("-"))
 
 
+def _log_fight_rankings_decision(
+    report_code: str,
+    incomplete_fights: int,
+    total_fights: int,
+    null_chars: int,
+    total_chars: int,
+    file_age_days: float,
+    decision: str,
+) -> None:
+    logger.info(
+        "fight_rankings_decision decision=%s report_code=%s incomplete_fights=%d total_fights=%d null_chars=%d total_chars=%d file_age_days=%.1f",
+        decision,
+        report_code,
+        incomplete_fights,
+        total_fights,
+        null_chars,
+        total_chars,
+        file_age_days,
+    )
+
+
 def _raiderio_candidates_from_table(
     table_name: str,
     name_expr: str,
@@ -635,20 +656,35 @@ if adapter is not None:
                 incomplete, total, null_chars, total_chars = rankings_completeness(rankings_file)
                 file_age_days = (time.time() - os.path.getmtime(rankings_file)) / 86400
                 if incomplete == 0:
-                    logger.info(
-                        "fight_rankings: %s already fetched (complete, %d/%d null chars) — skipping",
-                        report_code, null_chars, total_chars,
+                    _log_fight_rankings_decision(
+                        report_code=report_code,
+                        incomplete_fights=incomplete,
+                        total_fights=total,
+                        null_chars=null_chars,
+                        total_chars=total_chars,
+                        file_age_days=file_age_days,
+                        decision="skip_complete",
                     )
                     continue
                 if file_age_days >= RANKINGS_BACKFILL_MAX_AGE_DAYS:
-                    logger.info(
-                        "fight_rankings: %s has %d/%d incomplete fights (%d/%d null chars) but is %.1fd old — accepting as final",
-                        report_code, incomplete, total, null_chars, total_chars, file_age_days,
+                    _log_fight_rankings_decision(
+                        report_code=report_code,
+                        incomplete_fights=incomplete,
+                        total_fights=total,
+                        null_chars=null_chars,
+                        total_chars=total_chars,
+                        file_age_days=file_age_days,
+                        decision="accept_final",
                     )
                     continue
-                logger.info(
-                    "fight_rankings: %s has %d/%d incomplete fights (%d/%d null chars, age %.1fd) — re-fetching",
-                    report_code, incomplete, total, null_chars, total_chars, file_age_days,
+                _log_fight_rankings_decision(
+                    report_code=report_code,
+                    incomplete_fights=incomplete,
+                    total_fights=total,
+                    null_chars=null_chars,
+                    total_chars=total_chars,
+                    file_age_days=file_age_days,
+                    decision="refetch",
                 )
 
             fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
