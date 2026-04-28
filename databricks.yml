@@ -72,6 +72,9 @@ variables:
   github_repo:
     description: GitHub repo (owner/repo) containing the publish workflow for dashboard assets (empty defaults to value of secret 'github_repo')
     default: "richmulvany/sc-warcraftlogs-analytics"
+  service_principal_application_id:
+    description: Databricks service principal application ID used for production deployments
+    default: "00000000-0000-0000-0000-000000000000"
 
 targets:
   development:
@@ -84,9 +87,16 @@ targets:
     permissions:
     - user_name: ${var.developer_user}
       level: CAN_MANAGE
+    resources:
+      jobs:
+        daily_orchestrator:
+          schedule:
+            pause_status: PAUSED
   production:
     mode: production
     default: false
+    run_as:
+      service_principal_name: ${var.service_principal_application_id}
     workspace:
       root_path: /Workspace/sc-analytics/${bundle.target}
     variables:
@@ -95,6 +105,10 @@ targets:
     - user_name: ${var.developer_user}
       level: CAN_MANAGE
     resources:
+      jobs:
+        daily_orchestrator:
+          schedule:
+            pause_status: UNPAUSED
       pipelines:
         warcraftlogs_pipeline:
           development: false
@@ -261,7 +275,7 @@ resources:
       schedule:
         quartz_cron_expression: "0 15 22 * * ?"
         timezone_id: Europe/London
-        pause_status: UNPAUSED
+        pause_status: PAUSED
       tasks:
         - task_key: ingestion
           run_job_task:

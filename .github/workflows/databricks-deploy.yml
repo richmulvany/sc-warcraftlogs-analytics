@@ -2,7 +2,7 @@ name: Deploy Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
     paths:
       - "pipeline/**"
       - "ingestion/**"
@@ -24,7 +24,16 @@ jobs:
           python-version: "3.11"
       - name: Set up Databricks CLI
         uses: databricks/setup-cli@main
+      - name: Validate Asset Bundle on feature branches
+        if: github.ref != 'refs/heads/main'
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          databricks bundle validate --target development
+          databricks bundle validate --target production
       - name: Deploy via Asset Bundles
+        if: github.ref == 'refs/heads/main'
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
