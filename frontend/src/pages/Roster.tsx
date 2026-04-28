@@ -1,15 +1,16 @@
 import { useState, useMemo } from 'react'
 import { AppLayout } from '../components/layout/AppLayout'
-import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
+import { Card, CardHeader, CardTitle } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
 import { Badge } from '../components/ui/Badge'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
+import { SortableTh } from '../components/ui/SortableTh'
+import { DataState } from '../components/ui/DataState'
+import { FilterBar } from '../components/ui/FilterBar'
 import { ProgressBar } from '../components/ui/ProgressBar'
-import { LoadingState } from '../components/ui/LoadingState'
-import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { useGuildRoster, useLiveRaidRoster, useRaidTeam } from '../hooks/useGoldData'
-import { formatNumber, formatDate } from '../utils/format'
+import { formatNumber, formatDate, toFiniteNumber } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { getRankColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -64,8 +65,9 @@ export function Roster() {
         const r = Number(a.rank) - Number(b.rank)
         return sortDesc ? -r : r
       }
-      const av = Number(a[sortKey as 'attendance_rate_pct' | 'raids_present']) || 0
-      const bv = Number(b[sortKey as 'attendance_rate_pct' | 'raids_present']) || 0
+      const NULL_LAST = sortDesc ? -Infinity : Infinity
+      const av = toFiniteNumber(a[sortKey as 'attendance_rate_pct' | 'raids_present']) ?? NULL_LAST
+      const bv = toFiniteNumber(b[sortKey as 'attendance_rate_pct' | 'raids_present']) ?? NULL_LAST
       return sortDesc ? bv - av : av - bv
     })
   }, [fullRoster.data, search, sortKey, sortDesc])
@@ -124,11 +126,6 @@ export function Roster() {
     else { setSortKey(key); setSortDesc(true) }
   }
 
-  function SortIcon({ k }: { k: SortKey }) {
-    if (sortKey !== k) return <span className="text-ctp-overlay0 ml-1">↕</span>
-    return <span className="text-ctp-blue ml-1">{sortDesc ? '↓' : '↑'}</span>
-  }
-
   const loading = tab === 'full' ? fullRoster.loading : (raidTeam.loading || liveRoster.loading)
   const error   = tab === 'full' ? fullRoster.error   : (raidTeam.error || liveRoster.error)
   const liveRosterActive = liveRoster.data.length > 0
@@ -145,7 +142,7 @@ export function Roster() {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap items-center gap-3">
+      <FilterBar>
         <div className="flex items-center gap-1 bg-ctp-surface0 rounded-lg p-1 border border-ctp-surface1">
           <button
             onClick={() => setTab('full')}
@@ -169,7 +166,7 @@ export function Roster() {
         <span className="text-xs font-mono text-ctp-surface2">
           {tab === 'full' ? filteredFull.length : filteredTeam.length} members
         </span>
-      </div>
+      </FilterBar>
 
       {/* Table */}
       {tab === 'full' ? (
@@ -186,37 +183,22 @@ export function Roster() {
               />
             </div>
           </CardHeader>
-          {loading ? (
-            <CardBody><LoadingState rows={12} /></CardBody>
-          ) : error ? (
-            <CardBody><ErrorState message={error} /></CardBody>
-          ) : (
+          <DataState loading={loading} error={error} data={filteredFull} loadingRows={12}>
+            {(data) => (
             <Table>
               <THead>
                 <tr>
-                  <Th>
-                    <button onClick={() => toggleSort('name')} className="hover:text-ctp-text">
-                      Name <SortIcon k="name" />
-                    </button>
-                  </Th>
+                  <SortableTh sortKey="name" currentKey={sortKey} desc={sortDesc} onSort={toggleSort} activeClass="text-ctp-blue">Name</SortableTh>
                   <Th>Class</Th>
                   <Th>Rank</Th>
                   <Th>Status</Th>
-                  <Th right>
-                    <button onClick={() => toggleSort('raids_present')} className="hover:text-ctp-text">
-                      Raids <SortIcon k="raids_present" />
-                    </button>
-                  </Th>
-                  <Th right>
-                    <button onClick={() => toggleSort('attendance_rate_pct')} className="hover:text-ctp-text">
-                      Attendance <SortIcon k="attendance_rate_pct" />
-                    </button>
-                  </Th>
+                  <SortableTh right sortKey="raids_present" currentKey={sortKey} desc={sortDesc} onSort={toggleSort} activeClass="text-ctp-blue">Raids</SortableTh>
+                  <SortableTh right sortKey="attendance_rate_pct" currentKey={sortKey} desc={sortDesc} onSort={toggleSort} activeClass="text-ctp-blue">Attendance</SortableTh>
                   <Th>Last Raid</Th>
                 </tr>
               </THead>
               <TBody>
-                {filteredFull.map(m => {
+                {data.map(m => {
                   const isActive = m.is_active === 'True' || m.is_active === true as unknown as string
                   const isTeam   = m.is_raid_team === 'True' || m.is_raid_team === true as unknown as string
                   const rankColor = getRankColor(m.rank_category)
@@ -272,7 +254,8 @@ export function Roster() {
                 })}
               </TBody>
             </Table>
-          )}
+            )}
+          </DataState>
         </Card>
       ) : (
         <Card>
@@ -300,11 +283,8 @@ export function Roster() {
               className="mt-3 bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 w-52"
             />
           </CardHeader>
-          {loading ? (
-            <CardBody><LoadingState rows={12} /></CardBody>
-          ) : error ? (
-            <CardBody><ErrorState message={error} /></CardBody>
-          ) : (
+          <DataState loading={loading} error={error} data={filteredTeam} loadingRows={12}>
+            {(data) => (
             <Table>
               <THead>
                 <tr>
@@ -322,7 +302,7 @@ export function Roster() {
                 </tr>
               </THead>
               <TBody>
-                {filteredTeam.map(m => {
+                {data.map(m => {
                   const isActive = m.is_active === 'True' || m.is_active === true as unknown as string
                   const hasAlt   = m.has_possible_alt_in_logs === 'True' || m.has_possible_alt_in_logs === true as unknown as string
                   const rankColor = getRankColor(m.rank_category)
@@ -380,7 +360,8 @@ export function Roster() {
                 })}
               </TBody>
             </Table>
-          )}
+            )}
+          </DataState>
         </Card>
       )}
     </AppLayout>

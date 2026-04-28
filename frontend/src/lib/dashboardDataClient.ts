@@ -13,17 +13,12 @@ export type DashboardManifest = {
 }
 
 const remoteBaseUrl = import.meta.env.VITE_DASHBOARD_DATA_BASE_URL?.replace(/\/$/, '') ?? ''
-const localCsvBaseUrl = import.meta.env.VITE_DATA_BASE_URL ?? '/data'
 
 const manifestCache = new Map<string, Promise<DashboardManifest>>()
 const datasetCache = new Map<string, Promise<unknown[]>>()
 
 export function getDashboardDataBaseUrl(): string | null {
   return remoteBaseUrl || null
-}
-
-export function getLocalCsvBaseUrl(): string {
-  return localCsvBaseUrl
 }
 
 export function isRemoteDashboardDataEnabled(): boolean {

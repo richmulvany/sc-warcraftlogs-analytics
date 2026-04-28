@@ -40,9 +40,9 @@ export const ROLE_LABELS: Record<string, string> = {
 
 export function normaliseRole(role: string | null | undefined): string {
   const value = String(role ?? '').trim().toLowerCase()
-  if (value.startsWith('heal')) return 'healer'
-  if (value.startsWith('tank')) return 'tank'
-  if (value.startsWith('dps')) return 'dps'
+  if (value === '2' || value.startsWith('heal')) return 'healer'
+  if (value === '1' || value.startsWith('tank')) return 'tank'
+  if (value === '3' || value.startsWith('dps') || value === 'damage' || value === 'ranged' || value === 'melee') return 'dps'
   return value
 }
 

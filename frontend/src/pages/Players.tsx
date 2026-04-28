@@ -7,12 +7,14 @@ import { StatCard } from '../components/ui/StatCard'
 import { FilterTabs } from '../components/ui/FilterTabs'
 import { RoleBadge } from '../components/ui/Badge'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
+import { SortableTh } from '../components/ui/SortableTh'
+import { DataState } from '../components/ui/DataState'
+import { FilterBar } from '../components/ui/FilterBar'
 import { ProgressBar } from '../components/ui/ProgressBar'
-import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
-import { ErrorState } from '../components/ui/ErrorState'
+import { SkeletonCard } from '../components/ui/LoadingState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { useBossKillRoster, useRaidSummary } from '../hooks/useGoldData'
-import { formatNumber, formatDate, toFiniteNumber } from '../utils/format'
+import { formatNumber, formatDate, toFiniteNumber, hasRealText } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { isIncludedZoneName } from '../utils/zones'
 import { formatThroughput, getThroughputColor, normaliseRole } from '../constants/wow'
@@ -60,10 +62,6 @@ export function Players() {
   const [sortKey, setSortKey] = useState<SortKey>('avg_rank_percent')
   const [sortDesc, setSortDesc] = useState(true)
   const [search, setSearch] = useState('')
-
-  function hasRealText(value: unknown): value is string {
-    return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
-  }
 
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
@@ -221,8 +219,9 @@ export function Players() {
       )
     }
     return [...r].sort((a, b) => {
-      const av = Number(a[sortKey]) || 0
-      const bv = Number(b[sortKey]) || 0
+      const NULL_LAST = sortDesc ? -Infinity : Infinity
+      const av = toFiniteNumber(a[sortKey]) ?? NULL_LAST
+      const bv = toFiniteNumber(b[sortKey]) ?? NULL_LAST
       return sortDesc ? bv - av : av - bv
     })
   }, [aggregatedRows, role, sortKey, sortDesc, search])
@@ -236,20 +235,6 @@ export function Players() {
       setSortKey(k)
       setSortDesc(true)
     }
-  }
-
-  function SortBtn({ k, children }: { k: SortKey; children: React.ReactNode }) {
-    return (
-      <button
-        onClick={() => toggleSort(k)}
-        className="hover:text-ctp-subtext1 transition-colors flex items-center gap-1"
-      >
-        {children}
-        {sortKey === k
-          ? <span className="text-ctp-mauve">{sortDesc ? '↓' : '↑'}</span>
-          : <span className="text-ctp-surface2">↕</span>}
-      </button>
-    )
   }
 
   return (
@@ -267,7 +252,7 @@ export function Players() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <FilterBar>
         <FilterTabs options={DIFFICULTIES} value={difficulty} onChange={setDifficulty} />
         <FilterSelect
           value={selectedTier}
@@ -279,7 +264,6 @@ export function Players() {
           showHint={showTierHint}
           className="pl-3 pr-14 py-2 min-w-48 max-w-48"
         />
-
         <FilterSelect
           value={selectedBoss}
           onChange={setSelectedBoss}
@@ -290,7 +274,7 @@ export function Players() {
           showHint={showBossHint}
           className="pl-3 pr-14 py-2 min-w-52 max-w-52"
         />
-      </div>
+      </FilterBar>
 
       <Card>
         <CardHeader className="flex flex-wrap items-center justify-between gap-3">
@@ -306,34 +290,29 @@ export function Players() {
               onChange={e => setSearch(e.target.value)}
               className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-2 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-36 sm:w-52"
             />
-            <span className="inline-flex items-center self-center rounded-xl border border-ctp-mauve/30 bg-ctp-mauve/12 px-3 py-2 text-xs font-mono text-ctp-mauve">
+            <span className="inline-flex items-center self-center rounded-xl border border-ctp-mauve/30 bg-ctp-mauve/10 px-3 py-2 text-xs font-mono text-ctp-mauve">
               {rows.length} players
             </span>
           </div>
         </CardHeader>
-        {loading ? (
-          <div className="p-5"><LoadingState rows={10} /></div>
-        ) : error ? (
-          <div className="p-5"><ErrorState message={error} /></div>
-        ) : rows.length === 0 ? (
-          <div className="p-5 text-xs font-mono text-ctp-overlay0">No players match the current filters.</div>
-        ) : (
+        <DataState loading={loading} error={error} data={rows} empty="No players match the current filters." loadingRows={10}>
+          {(data) => (
           <Table>
             <THead>
               <tr>
                 <Th className="w-8">#</Th>
                 <Th className="min-w-[160px]">Player</Th>
                 <Th className="normal-case tracking-normal">Role</Th>
-                <Th right><SortBtn k="avg_rank_percent">Avg Parse</SortBtn></Th>
-                <Th right><SortBtn k="best_rank_percent">Best Parse</SortBtn></Th>
-                <Th right><SortBtn k="avg_throughput_per_second">Avg DPS/HPS</SortBtn></Th>
-                <Th right><SortBtn k="avg_item_level">Item Level</SortBtn></Th>
-                <Th right><SortBtn k="kills_tracked">Kills</SortBtn></Th>
+                <SortableTh right sortKey="avg_rank_percent" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Avg Parse</SortableTh>
+                <SortableTh right sortKey="best_rank_percent" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Best Parse</SortableTh>
+                <SortableTh right sortKey="avg_throughput_per_second" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Avg DPS/HPS</SortableTh>
+                <SortableTh right sortKey="avg_item_level" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Item Level</SortableTh>
+                <SortableTh right sortKey="kills_tracked" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Kills</SortableTh>
                 <Th className="normal-case tracking-normal">Last Seen</Th>
               </tr>
             </THead>
             <TBody>
-              {rows.map((p, i) => (
+              {data.map((p, i) => (
                 <Tr key={p.player_name} onClick={() => navigate(`/players/${encodeURIComponent(p.player_name)}`)}>
                   <Td mono className="text-ctp-overlay0 text-xs">{i + 1}</Td>
                   <Td>
@@ -371,7 +350,8 @@ export function Players() {
               ))}
             </TBody>
           </Table>
-        )}
+          )}
+        </DataState>
       </Card>
     </AppLayout>
   )

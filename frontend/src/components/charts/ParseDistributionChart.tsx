@@ -2,12 +2,13 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import type { PlayerPerformanceSummary } from '../../types'
 import { getClassColor } from '../../constants/wow'
 import { useColourBlind } from '../../context/ColourBlindContext'
+import type { ChartTooltipProps } from './types'
+import { CHART_TICK_STYLE } from '../../utils/chartStyle'
 
 interface Props { data: PlayerPerformanceSummary[]; limit?: number }
 
 // Tooltip rendered by Recharts — must be a component that can use hooks
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function Tip({ active, payload }: any) {
+function Tip({ active, payload }: ChartTooltipProps<PlayerPerformanceSummary>) {
   const { getParseColor } = useColourBlind()
   if (!active || !payload?.length) return null
   const d = payload[0].payload as PlayerPerformanceSummary
@@ -37,7 +38,7 @@ export function ParseDistributionChart({ data, limit = 15 }: Props) {
       <BarChart data={sorted} margin={{ top: 4, right: 4, left: -22, bottom: 36 }}>
         <XAxis
           dataKey="player_name"
-          tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+          tick={CHART_TICK_STYLE}
           axisLine={false}
           tickLine={false}
           angle={-40}
@@ -46,7 +47,7 @@ export function ParseDistributionChart({ data, limit = 15 }: Props) {
         />
         <YAxis
           domain={[0, 100]}
-          tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+          tick={CHART_TICK_STYLE}
           axisLine={false}
           tickLine={false}
           tickFormatter={v => `${v}%`}

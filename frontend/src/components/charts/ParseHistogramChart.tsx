@@ -3,6 +3,15 @@ import { ComposedChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, L
 import type { BossKillRosterRow } from '../../types'
 import { useColourBlind } from '../../context/ColourBlindContext'
 import { formatNumber, formatPct } from '../../utils/format'
+import type { ChartTooltipProps } from './types'
+import { CHART_TICK_STYLE } from '../../utils/chartStyle'
+
+interface ParseBin {
+  label: string
+  count: number
+  midpoint: number
+  curve: number
+}
 
 interface Props {
   data: BossKillRosterRow[]
@@ -89,12 +98,12 @@ export function getParseDistributionSummary(data: BossKillRosterRow[]): ParseDis
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function Tip({ active, payload, label }: any) {
+function Tip({ active, payload, label }: ChartTooltipProps<ParseBin>) {
   const { getParseColor } = useColourBlind()
   if (!active || !payload?.length) return null
-  const countPayload = payload.find((item: { dataKey?: string }) => item.dataKey === 'count') ?? payload[0]
+  const countPayload = payload.find(item => item.dataKey === 'count') ?? payload[0]
   const row = countPayload.payload
+  if (!row) return null
   const midpoint = Number(row.midpoint ?? label)
   return (
     <div className="bg-ctp-surface0 border border-ctp-surface2 rounded-xl px-3 py-2 text-xs font-mono shadow-xl">
@@ -184,12 +193,12 @@ export function ParseHistogramChart({ data, showCurve = false }: Props) {
           <ComposedChart data={buckets} margin={{ top: 4, right: 4, left: -22, bottom: 0 }}>
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+              tick={CHART_TICK_STYLE}
               axisLine={false}
               tickLine={false}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+              tick={CHART_TICK_STYLE}
               axisLine={false}
               tickLine={false}
             />

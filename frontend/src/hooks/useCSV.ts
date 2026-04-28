@@ -1,10 +1,5 @@
 import { useState, useEffect } from 'react'
-import Papa from 'papaparse'
-import {
-  fetchDataset,
-  getLocalCsvBaseUrl,
-  isRemoteDashboardDataEnabled,
-} from '../lib/dashboardDataClient'
+import { fetchDataset } from '../lib/dashboardDataClient'
 
 export interface CSVResult<T> {
   data: T[]
@@ -51,7 +46,7 @@ const CSV_FILENAME_TO_DATASET_KEY: Record<string, string> = {
   'preparation_overrides.csv': 'preparation_overrides',
 }
 
-function normaliseCSVValue(value: unknown): unknown {
+function normaliseValue(value: unknown): unknown {
   if (value instanceof Date) return value.toISOString()
   if (typeof value !== 'string') return value
 
@@ -75,67 +70,40 @@ export function useCSV<T extends object>(filename: string, options: UseCSVOption
     setError(null)
 
     const datasetKey = CSV_FILENAME_TO_DATASET_KEY[filename]
-    const remoteEnabled = isRemoteDashboardDataEnabled() && Boolean(datasetKey)
-    const loadPromise: Promise<T[] | string> = remoteEnabled
-      ? fetchDataset<T>(datasetKey).then(rows =>
-          rows.map(row =>
-            Object.fromEntries(
-              Object.entries(row as Record<string, unknown>).map(([key, value]) => [
-                key,
-                Array.isArray(value) || (value && typeof value === 'object')
-                  ? JSON.stringify(value)
-                  : normaliseCSVValue(value),
-              ])
-            ) as T
-          )
+    if (!datasetKey) {
+      if (!cancelled) {
+        setError(`No dataset key found for "${filename}"`)
+        setLoading(false)
+      }
+      return
+    }
+
+    fetchDataset<T>(datasetKey)
+      .then(rows =>
+        rows.map(row =>
+          Object.fromEntries(
+            Object.entries(row as Record<string, unknown>).map(([k, v]) => [
+              k,
+              Array.isArray(v) || (v && typeof v === 'object') ? JSON.stringify(v) : normaliseValue(v),
+            ])
+          ) as T
         )
-      : fetch(`${getLocalCsvBaseUrl()}/${filename}`)
-          .then(res => {
-            if (!res.ok) {
-              if (optional && res.status === 404) return ''
-              throw new Error(`HTTP ${res.status} loading ${filename}`)
-            }
-            return res.text()
-          })
-
-    loadPromise
+      )
       .then(payload => {
-        if (Array.isArray(payload)) {
-          if (!cancelled) {
-            setData(payload)
-            setLoading(false)
-          }
-          return
-        }
-
-        if (optional && payload.trim() === '') {
-          setData([])
-          setLoading(false)
-          return
-        }
-
-        const result = Papa.parse<T>(payload, {
-          header: true,
-          skipEmptyLines: true,
-          dynamicTyping: true,
-          transformHeader: h => h.trim(),
-          transform: value => typeof value === 'string' ? value.trim() : value,
-        })
         if (!cancelled) {
-          setData(
-            result.data.map(row =>
-              Object.fromEntries(
-                Object.entries(row).map(([key, value]) => [key, normaliseCSVValue(value)])
-              ) as T
-            )
-          )
+          setData(payload)
           setLoading(false)
         }
       })
       .catch(err => {
         if (!cancelled) {
-          setError(String(err))
-          setLoading(false)
+          if (optional) {
+            setData([])
+            setLoading(false)
+          } else {
+            setError(String(err))
+            setLoading(false)
+          }
         }
       })
 

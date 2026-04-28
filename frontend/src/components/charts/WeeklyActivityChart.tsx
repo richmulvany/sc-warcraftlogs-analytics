@@ -3,7 +3,9 @@ import {
 } from 'recharts'
 import type { RaidSummary } from '../../types'
 import { useColourBlind } from '../../context/ColourBlindContext'
-import { formatNumber } from '../../utils/format'
+import { formatNumber, toFiniteNumber } from '../../utils/format'
+import type { ChartTooltipProps } from './types'
+import { CHART_TICK_STYLE } from '../../utils/chartStyle'
 
 interface Props {
   raids: RaidSummary[]
@@ -97,9 +99,9 @@ function buildTierSeries(
       pulls: 0,
     }
 
-    current.bossKills += Number(raid.boss_kills) || 0
-    current.wipes += Number(raid.total_wipes) || 0
-    current.pulls += Number(raid.total_pulls) || 0
+    current.bossKills += toFiniteNumber(raid.boss_kills) ?? 0
+    current.wipes += toFiniteNumber(raid.total_wipes) ?? 0
+    current.pulls += toFiniteNumber(raid.total_pulls) ?? 0
     weekly.set(weekStart, current)
   })
 
@@ -126,16 +128,15 @@ function buildTierSeries(
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function Tip({ active, payload, label }: any) {
+function Tip({ active, payload, label }: ChartTooltipProps<TierWeekPoint>) {
   if (!active || !payload?.length) return null
   const row = payload[0].payload as TierWeekPoint
   return (
     <div className="bg-ctp-surface0 border border-ctp-surface2 rounded-xl px-3 py-2.5 text-xs font-mono shadow-xl">
-      <p className="text-ctp-overlay1 mb-2">Week of {formatWeekLabel(label)}</p>
-      {payload.map((p: { name: string; value: number; color: string }, i: number) => (
+      <p className="text-ctp-overlay1 mb-2">Week of {formatWeekLabel(String(label ?? ''))}</p>
+      {payload.map((p, i) => (
         <p key={i} style={{ color: p.color }}>
-          {p.name}: <span className="font-semibold">{formatNumber(p.value)}</span>
+          {p.name}: <span className="font-semibold">{formatNumber(Number(p.value ?? 0))}</span>
         </p>
       ))}
       <p className="text-ctp-overlay0 mt-2">Pulls: <span className="font-semibold">{formatNumber(row.pulls)}</span></p>
@@ -169,13 +170,13 @@ function TierChart({ series, showDivider = false }: { series: TierSeries; showDi
           <XAxis
             dataKey="week_start"
             tickFormatter={formatWeekLabel}
-            tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+            tick={CHART_TICK_STYLE}
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+            tick={CHART_TICK_STYLE}
             axisLine={false}
             tickLine={false}
             allowDecimals={false}
@@ -214,15 +215,14 @@ interface ComparePoint {
   previousTier: number | null
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CompareTip({ active, payload, label }: any) {
+function CompareTip({ active, payload, label }: ChartTooltipProps<ComparePoint>) {
   if (!active || !payload?.length) return null
   return (
     <div className="bg-ctp-surface0 border border-ctp-surface2 rounded-xl px-3 py-2.5 text-xs font-mono shadow-xl">
       <p className="text-ctp-overlay1 mb-2">{label}</p>
-      {payload.map((p: { name: string; value: number; color: string }, i: number) => (
+      {payload.map((p, i) => (
         <p key={i} style={{ color: p.color }}>
-          {p.name}: <span className="font-semibold">{formatNumber(p.value)}</span>
+          {p.name}: <span className="font-semibold">{formatNumber(Number(p.value ?? 0))}</span>
         </p>
       ))}
     </div>
@@ -280,13 +280,13 @@ function CompareChart({
           <CartesianGrid strokeDasharray="3 3" stroke="#45475a" vertical={false} />
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+            tick={CHART_TICK_STYLE}
             axisLine={false}
             tickLine={false}
             interval="preserveStartEnd"
           />
           <YAxis
-            tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+            tick={CHART_TICK_STYLE}
             axisLine={false}
             tickLine={false}
             allowDecimals={false}

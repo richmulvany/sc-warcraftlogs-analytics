@@ -10,20 +10,12 @@ import { ErrorState } from '../components/ui/ErrorState'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { BossProgressHistoryChart } from '../components/charts/BossProgressHistoryChart'
 import { useBestKills, useBossPullHistory, useBossProgression, useBossWipeAnalysis } from '../hooks/useGoldData'
-import { formatDate, formatNumber } from '../utils/format'
+import { formatDate, formatNumber, hasRealText, hasValue, toFiniteNumber } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 
 function isKilled(value: string | boolean) {
   return value === true || value === 'true' || value === 'True'
-}
-
-function hasRealText(value: unknown): value is string {
-  return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
-}
-
-function hasValue(value: unknown): boolean {
-  return value !== null && value !== undefined && String(value).trim() !== '' && String(value).trim().toLowerCase() !== 'null'
 }
 
 export function BossDetail() {
@@ -111,7 +103,7 @@ export function BossDetail() {
         current.best_hp = 0
       } else {
         current.wipes += 1
-        current.best_hp = Math.min(current.best_hp, Number(row.boss_hp_remaining) || 100)
+        current.best_hp = Math.min(current.best_hp, toFiniteNumber(row.boss_hp_remaining) ?? 100)
       }
 
       map.set(row.report_code, current)

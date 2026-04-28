@@ -54,6 +54,25 @@ export function toFiniteNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
+// Returns true for a non-empty, non-"null" string. Useful for filtering sparse CSV/JSON fields.
+export function hasRealText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
+}
+
+// Returns true when a value is present, non-empty, and not the literal string "null".
+export function hasValue(value: unknown): boolean {
+  if (value === null || value === undefined) return false
+  const s = String(value).trim()
+  return s !== '' && s.toLowerCase() !== 'null'
+}
+
+// Returns a finite number, or 0 for null/undefined/NaN.
+// Only use where 0 is a meaningful default (sums, counts, display fallbacks).
+// For analytics sorts or averages, prefer toFiniteNumber to keep nulls visible.
+export function safeNumber(value: unknown): number {
+  return toFiniteNumber(value) ?? 0
+}
+
 export function meanIgnoringNulls(values: Array<number | null | undefined>): number {
   let sum = 0
   let count = 0
