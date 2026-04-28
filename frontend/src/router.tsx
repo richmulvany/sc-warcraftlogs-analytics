@@ -12,7 +12,7 @@ import { Preparation }   from './pages/Preparation'
 // Legacy pages kept but accessible via guild nav
 import { Performance }   from './pages/Performance'
 
-const PlayerDetail  = lazy(() => import('./pages/PlayerDetail').then(m => ({ default: m.PlayerDetail })))
+const PlayerDetail  = lazy(() => import('./features/player-detail'))
 const MythicPlus    = lazy(() => import('./pages/MythicPlus').then(m => ({ default: m.MythicPlus })))
 const WipeAnalysis  = lazy(() => import('./features/wipe-analysis'))
 
