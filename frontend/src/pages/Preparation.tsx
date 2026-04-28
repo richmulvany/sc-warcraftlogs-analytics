@@ -12,7 +12,7 @@ import { LoadingState } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { useBossKillRoster, useLiveRaidRoster, usePreparationOverrides, useRaidSummary, useRaidTeam } from '../hooks/useGoldData'
-import { formatDate, formatNumber } from '../utils/format'
+import { formatDate, formatNumber, safeNumber } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { normaliseRole } from '../constants/wow'
 import { isIncludedZoneName } from '../utils/zones'
@@ -94,11 +94,6 @@ interface TeamIdentity {
 
 const EDITOR_UNLOCK_STORAGE_KEY = 'preparation_editor_unlocked_v1'
 const OWNER_IDENTITY_HASH = 2213701259
-
-function safeNumber(value: unknown): number {
-  const n = Number(value)
-  return Number.isFinite(n) ? n : 0
-}
 
 function isTruthy(value: unknown): boolean {
   return value === true || value === 'True' || value === 'true'
@@ -746,7 +741,7 @@ export function Preparation() {
   const error = raidSummary.error || killRoster.error || raidTeam.error || liveRaidRoster.error || preparationOverrides.error
 
   return (
-    <AppLayout title="Preparation" subtitle="raid readiness · current tier · current raid team">
+    <AppLayout title="Preparation" subtitle="raid readiness · current tier · current raid team" wide>
       {summary && (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard

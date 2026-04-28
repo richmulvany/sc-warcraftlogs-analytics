@@ -13,6 +13,9 @@ import {
 import type { BossPullHistoryRow } from '../../types'
 import { useColourBlind } from '../../context/ColourBlindContext'
 import { formatDuration } from '../../constants/wow'
+import { toFiniteNumber } from '../../utils/format'
+import type { ChartTooltipProps } from './types'
+import { CHART_TICK_STYLE } from '../../utils/chartStyle'
 
 interface Props {
   data: BossPullHistoryRow[]
@@ -65,7 +68,7 @@ function buildChartData(rows: BossPullHistoryRow[]): ChartPoint[] {
     .map((row, index) => {
       const hp = Number(row.boss_hp_remaining)
       if (Number.isFinite(hp)) bestSoFar = Math.min(bestSoFar, hp)
-      maxPhaseSoFar = Math.max(maxPhaseSoFar, Number(row.last_phase) || 0)
+      maxPhaseSoFar = Math.max(maxPhaseSoFar, toFiniteNumber(row.last_phase) ?? 0)
       return {
         ...row,
         pull_index: index + 1,
@@ -95,15 +98,15 @@ function buildPhaseSegments(points: ChartPoint[]): PhaseSegment[] {
   const realPoints = points.slice(1)
   if (realPoints.length === 0) return []
 
-  const highestPhase = Math.max(...realPoints.map(point => Number(point.max_phase_so_far) || 0))
+  const highestPhase = Math.max(...realPoints.map(point => toFiniteNumber(point.max_phase_so_far) ?? 0))
   if (highestPhase <= 1) return []
 
   const segments: PhaseSegment[] = []
-  let currentPhase = Math.max(1, Number(realPoints[0].max_phase_so_far) || 1)
+  let currentPhase = Math.max(1, toFiniteNumber(realPoints[0].max_phase_so_far) ?? 1)
   let start = 0
 
   for (let i = 1; i < realPoints.length; i++) {
-    const phase = Math.max(1, Number(realPoints[i].max_phase_so_far) || 1)
+    const phase = Math.max(1, toFiniteNumber(realPoints[i].max_phase_so_far) ?? 1)
     if (phase !== currentPhase) {
       segments.push({ phase: currentPhase, start, end: realPoints[i - 1].pull_index })
       start = realPoints[i - 1].pull_index
@@ -115,8 +118,7 @@ function buildPhaseSegments(points: ChartPoint[]): PhaseSegment[] {
   return segments
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function Tip({ active, payload }: any) {
+function Tip({ active, payload }: ChartTooltipProps<ChartPoint>) {
   if (!active || !payload?.length) return null
   const row = payload[0].payload as ChartPoint
   const killed = isKill(row.is_kill)
@@ -136,7 +138,7 @@ function Tip({ active, payload }: any) {
           Duration: <span className="font-semibold">{formatDuration(Number(row.duration_seconds))}</span>
         </p>
         <p className="text-ctp-subtext1">
-          Phase reached: <span className="font-semibold">P{Math.max(1, Number(row.last_phase) || 1)}</span>
+          Phase reached: <span className="font-semibold">P{Math.max(1, toFiniteNumber(row.last_phase) ?? 1)}</span>
         </p>
         <p className="text-ctp-subtext1">
           Result: <span className="font-semibold">{killed ? 'Kill' : 'Wipe'}</span>
@@ -166,14 +168,14 @@ export function BossProgressHistoryChart({ data }: Props) {
         <CartesianGrid strokeDasharray="3 3" stroke="#45475a" vertical={false} />
         <XAxis
           dataKey="pull_index"
-          tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+          tick={CHART_TICK_STYLE}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
           domain={[0, 100]}
           tickFormatter={value => `${value}%`}
-          tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+          tick={CHART_TICK_STYLE}
           axisLine={false}
           tickLine={false}
         />

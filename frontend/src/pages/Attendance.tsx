@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AppLayout } from '../components/layout/AppLayout'
-import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
+import { Card, CardHeader, CardTitle } from '../components/ui/Card'
 import { FilterSelect } from '../components/ui/FilterSelect'
 import { StatCard } from '../components/ui/StatCard'
 import { FilterTabs } from '../components/ui/FilterTabs'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
+import { SortableTh } from '../components/ui/SortableTh'
+import { DataState } from '../components/ui/DataState'
+import { FilterBar } from '../components/ui/FilterBar'
 import { ProgressBar } from '../components/ui/ProgressBar'
-import { LoadingState } from '../components/ui/LoadingState'
-import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { usePlayerAttendance, useRaidSummary, useBossKillRoster } from '../hooks/useGoldData'
-import { formatNumber, formatDate } from '../utils/format'
+import { formatNumber, formatDate, toFiniteNumber, hasRealText } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { isIncludedZoneName } from '../utils/zones'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -44,10 +45,6 @@ export function Attendance() {
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
-
-  function hasRealText(value: unknown): value is string {
-    return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
-  }
 
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
@@ -170,8 +167,9 @@ export function Attendance() {
       )
     }
     return [...rows].sort((a, b) => {
-      const av = Number(a[sortKey]) || 0
-      const bv = Number(b[sortKey]) || 0
+      const NULL_LAST = sortDesc ? -Infinity : Infinity
+      const av = toFiniteNumber(a[sortKey]) ?? NULL_LAST
+      const bv = toFiniteNumber(b[sortKey]) ?? NULL_LAST
       return sortDesc ? bv - av : av - bv
     })
   }, [scopedRows, search, sortKey, sortDesc, minRaids])
@@ -189,11 +187,6 @@ export function Attendance() {
     else { setSortKey(key); setSortDesc(true) }
   }
 
-  function SortIcon({ k }: { k: SortKey }) {
-    if (sortKey !== k) return <span className="text-ctp-overlay0 ml-1">↕</span>
-    return <span className="text-ctp-blue ml-1">{sortDesc ? '↓' : '↑'}</span>
-  }
-
   const loading = att.loading || raids.loading || killRoster.loading
   const error = att.error || raids.error || killRoster.error
 
@@ -208,35 +201,33 @@ export function Attendance() {
         </div>
       )}
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <FilterTabs
-            options={DIFFICULTIES}
-            value={difficulty}
-            onChange={setDifficulty}
-            activeClassName="bg-ctp-blue/20 text-ctp-blue"
-          />
-          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 focus:border-ctp-blue/40" />
-          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 focus:border-ctp-blue/40" />
-          <input
-            type="text"
-            placeholder="Search player or class…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-blue/40 w-48"
-          />
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-ctp-overlay0">Min raids:</span>
-            <select
-              value={minRaids}
-              onChange={e => setMinRaids(Number(e.target.value))}
-              className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-2 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-blue/40"
-            >
-              {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n}+</option>)}
-            </select>
-          </div>
+      <FilterBar>
+        <FilterTabs
+          options={DIFFICULTIES}
+          value={difficulty}
+          onChange={setDifficulty}
+          activeClassName="bg-ctp-blue/20 text-ctp-blue"
+        />
+        <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48 focus:border-ctp-blue/40" />
+        <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52 focus:border-ctp-blue/40" />
+        <input
+          type="text"
+          placeholder="Search player or class…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-blue/40 w-48"
+        />
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-mono text-ctp-overlay0">Min raids:</span>
+          <select
+            value={minRaids}
+            onChange={e => setMinRaids(Number(e.target.value))}
+            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-2 py-1.5 text-xs text-ctp-subtext1 font-mono focus:outline-none focus:border-ctp-blue/40"
+          >
+            {[1, 2, 3, 5, 10].map(n => <option key={n} value={n}>{n}+</option>)}
+          </select>
         </div>
-      </div>
+      </FilterBar>
 
       <Card>
         <CardHeader>
@@ -245,44 +236,25 @@ export function Attendance() {
             Scoped from matching raid sessions and boss-roster presence. Missed = sessions in scope without a recorded appearance for players who showed up at least once.
           </p>
         </CardHeader>
-        {loading ? (
-          <CardBody><LoadingState rows={10} /></CardBody>
-        ) : error ? (
-          <CardBody><ErrorState message={error} /></CardBody>
-        ) : sorted.length === 0 ? (
-          <CardBody>
-            <p className="text-xs text-ctp-overlay0 font-mono text-center py-8">No attendance rows match the current scope.</p>
-          </CardBody>
-        ) : (
+        <DataState loading={loading} error={error} data={sorted} empty="No attendance rows match the current scope." loadingRows={10}>
+          {(data) => (
           <Table>
             <THead>
               <tr>
                 <Th>#</Th>
                 <Th className="min-w-[160px]">Player</Th>
-                <Th right>
-                  <button onClick={() => toggleSort('attendance_rate_pct')} className="hover:text-ctp-text">
-                    Rate <SortIcon k="attendance_rate_pct" />
-                  </button>
-                </Th>
+                <SortableTh right sortKey="attendance_rate_pct" currentKey={sortKey} desc={sortDesc} onSort={toggleSort} activeClass="text-ctp-blue">Rate</SortableTh>
                 <Th className="w-40">Attendance</Th>
-                <Th right>
-                  <button onClick={() => toggleSort('raids_present')} className="hover:text-ctp-text">
-                    Present <SortIcon k="raids_present" />
-                  </button>
-                </Th>
-                <Th right>
-                  <button onClick={() => toggleSort('total_raids_tracked')} className="hover:text-ctp-text">
-                    Sessions <SortIcon k="total_raids_tracked" />
-                  </button>
-                </Th>
+                <SortableTh right sortKey="raids_present" currentKey={sortKey} desc={sortDesc} onSort={toggleSort} activeClass="text-ctp-blue">Present</SortableTh>
+                <SortableTh right sortKey="total_raids_tracked" currentKey={sortKey} desc={sortDesc} onSort={toggleSort} activeClass="text-ctp-blue">Sessions</SortableTh>
                 <Th right>Missed</Th>
                 <Th>First Seen</Th>
                 <Th>Last Seen</Th>
               </tr>
             </THead>
             <TBody>
-              {sorted.map((p, i) => {
-                const pct = Number(p.attendance_rate_pct) || 0
+              {data.map((p, i) => {
+                const pct = toFiniteNumber(p.attendance_rate_pct) ?? 0
                 const color = getAttendanceColor(pct)
                 return (
                   <Tr key={p.player_name}>
@@ -316,7 +288,8 @@ export function Attendance() {
               })}
             </TBody>
           </Table>
-        )}
+          )}
+        </DataState>
       </Card>
     </AppLayout>
   )

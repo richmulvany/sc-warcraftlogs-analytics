@@ -9,7 +9,7 @@ import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
 import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { useRaidSummary, useBossKillRoster } from '../hooks/useGoldData'
-import { formatNumber, formatDate } from '../utils/format'
+import { formatNumber, formatDate, hasRealText } from '../utils/format'
 import { formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { isIncludedZoneName } from '../utils/zones'
@@ -29,10 +29,6 @@ export function Raids() {
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
   const [sortDesc, setSortDesc] = useState(true)
-
-  function hasRealText(value: unknown): value is string {
-    return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
-  }
 
   const validRaidRows = useMemo(() =>
     raids.data.filter(r =>
@@ -277,7 +273,7 @@ export function Raids() {
                       target="_blank"
                       rel="noopener noreferrer"
                       title="view on warcraftlogs - opens in a new tab"
-                      className="bg-ctp-mauve/8 rounded-2xl border border-ctp-mauve/20 p-4 hover:border-ctp-mauve/35 hover:bg-ctp-mauve/10 hover:-translate-y-0.5 transition-all duration-200 shadow-card"
+                      className="bg-ctp-mauve/[0.08] rounded-2xl border border-ctp-mauve/20 p-4 hover:border-ctp-mauve/30 hover:bg-ctp-mauve/10 hover:-translate-y-0.5 transition-all duration-200 shadow-card"
                     >
                       {/* Header row */}
                       <div className="flex items-start justify-between gap-2 mb-3">

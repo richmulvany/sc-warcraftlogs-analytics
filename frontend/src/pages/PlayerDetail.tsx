@@ -43,7 +43,7 @@ import {
 } from '../hooks/useGoldData'
 import { formatThroughput, getClassColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
-import { formatDate, formatPct, toFiniteNumber, meanIgnoringNulls, getRelativeScoreDomain } from '../utils/format'
+import { formatDate, formatPct, toFiniteNumber, meanIgnoringNulls, getRelativeScoreDomain, hasRealText } from '../utils/format'
 import { isIncludedZoneName } from '../utils/zones'
 import type {
   PlayerBossPerformance,
@@ -195,7 +195,7 @@ function parseKillingBlowsJson(value: unknown): KillingBlowSummary[] {
     return parsed
       .map(row => ({
         name: typeof row?.name === 'string' ? row.name : '',
-        count: Number(row?.count) || 0,
+        count: toFiniteNumber(row?.count) ?? 0,
       }))
       .filter(row => row.name && row.count > 0)
   } catch {
@@ -602,7 +602,7 @@ function MplusScoreChart({ data, lineColor }: { data: PlayerMplusScoreHistory[];
 
   if (chartData.length < 2) {
     return (
-      <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-ctp-surface2 bg-ctp-crust/35 px-6 text-center">
+      <div className="flex h-56 items-center justify-center rounded-xl border border-dashed border-ctp-surface2 bg-ctp-crust/[0.35] px-6 text-center">
         <p className="text-xs font-mono text-ctp-overlay0">
           Score history starts from the first Raider.IO ingestion. Another snapshot is needed for a trend line.
         </p>
@@ -652,7 +652,7 @@ function MplusActivityHeatmap({
       if (!date) continue
       const entry = map.get(date) ?? { runs: 0, highestLevel: 0, timed: 0 }
       entry.runs++
-      const level = Number(run.mythic_level) || 0
+      const level = toFiniteNumber(run.mythic_level) ?? 0
       if (level > entry.highestLevel) entry.highestLevel = level
       if (String(run.timed) === 'true') entry.timed++
       map.set(date, entry)
@@ -863,7 +863,7 @@ function DungeonBreakdownCard({ row }: { row: PlayerMplusDungeonBreakdown }) {
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-ctp-mauve transition-colors group-hover:text-ctp-pink">{row.dungeon}</p>
           <p className="mt-0.5 truncate text-[10px] font-mono text-ctp-overlay0">
-            {Number(row.total_runs) || 0} runs · {Number(row.timed_runs) || 0} timed
+            {toFiniteNumber(row.total_runs) ?? 0} runs · {toFiniteNumber(row.timed_runs) ?? 0} timed
           </p>
         </div>
         <div className="shrink-0 text-right">
@@ -892,7 +892,7 @@ function RecentDungeonRunCard({ row, isNewBest }: { row: PlayerMplusRunHistory; 
       : 'text-ctp-overlay1 group-hover:text-ctp-red'
   const metaClass = isNewBest ? 'text-ctp-mauve/75' : timed ? 'text-ctp-green/75' : 'text-ctp-overlay0'
   const keyClass = isNewBest ? 'text-ctp-pink' : timed ? 'text-ctp-green' : 'text-ctp-red'
-  const hoverClass = isNewBest ? 'hover:border-ctp-mauve/50' : timed ? 'hover:border-ctp-green/45' : 'hover:border-ctp-red/45'
+  const hoverClass = isNewBest ? 'hover:border-ctp-mauve/50' : timed ? 'hover:border-ctp-green/40' : 'hover:border-ctp-red/40'
 
   return (
     <a
@@ -955,10 +955,6 @@ export function PlayerDetail() {
   const [selectedBoss, setSelectedBoss] = useState('All')
   const [bossParseMode, setBossParseMode] = useState<BossParseMode>('average')
   const [mplusHeatmapMode, setMplusHeatmapMode] = useState<MplusHeatmapMode>('quantity')
-
-  function hasRealText(value: unknown): value is string {
-    return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
-  }
 
   const summary = useMemo(
     () => perf.data.find(p => p.player_name === name),
@@ -1384,8 +1380,9 @@ export function PlayerDetail() {
     () => [...mplusDungeonBreakdown.data]
       .filter(row => row.player_name.toLowerCase() === name.toLowerCase())
       .sort((a, b) =>
-        (Number(b.best_score) || 0) - (Number(a.best_score) || 0) ||
-        (Number(b.best_key_level) || 0) - (Number(a.best_key_level) || 0) ||
+        // -1 sentinel: real M+ scores are positive, so null-score dungeons sink to the bottom
+        (toFiniteNumber(b.best_score) ?? -1) - (toFiniteNumber(a.best_score) ?? -1) ||
+        (toFiniteNumber(b.best_key_level) ?? -1) - (toFiniteNumber(a.best_key_level) ?? -1) ||
         a.dungeon.localeCompare(b.dungeon)
       ),
     [mplusDungeonBreakdown.data, name]
@@ -1398,7 +1395,7 @@ export function PlayerDetail() {
       keys.add([
         row.dungeon,
         row.best_completed_at,
-        Number(row.best_key_level) || 0,
+        toFiniteNumber(row.best_key_level) ?? 0,
       ].join('|').toLowerCase())
     }
     return keys
@@ -1495,7 +1492,7 @@ export function PlayerDetail() {
     if (survRow.most_common_killing_blow) {
       return [{
         name: survRow.most_common_killing_blow,
-        count: Number(survRow.most_common_killing_blow_count) || 0,
+        count: toFiniteNumber(survRow.most_common_killing_blow_count) ?? 0,
       }]
     }
     return []
@@ -1585,7 +1582,7 @@ export function PlayerDetail() {
 
   if (!loading && !summary) {
     return (
-      <AppLayout title={name} subtitle="player not found">
+      <AppLayout title={name} subtitle="player not found" wide>
         <div className="py-16 text-center">
           <p className="text-ctp-overlay1 text-sm font-mono mb-4">Player "{name}" not found in data.</p>
           <button
@@ -1612,6 +1609,7 @@ export function PlayerDetail() {
         </button>
       }
       nav={<SectionNav sections={PD_SECTIONS} activeId={activeSectionId} />}
+      wide
     >
       <section id="profile" className="space-y-7 scroll-mt-20">
       <div
@@ -1816,7 +1814,7 @@ export function PlayerDetail() {
                         {name[0] ?? '?'}
                       </div>
                     )}
-                    <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-b from-ctp-crust/10 via-transparent to-ctp-crust/45" />
+                    <div className="pointer-events-none absolute inset-0 z-20 bg-gradient-to-b from-ctp-crust/10 via-transparent to-ctp-crust/40" />
                   </div>
 
                   <div className="space-y-2">
@@ -2016,7 +2014,7 @@ export function PlayerDetail() {
                   </div>
                   <div className="bg-ctp-surface1/40 rounded-xl p-3">
                     <p className="section-label mb-1">Deaths / Kill</p>
-                    <p className="text-xl font-semibold" style={{ color: getDeathRateColor(Number(displayedDeathsPerKill) || 0) }}>
+                    <p className="text-xl font-semibold" style={{ color: getDeathRateColor(toFiniteNumber(displayedDeathsPerKill) ?? 0) }}>
                       {displayedDeathsPerKill != null ? displayedDeathsPerKill.toFixed(1) : '—'}
                     </p>
                     <p className="mt-0.5 text-[10px] font-mono text-ctp-overlay0">
@@ -2156,19 +2154,19 @@ export function PlayerDetail() {
               label="Timed / Untimed"
               value={(
                 <>
-                  <span style={{ color: killColor }}>{Number(playerMplusSummary?.timed_runs) || 0}</span>
+                  <span style={{ color: killColor }}>{toFiniteNumber(playerMplusSummary?.timed_runs) ?? 0}</span>
                   <span className="mx-1 text-ctp-overlay0">/</span>
-                  <span style={{ color: wipeColor }}>{Number(playerMplusSummary?.untimed_runs) || 0}</span>
+                  <span style={{ color: wipeColor }}>{toFiniteNumber(playerMplusSummary?.untimed_runs) ?? 0}</span>
                 </>
               )}
-              subValue={`${Number(playerMplusSummary?.total_runs) || 0} exported runs`}
+              subValue={`${toFiniteNumber(playerMplusSummary?.total_runs) ?? 0} exported runs`}
               icon="◒"
               accent="blue"
             />
             <StatCard
               label="Common Key Level"
               value={formatKeyLevel(playerMplusSummary?.most_common_key_level)}
-              subValue={`${Number(playerMplusSummary?.most_common_key_count) || 0} runs at that level`}
+              subValue={`${toFiniteNumber(playerMplusSummary?.most_common_key_count) ?? 0} runs at that level`}
               icon="◇"
               valueColor={topTierColor}
               accent="none"
@@ -2237,7 +2235,7 @@ export function PlayerDetail() {
                         bestMplusRunKeys.has([
                           row.dungeon,
                           row.completed_at,
-                          Number(row.mythic_level) || 0,
+                          toFiniteNumber(row.mythic_level) ?? 0,
                         ].join('|').toLowerCase())
 
                       return (

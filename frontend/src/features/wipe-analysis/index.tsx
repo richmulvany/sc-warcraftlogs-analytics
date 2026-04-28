@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { SectionNav, useActiveSection } from '../components/ui/SectionNav'
+import { SectionNav, useActiveSection } from '../../components/ui/SectionNav'
 import {
   BarChart,
   Bar,
@@ -9,16 +9,16 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts'
-import { AppLayout } from '../components/layout/AppLayout'
-import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
-import { FilterSelect } from '../components/ui/FilterSelect'
-import { StatCard } from '../components/ui/StatCard'
-import { FilterTabs } from '../components/ui/FilterTabs'
-import { DiffBadge } from '../components/ui/Badge'
-import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
-import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
-import { ErrorState } from '../components/ui/ErrorState'
-import { ClassDot } from '../components/ui/ClassLabel'
+import { AppLayout } from '../../components/layout/AppLayout'
+import { Card, CardHeader, CardTitle, CardBody } from '../../components/ui/Card'
+import { FilterSelect } from '../../components/ui/FilterSelect'
+import { StatCard } from '../../components/ui/StatCard'
+import { FilterTabs } from '../../components/ui/FilterTabs'
+import { DiffBadge } from '../../components/ui/Badge'
+import { Table, THead, TBody, Th, Td, Tr } from '../../components/ui/Table'
+import { LoadingState, SkeletonCard } from '../../components/ui/LoadingState'
+import { ErrorState } from '../../components/ui/ErrorState'
+import { ClassDot } from '../../components/ui/ClassLabel'
 import {
   useRaidSummary,
   useBossMechanics,
@@ -29,650 +29,23 @@ import {
   usePlayerUtilityByPull,
   useWipeSurvivalEvents,
   useWipeCooldownUtilization,
-} from '../hooks/useGoldData'
-import { formatDate, formatNumber, formatPct } from '../utils/format'
-import { isIncludedZoneName } from '../utils/zones'
-import { formatDuration } from '../constants/wow'
-import { useColourBlind } from '../context/ColourBlindContext'
-
-const DIFFS = ['All', 'Mythic', 'Heroic', 'Normal'] as const
-
-const WA_SECTIONS = [
-  { id: 'overview',  label: 'Overview' },
-  { id: 'wipes',     label: 'Wipe Walls' },
-  { id: 'deaths',    label: 'Deaths' },
-  { id: 'survival',  label: 'Survival' },
-] as const
-
-type SortDirection = 'asc' | 'desc'
-type WipeSurvivalSortKey =
-  | 'player'
-  | 'grade'
-  | 'wipePullsTracked'
-  | 'wipeDeaths'
-  | 'deathsPerWipePull'
-  | 'defensiveCapacityUsedPct'
-  | 'noHealthstonePct'
-  | 'noHealthPotionPct'
-  | 'survivalFailureScore'
-  | 'topMissing'
-  | 'mostKilledBy'
-  | 'killDeaths'
-  | 'killsTracked'
-  | 'deathsPerKill'
-
-interface WipeSurvivalFailureRow {
-  player_name: string
-  player_class: string
-  wipe_pulls_tracked: number
-  wipe_deaths: number
-  kill_deaths: number
-  kills_tracked: number
-  deaths_per_kill: number | null
-  deaths_per_wipe_pull: number
-  no_healthstone_deaths: number
-  no_health_potion_deaths: number
-  defensive_possible_casts: number
-  defensive_actual_casts: number
-  defensive_missed_casts: number
-  defensive_capacity_used_pct: number
-  has_defensive_capacity_tracked: boolean
-  no_healthstone_pct: number
-  no_health_potion_pct: number
-  weighted_failure_points: number
-  survival_failure_score: number
-  survival_grade: 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
-  top_missing_category: string
-  most_common_killing_blow: string
-  most_common_killing_blow_count: number
-}
-
-interface CooldownCapacityRow {
-  key: string
-  player_name: string
-  player_class: string
-  ability_name: string
-  possible_casts: number
-  actual_casts: number
-  missed_casts: number
-  cast_efficiency_pct: number
-  pulls_tracked: number
-}
-
-interface ScopedSurvivabilityRow {
-  player_name: string
-  player_class: string
-  total_deaths: number
-  wipe_deaths: number
-  kill_deaths: number
-  kills_tracked: number
-  pulls_tracked: number
-  deaths_per_kill: number | null
-  deaths_per_pull: number | null
-  most_common_killing_blow: string
-  most_common_killing_blow_count: number
-}
-
-interface DeathTimingSummary {
-  count: number
-  min: number
-  q1: number
-  median: number
-  q3: number
-  max: number
-  lowerWhisker: number
-  upperWhisker: number
-  outliers: number[]
-}
-
-function quantile(sorted: number[], q: number) {
-  if (!sorted.length) return 0
-  const pos = (sorted.length - 1) * q
-  const base = Math.floor(pos)
-  const rest = pos - base
-  const next = sorted[base + 1]
-  return next !== undefined
-    ? sorted[base] + rest * (next - sorted[base])
-    : sorted[base]
-}
-
-function formatTimingLabel(ms: number) {
-  if (ms < 60_000) return `${Math.round(ms / 1000)}s`
-  const mins = ms / 60_000
-  return Number.isInteger(mins) ? `${mins}m` : `${mins.toFixed(1)}m`
-}
-
-function buildTimingTicks(domainMax: number) {
-  const maxMins = domainMax / 60_000
-  const candidates = [0.5, 1, 2, 5, 10, 15, 20, 30]
-  const interval = candidates.find(c => maxMins / c <= 5) ?? 30
-
-  const ticks: number[] = []
-  for (let m = 0; m * 60_000 <= domainMax; m += interval) {
-    ticks.push(m * 60_000)
-  }
-
-  return ticks
-}
-
-function formatAxisTick(ms: number) {
-  const mins = ms / 60_000
-  return Number.isInteger(mins) ? `${mins}m` : `${mins.toFixed(1)}m`
-}
-
-// Case-insensitive normaliser — WCL / pipeline may export role as 'tank', 'HEALER', '1', etc.
-function normalizeRole(raw: string | null | undefined): 'Tank' | 'Healer' | 'DPS' | 'Unknown' {
-  if (!raw) return 'Unknown'
-  const s = raw.toLowerCase().trim()
-  if (s === 'tank' || s === '1') return 'Tank'
-  if (s === 'healer' || s === 'heal' || s === '2') return 'Healer'
-  if (s === 'dps' || s === 'damage' || s === 'ranged' || s === 'melee' || s === '3') return 'DPS'
-  return 'Unknown'
-}
-
-// Fallback for players not in the kill roster (pure-DPS classes only; hybrids → Unknown)
-const CLASS_ROLE_FALLBACK: Record<string, 'DPS'> = {
-  Hunter: 'DPS',
-  Mage: 'DPS',
-  Rogue: 'DPS',
-  Warlock: 'DPS',
-}
-
-function DeathTimingBoxPlot({
-  summary,
-  boxColor,
-  lineColor,
-  axisColor,
-  labelColor,
-}: {
-  summary: DeathTimingSummary
-  boxColor: string
-  lineColor: string
-  axisColor: string
-  labelColor: string
-}) {
-  const domainMax = Math.max(summary.upperWhisker * 1.1, 60_000)
-  const ticks = buildTimingTicks(domainMax)
-
-  const pct = (value: number) => Math.max(0, Math.min(100, (value / domainMax) * 100))
-
-  const lower = pct(summary.lowerWhisker)
-  const q1Pos = pct(summary.q1)
-  const medPos = pct(summary.median)
-  const q3Pos = pct(summary.q3)
-  const upper = pct(summary.upperWhisker)
-  const boxW = Math.max(q3Pos - q1Pos, 1.5)
-  const boxLeft = q1Pos
-  const boxRight = q1Pos + boxW
-
-  return (
-    <div className="w-full">
-      <svg
-        viewBox="0 0 100 52"
-        className="h-52 w-full overflow-visible"
-        aria-label="Death timing box plot"
-      >
-        <line
-          x1="0"
-          y1="40"
-          x2="100"
-          y2="40"
-          stroke={axisColor}
-          strokeOpacity="0.2"
-          strokeWidth="0.35"
-        />
-
-        <line
-          x1={lower}
-          y1="22"
-          x2={boxLeft}
-          y2="22"
-          stroke={lineColor}
-          strokeOpacity="0.48"
-          strokeWidth="0.55"
-        />
-        <line
-          x1={boxRight}
-          y1="22"
-          x2={upper}
-          y2="22"
-          stroke={lineColor}
-          strokeOpacity="0.48"
-          strokeWidth="0.55"
-        />
-        <line
-          x1={lower}
-          y1="18"
-          x2={lower}
-          y2="26"
-          stroke={lineColor}
-          strokeOpacity="0.58"
-          strokeWidth="0.55"
-        />
-        <line
-          x1={upper}
-          y1="18"
-          x2={upper}
-          y2="26"
-          stroke={lineColor}
-          strokeOpacity="0.58"
-          strokeWidth="0.55"
-        />
-
-        <rect
-          x={q1Pos}
-          y="16"
-          width={boxW}
-          height="12"
-          rx="1.2"
-          fill={boxColor}
-          fillOpacity="0.1"
-          stroke={boxColor}
-          strokeOpacity="0.58"
-          strokeWidth="0.55"
-        />
-
-        <line
-          x1={medPos}
-          y1="13"
-          x2={medPos}
-          y2="31"
-          stroke={boxColor}
-          strokeWidth="1.1"
-          strokeLinecap="round"
-        />
-
-        {summary.outliers.slice(0, 40).map((value, index) => (
-          <circle
-            key={`${value}-${index}`}
-            cx={pct(value)}
-            cy="22"
-            r="1"
-            fill={boxColor}
-            fillOpacity="0.7"
-          />
-        ))}
-
-        {ticks.map((tick, index) => {
-          const x = pct(tick)
-          const anchor =
-            index === 0 ? 'start' : index === ticks.length - 1 ? 'end' : 'middle'
-
-          return (
-            <g key={index}>
-              <line
-                x1={x}
-                y1="40"
-                x2={x}
-                y2="43.5"
-                stroke={axisColor}
-                strokeOpacity="0.35"
-                strokeWidth="0.35"
-              />
-              <text
-                x={x}
-                y="50"
-                textAnchor={anchor}
-                fontSize="4.5"
-                fill={labelColor}
-                style={{ fontFamily: 'IBM Plex Mono, monospace' }}
-              >
-                {formatAxisTick(tick)}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
-
-      <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {[
-          { label: 'Q1', value: formatTimingLabel(summary.q1) },
-          { label: 'Median', value: formatTimingLabel(summary.median) },
-          { label: 'Q3', value: formatTimingLabel(summary.q3) },
-          { label: 'Samples', value: formatNumber(summary.count) },
-        ].map(({ label, value }) => (
-          <div
-            key={label}
-            className="rounded-lg border border-ctp-surface1 bg-ctp-surface1/20 px-2.5 py-2.5 text-center"
-          >
-            <p className="font-mono text-[9px] uppercase tracking-widest text-ctp-overlay0">
-              {label}
-            </p>
-            <p className="mt-1 font-mono text-sm font-semibold text-ctp-text">{value}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function isKillRow(row: { is_kill?: boolean | string | null }) {
-  return row.is_kill === true || row.is_kill === 'true'
-}
-
-function isPositiveFlag(value: unknown) {
-  return value === true || value === 'true' || Number(value) > 0
-}
-
-function sectionTotal<T extends { [k: string]: unknown }>(rows: T[], key: keyof T) {
-  return rows.reduce((sum, row) => sum + Number(row[key] ?? 0), 0)
-}
-
-function pct(numerator: number, denominator: number) {
-  return denominator > 0 ? (numerator / denominator) * 100 : 0
-}
-
-function gradeForPercentile(percentile: number): WipeSurvivalFailureRow['survival_grade'] {
-  if (percentile <= 0.1) return 'S'
-  if (percentile <= 0.25) return 'A'
-  if (percentile <= 0.4) return 'B'
-  if (percentile <= 0.55) return 'C'
-  if (percentile <= 0.7) return 'D'
-  if (percentile <= 0.85) return 'E'
-  return 'F'
-}
-
-function gradeClassName(grade: WipeSurvivalFailureRow['survival_grade']) {
-  switch (grade) {
-    case 'S':
-      return 'border-ctp-green/30 bg-ctp-green/10 text-ctp-green'
-    case 'A':
-      return 'border-ctp-teal/30 bg-ctp-teal/10 text-ctp-teal'
-    case 'B':
-      return 'border-ctp-blue/30 bg-ctp-blue/10 text-ctp-blue'
-    case 'C':
-      return 'border-ctp-overlay1/30 bg-ctp-surface1/40 text-ctp-overlay1'
-    case 'D':
-      return 'border-ctp-yellow/30 bg-ctp-yellow/10 text-ctp-yellow'
-    case 'E':
-      return 'border-ctp-peach/30 bg-ctp-peach/10 text-ctp-peach'
-    case 'F':
-      return 'border-ctp-red/30 bg-ctp-red/10 text-ctp-red'
-  }
-}
-
-function MiniNote({ children }: { children: ReactNode }) {
-  return <p className="text-[10px] font-mono text-ctp-overlay0">{children}</p>
-}
-
-function StatusPill({
-  label,
-  active = false,
-  compact = false,
-}: {
-  label: string
-  active?: boolean
-  compact?: boolean
-}) {
-  return (
-    <span
-      className={`inline-flex items-center rounded-full border font-mono uppercase ${
-        compact ? 'px-1.5 py-0.5 text-[9px] tracking-[0.1em]' : 'px-2.5 py-1 text-[10px] tracking-[0.18em]'
-      } ${
-        active
-          ? 'border-ctp-mauve/30 bg-ctp-mauve/10 text-ctp-mauve'
-          : 'border-ctp-surface2 bg-ctp-surface1/50 text-ctp-overlay0'
-      }`}
-    >
-      {label}
-    </span>
-  )
-}
-
-function SignalTile({
-  label,
-  value,
-  detail,
-  accentClass = 'text-ctp-text',
-}: {
-  label: string
-  value: ReactNode
-  detail: ReactNode
-  accentClass?: string
-}) {
-  return (
-    <div className="rounded-2xl border border-ctp-surface1/60 bg-ctp-surface1/30 p-3.5">
-      <p className="mb-2 text-[10px] font-mono uppercase tracking-[0.18em] text-ctp-overlay0">
-        {label}
-      </p>
-      <div className={`text-sm font-semibold leading-tight ${accentClass}`}>{value}</div>
-      <p className="mt-1 text-[10px] font-mono leading-relaxed text-ctp-overlay0">{detail}</p>
-    </div>
-  )
-}
-
-interface ProgressSnapshotDatum {
-  boss_name: string
-  difficulty_label?: string | null
-  label: string
-  subLabel: string
-  open: number
-  close: number
-  high: number
-  low: number
-  currentNight: string
-  previousNight: string | null
-  pullCount: number
-}
-
-function clampPct(value: number) {
-  if (!Number.isFinite(value)) return 0
-  return Math.max(0, Math.min(100, value))
-}
-
-function shortDateLabel(date: string) {
-  const parsed = new Date(date)
-  if (Number.isNaN(parsed.getTime())) return date
-  return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
-
-function ProgressSnapshotCandles({
-  data,
-  improvedColor,
-  worseColor,
-  neutralColor,
-}: {
-  data: ProgressSnapshotDatum[]
-  improvedColor: string
-  worseColor: string
-  neutralColor: string
-}) {
-  const width = 720
-  const chartHeight = 220
-  const chartTop = 12
-  const chartBottom = 46
-  const plotHeight = chartHeight - chartTop - chartBottom
-  const leftPad = 36
-  const rightPad = 18
-  const slotWidth = (width - leftPad - rightPad) / Math.max(data.length, 1)
-  const candleWidth = Math.max(3, Math.min(18, slotWidth * 0.46))
-  const wickWidth = data.length > 24 ? 1 : 1.5
-  const labelEvery = data.length <= 10 ? 1 : Math.ceil(data.length / 10)
-  const yForPct = (value: number) => chartTop + ((100 - clampPct(value)) / 100) * plotHeight
-  const ticks = [100, 75, 50, 25, 0]
-
-  return (
-    <div className="pb-1">
-      <svg
-        viewBox={`0 0 ${width} ${chartHeight}`}
-        className="h-[250px] w-full"
-        role="img"
-        aria-label="Progress snapshot candle chart"
-        preserveAspectRatio="none"
-      >
-        {ticks.map(tick => {
-          const y = yForPct(tick)
-          return (
-            <g key={tick}>
-              <line
-                x1={leftPad}
-                x2={width - rightPad}
-                y1={y}
-                y2={y}
-                stroke="#45475a"
-                strokeDasharray={tick === 0 ? undefined : '4 6'}
-                strokeOpacity={tick === 0 ? 0.55 : 0.42}
-              />
-              <text
-                x={leftPad - 10}
-                y={y + 3}
-                textAnchor="end"
-                className="fill-ctp-overlay0 font-mono text-[10px]"
-              >
-                {tick}%
-              </text>
-            </g>
-          )
-        })}
-
-        {data.map((row, index) => {
-          const x = leftPad + index * slotWidth + slotWidth / 2
-          const open = clampPct(Number(row.open))
-          const close = clampPct(Number(row.close))
-          const high = clampPct(Number(row.high))
-          const low = clampPct(Number(row.low))
-          const highY = yForPct(high)
-          const lowY = yForPct(low)
-          const openY = yForPct(open)
-          const closeY = yForPct(close)
-          const bodyTop = Math.min(openY, closeY)
-          const bodyHeight = Math.max(7, Math.abs(openY - closeY))
-          const improved = close < open
-          const regressed = close > open
-          const bodyColor = improved ? improvedColor : regressed ? worseColor : neutralColor
-          const showLabel = index % labelEvery === 0 || index === data.length - 1
-          const tooltip = [
-            `${row.boss_name}${row.difficulty_label ? ` (${row.difficulty_label})` : ''}`,
-            row.currentNight,
-            row.previousNight ? `Open (${row.previousNight} final pull): ${open.toFixed(1)}%` : `Open: ${open.toFixed(1)}%`,
-            `Close (${row.currentNight} final pull): ${close.toFixed(1)}%`,
-            `High: ${high.toFixed(1)}%`,
-            `Low: ${low.toFixed(1)}%`,
-            `Pulls: ${formatNumber(row.pullCount)}`,
-          ]
-            .filter(Boolean)
-            .join('\n')
-
-          return (
-            <g key={`${row.boss_name}-${row.difficulty_label ?? 'unknown'}-${row.currentNight}-${index}`}>
-              <title>{tooltip}</title>
-              <line
-                x1={x}
-                x2={x}
-                y1={highY}
-                y2={lowY}
-                stroke={bodyColor}
-                strokeWidth={wickWidth}
-                strokeLinecap="round"
-                opacity={0.95}
-              />
-              <rect
-                x={x - candleWidth / 2}
-                y={bodyTop}
-                width={candleWidth}
-                height={bodyHeight}
-                rx={1.5}
-                fill={bodyColor}
-                fillOpacity={improved ? 0.04 : regressed ? 0.78 : 0.18}
-                stroke={bodyColor}
-                strokeWidth={1.5}
-              />
-              {showLabel ? (
-                <>
-                  <text
-                    x={x}
-                    y={chartHeight - 27}
-                    textAnchor="middle"
-                    className="fill-ctp-subtext1 font-mono text-[10px]"
-                  >
-                    {row.label}
-                  </text>
-                  {data.length <= 14 ? (
-                    <text
-                      x={x}
-                      y={chartHeight - 12}
-                      textAnchor="middle"
-                      className="fill-ctp-overlay0 font-mono text-[9px]"
-                    >
-                      {row.subLabel}
-                    </text>
-                  ) : null}
-                </>
-              ) : null}
-            </g>
-          )
-        })}
-      </svg>
-    </div>
-  )
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CtpTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
-  return (
-    <div className="min-w-[170px] rounded-xl border border-ctp-surface2 bg-ctp-surface0 px-3 py-2.5 text-xs font-mono shadow-xl">
-      {label ? <p className="mb-2 text-ctp-overlay1">{label}</p> : null}
-      {payload.map((p: { name: string; value: number | string; color: string }, i: number) => (
-        <p key={i} style={{ color: p.color }}>
-          {p.name}:{' '}
-          <span className="font-semibold">
-            {typeof p.value === 'number' ? formatNumber(p.value) : p.value}
-          </span>
-        </p>
-      ))}
-    </div>
-  )
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function WipeWallTooltip({ active, payload }: any) {
-  if (!active || !payload?.length) return null
-  const row = payload[0].payload
-  const bestPct = Number(row.bestPct)
-  const avgPct = Number(row.avgPct)
-  return (
-    <div className="min-w-[230px] space-y-1 rounded-xl border border-ctp-surface2 bg-ctp-surface0 px-3 py-2.5 text-xs font-mono shadow-xl">
-      <p className="mb-1 font-semibold text-ctp-text">{row.fullName}</p>
-      <div className="flex items-center gap-2">
-        <p className="text-ctp-overlay1">{row.diff}</p>
-        <StatusPill label={row.isCleared ? 'Cleared' : 'Active'} active={!row.isCleared} />
-      </div>
-      <p style={{ color: payload[0].color }}>
-        Wipes: <span className="font-semibold">{formatNumber(row.wipes)}</span>
-      </p>
-      <p className="text-ctp-subtext1">
-        Best pull: <span className="font-semibold">{bestPct > 0 ? formatPct(bestPct) : '—'}</span>
-      </p>
-      <p className="text-ctp-subtext1">
-        Avg wipe: <span className="font-semibold">{avgPct > 0 ? formatPct(avgPct) : '—'}</span>
-      </p>
-      <p className="text-ctp-overlay1">
-        Nights attempted: <span className="font-semibold">{formatNumber(row.nights)}</span>
-      </p>
-    </div>
-  )
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function RecurringKillerTooltip({ active, payload }: any) {
-  if (!active || !payload?.length) return null
-  const row = payload[0].payload
-  return (
-    <div className="min-w-[220px] space-y-1 rounded-xl border border-ctp-surface2 bg-ctp-surface0 px-3 py-2.5 text-xs font-mono shadow-xl">
-      <p className="mb-1 font-semibold text-ctp-text">{row.fullName}</p>
-      <p style={{ color: payload[0].color }}>
-        Unique players killed: <span className="font-semibold">{row.uniquePlayers}</span>
-      </p>
-      <p className="text-ctp-subtext1">
-        Wipe deaths: <span className="font-semibold">{row.deaths}</span>
-      </p>
-      <p className="text-ctp-overlay1">
-        Bosses affected: <span className="font-semibold">{row.uniqueBosses}</span>
-      </p>
-    </div>
-  )
-}
+} from '../../hooks/useGoldData'
+import { formatDate, formatNumber, formatPct, toFiniteNumber } from '../../utils/format'
+import { isIncludedZoneName } from '../../utils/zones'
+import { formatDuration } from '../../constants/wow'
+import { useColourBlind } from '../../context/ColourBlindContext'
+import { CHART_TICK_STYLE, CHART_TICK_STYLE_LIGHT } from '../../utils/chartStyle'
+import { DIFFS, WA_SECTIONS, toWipeRoleKey, CLASS_ROLE_FALLBACK } from './constants'
+import {
+  quantile, isKillRow, isPositiveFlag, sectionTotal,
+  pct as calcPct, gradeForPercentile, gradeClassName,
+  clampPct, shortDateLabel,
+} from './utils'
+import type { SortDirection, WipeSurvivalSortKey, WipeSurvivalFailureRow, CooldownCapacityRow, ScopedSurvivabilityRow, DeathTimingSummary, ProgressSnapshotDatum } from './types'
+import { MiniNote, StatusPill, SignalTile } from './components/primitives'
+import { DeathTimingBoxPlot } from './components/DeathTimingBoxPlot'
+import { ProgressSnapshotCandles } from './components/ProgressSnapshotCandles'
+import { CtpTooltip, WipeWallTooltip, RecurringKillerTooltip } from './components/Tooltips'
 
 export function WipeAnalysis() {
   const {
@@ -1009,9 +382,9 @@ export function WipeAnalysis() {
         pulls_tracked: 0,
       }
 
-      existing.possible_casts += Number(row.possible_casts) || 0
-      existing.actual_casts += Number(row.actual_casts) || 0
-      existing.missed_casts += Number(row.missed_casts) || 0
+      existing.possible_casts += toFiniteNumber(row.possible_casts) ?? 0
+      existing.actual_casts += toFiniteNumber(row.actual_casts) ?? 0
+      existing.missed_casts += toFiniteNumber(row.missed_casts) ?? 0
       existing.pulls_tracked += 1
       groups.set(key, existing)
     }
@@ -1259,8 +632,8 @@ export function WipeAnalysis() {
           defensive_capacity_used_pct: row.has_defensive_capacity_tracked
             ? (row.defensive_actual_casts / row.defensive_possible_casts) * 100
             : 0,
-          no_healthstone_pct: pct(row.no_healthstone_deaths, row.wipe_deaths),
-          no_health_potion_pct: pct(row.no_health_potion_deaths, row.wipe_deaths),
+          no_healthstone_pct: calcPct(row.no_healthstone_deaths, row.wipe_deaths),
+          no_health_potion_pct: calcPct(row.no_health_potion_deaths, row.wipe_deaths),
           weighted_failure_points: weightedFailurePoints,
           // Presence-normalised score: weighted missing-tool deaths per wipe pull, scaled to 100.
           // This keeps low-pull and high-pull boss scopes comparable.
@@ -1522,7 +895,7 @@ export function WipeAnalysis() {
   const phaseBreakdown = useMemo(() => {
     const counts = new Map<number, number>()
     for (const row of filteredWipes) {
-      const phase = Number(row.max_phase_reached) || 0
+      const phase = toFiniteNumber(row.max_phase_reached) ?? 0
       if (phase <= 0) continue
       counts.set(phase, (counts.get(phase) ?? 0) + Number(row.total_wipes))
     }
@@ -1687,7 +1060,7 @@ export function WipeAnalysis() {
     const blowCounts = new Map<string, number>()
 
     for (const d of fightFirstDeath.values()) {
-      const rosterRole = normalizeRole(roleByPlayer.get(d.player_name))
+      const rosterRole = toWipeRoleKey(roleByPlayer.get(d.player_name))
       const role =
         rosterRole !== 'Unknown'
           ? rosterRole
@@ -1715,7 +1088,7 @@ export function WipeAnalysis() {
       const sampleRaw = [...fightFirstDeath.values()]
         .filter(
           d =>
-            normalizeRole(roleByPlayer.get(d.player_name)) === 'Unknown' &&
+            toWipeRoleKey(roleByPlayer.get(d.player_name)) === 'Unknown' &&
             !CLASS_ROLE_FALLBACK[d.player_class]
         )
         .slice(0, 5)
@@ -1948,6 +1321,7 @@ export function WipeAnalysis() {
       title="Wipe Analysis"
       subtitle="where progression stalls and what tends to kill raids"
       nav={<SectionNav sections={WA_SECTIONS} activeId={activeSectionId} />}
+      wide
     >
       <section id="overview" className="space-y-4 scroll-mt-20">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -2182,12 +1556,7 @@ export function WipeAnalysis() {
                       <BarChart data={topWipeBosses} margin={{ top: 4, right: 8, left: -20, bottom: 48 }}>
                         <XAxis
                           dataKey="boss"
-                          tick={{
-                            fontSize: 10,
-                            fill: '#6c7086',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                            dx: 24,
-                          }}
+                          tick={{ ...CHART_TICK_STYLE, dx: 24 }}
                           axisLine={false}
                           tickLine={false}
                           tickMargin={6}
@@ -2196,11 +1565,7 @@ export function WipeAnalysis() {
                           interval={0}
                         />
                         <YAxis
-                          tick={{
-                            fontSize: 10,
-                            fill: '#6c7086',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                          }}
+                          tick={CHART_TICK_STYLE}
                           axisLine={false}
                           tickLine={false}
                         />
@@ -2248,20 +1613,12 @@ export function WipeAnalysis() {
                       <BarChart data={phaseBreakdown} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <XAxis
                           dataKey="label"
-                          tick={{
-                            fontSize: 10,
-                            fill: '#6c7086',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                          }}
+                          tick={CHART_TICK_STYLE}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis
-                          tick={{
-                            fontSize: 10,
-                            fill: '#6c7086',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                          }}
+                          tick={CHART_TICK_STYLE}
                           axisLine={false}
                           tickLine={false}
                         />
@@ -2317,20 +1674,12 @@ export function WipeAnalysis() {
                       <BarChart data={durationBuckets} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
                         <XAxis
                           dataKey="label"
-                          tick={{
-                            fontSize: 10,
-                            fill: '#6c7086',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                          }}
+                          tick={CHART_TICK_STYLE}
                           axisLine={false}
                           tickLine={false}
                         />
                         <YAxis
-                          tick={{
-                            fontSize: 10,
-                            fill: '#6c7086',
-                            fontFamily: 'IBM Plex Mono, monospace',
-                          }}
+                          tick={CHART_TICK_STYLE}
                           axisLine={false}
                           tickLine={false}
                         />
@@ -2564,11 +1913,7 @@ export function WipeAnalysis() {
                     <BarChart data={recurringKillers} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                       <XAxis
                         type="number"
-                        tick={{
-                          fontSize: 10,
-                          fill: '#6c7086',
-                          fontFamily: 'IBM Plex Mono, monospace',
-                        }}
+                        tick={CHART_TICK_STYLE}
                         axisLine={false}
                         tickLine={false}
                       />
@@ -2576,11 +1921,7 @@ export function WipeAnalysis() {
                         dataKey="name"
                         type="category"
                         width={160}
-                        tick={{
-                          fontSize: 10,
-                          fill: '#a6adc8',
-                          fontFamily: 'IBM Plex Mono, monospace',
-                        }}
+                        tick={CHART_TICK_STYLE_LIGHT}
                         axisLine={false}
                         tickLine={false}
                       />
@@ -2617,11 +1958,7 @@ export function WipeAnalysis() {
                     <BarChart data={killingBlows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
                       <XAxis
                         type="number"
-                        tick={{
-                          fontSize: 10,
-                          fill: '#6c7086',
-                          fontFamily: 'IBM Plex Mono, monospace',
-                        }}
+                        tick={CHART_TICK_STYLE}
                         axisLine={false}
                         tickLine={false}
                       />
@@ -2629,11 +1966,7 @@ export function WipeAnalysis() {
                         dataKey="name"
                         type="category"
                         width={150}
-                        tick={{
-                          fontSize: 10,
-                          fill: '#a6adc8',
-                          fontFamily: 'IBM Plex Mono, monospace',
-                        }}
+                        tick={CHART_TICK_STYLE_LIGHT}
                         axisLine={false}
                         tickLine={false}
                       />
@@ -3294,3 +2627,5 @@ export function WipeAnalysis() {
     </AppLayout>
   )
 }
+
+export default WipeAnalysis

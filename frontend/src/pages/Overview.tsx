@@ -17,7 +17,7 @@ import {
   useBossKillRoster,
   useBossWipeAnalysis,
 } from '../hooks/useGoldData'
-import { formatNumber, formatDateShort, toFiniteNumber } from '../utils/format'
+import { formatNumber, formatDateShort, toFiniteNumber, hasRealText, safeNumber } from '../utils/format'
 import { isIncludedZoneName } from '../utils/zones'
 import { formatDuration, formatThroughput, getClassColor, getThroughputColor } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
@@ -46,15 +46,6 @@ export function Overview() {
   const [difficulty, setDifficulty] = useState<DifficultyFilter>('Mythic')
   const [activityMode, setActivityMode] = useState<'tiers' | 'compare'>('tiers')
   const [parseView, setParseView] = useState<'No Curve' | 'Curve'>('No Curve')
-
-  function num(value: unknown): number {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : 0
-  }
-
-  function hasRealText(value: unknown): value is string {
-    return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
-  }
 
   function normaliseDifficulty(value: unknown): string {
     return String(value ?? '').trim().toLowerCase()
@@ -96,7 +87,7 @@ export function Overview() {
 
   const stats = useMemo(() => {
     if (!scopedRaids.length) return null
-    const totalKills = scopedRaids.reduce((s, r) => s + num(r.boss_kills), 0)
+    const totalKills = scopedRaids.reduce((s, r) => s + safeNumber(r.boss_kills), 0)
     const totalRaids = scopedRaids.length
     return { totalKills, totalRaids }
   }, [scopedRaids])
@@ -142,7 +133,7 @@ export function Overview() {
     const map = new Map<string, number>()
     bossWipes.data.forEach(row => {
       if (!isIncludedZoneName(row.zone_name)) return
-      map.set(`${row.encounter_id}-${row.difficulty}`, Number(row.best_wipe_pct) || 100)
+      map.set(`${row.encounter_id}-${row.difficulty}`, toFiniteNumber(row.best_wipe_pct) ?? 100)
     })
     return map
   }, [bossWipes.data])
@@ -408,9 +399,9 @@ export function Overview() {
                     <span className="text-[11px] font-mono text-ctp-overlay0">{r.raid_night_date ? formatDateShort(r.raid_night_date) : '—'}</span>
                     <span className="text-[11px] font-mono flex items-center gap-0.5">
                       <Swords className="w-2.5 h-2.5 flex-shrink-0" style={{ color: killColor }} />
-                      <span style={{ color: killColor }}>{num(r.boss_kills)}</span>
+                      <span style={{ color: killColor }}>{safeNumber(r.boss_kills)}</span>
                       <span className="text-ctp-overlay0 mx-0.5">/</span>
-                      <span style={{ color: wipeColor }}>{num(r.total_wipes)}✗</span>
+                      <span style={{ color: wipeColor }}>{safeNumber(r.total_wipes)}✗</span>
                     </span>
                   </div>
                 </button>
@@ -548,14 +539,14 @@ export function Overview() {
                       <span className="truncate text-xs font-medium text-ctp-text">{p.player_name}</span>
                       <span
                         className="text-xs font-mono font-semibold flex-shrink-0"
-                        style={{ color: getParseColor(num(p.avg_rank_percent)) }}
+                        style={{ color: getParseColor(safeNumber(p.avg_rank_percent)) }}
                       >
-                        {num(p.avg_rank_percent).toFixed(0)}%
+                        {safeNumber(p.avg_rank_percent).toFixed(0)}%
                       </span>
                     </div>
                     <ProgressBar
-                      value={num(p.avg_rank_percent)}
-                      color={getParseColor(num(p.avg_rank_percent))}
+                      value={safeNumber(p.avg_rank_percent)}
+                      color={getParseColor(safeNumber(p.avg_rank_percent))}
                       height="xs"
                     />
                     <div className="-mt-0.5 flex items-center justify-between gap-3">

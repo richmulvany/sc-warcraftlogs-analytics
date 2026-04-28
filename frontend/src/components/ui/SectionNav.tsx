@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 export function useActiveSection(sections: readonly { id: string }[]): string {
   const [active, setActive] = useState(sections[0]?.id ?? '')
   useEffect(() => {
+    let rafId: number | null = null
+
     function recompute() {
       // 130px clears the header (title + nav strip) plus a small buffer
       const offset = 130
@@ -14,13 +16,22 @@ export function useActiveSection(sections: readonly { id: string }[]): string {
         else break
       }
       setActive(current)
+      rafId = null
     }
+
+    function scheduleRecompute() {
+      if (rafId === null) {
+        rafId = requestAnimationFrame(recompute)
+      }
+    }
+
     recompute()
-    document.addEventListener('scroll', recompute, { passive: true, capture: true })
-    window.addEventListener('resize', recompute)
+    document.addEventListener('scroll', scheduleRecompute, { passive: true, capture: true })
+    window.addEventListener('resize', scheduleRecompute)
     return () => {
-      document.removeEventListener('scroll', recompute, { capture: true })
-      window.removeEventListener('resize', recompute)
+      document.removeEventListener('scroll', scheduleRecompute, { capture: true })
+      window.removeEventListener('resize', scheduleRecompute)
+      if (rafId !== null) cancelAnimationFrame(rafId)
     }
   }, [sections])
   return active

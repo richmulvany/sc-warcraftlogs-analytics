@@ -22,10 +22,11 @@ import {
   useLiveRaidRoster,
   useRaidTeam,
 } from '../hooks/useGoldData'
-import { formatNumber, formatDate, getRelativeScoreDomain } from '../utils/format'
+import { formatNumber, formatDate, getRelativeScoreDomain, safeNumber } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { SectionNav, useActiveSection } from '../components/ui/SectionNav'
+import { CHART_TICK_STYLE } from '../utils/chartStyle'
 
 type RoleFilter = 'all' | 'dps' | 'healer' | 'tank'
 type ScopeFilter = 'guild' | 'raid-team'
@@ -50,11 +51,6 @@ const SECTIONS = [
 ] as const
 
 const PREVIEW_ROWS = 5
-
-function safeNumber(value: unknown): number {
-  const n = Number(value)
-  return Number.isFinite(n) ? n : 0
-}
 
 function deriveRole(s: { score_dps: number; score_healer: number; score_tank: number }): RoleFilter {
   const dps = safeNumber(s.score_dps)
@@ -419,6 +415,7 @@ export function MythicPlus() {
       title="Mythic+"
       subtitle="guild dashboard · score · vault · coverage · push"
       nav={<SectionNav sections={SECTIONS} activeId={activeSectionId} />}
+      wide
     >
       {summaryStats && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -758,7 +755,7 @@ export function MythicPlus() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#45475a" vertical={false} />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                    tick={CHART_TICK_STYLE}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v) => formatDate(v)}
@@ -767,7 +764,7 @@ export function MythicPlus() {
                   />
                   <YAxis
                     domain={trajectoryYDomain ?? undefined}
-                    tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+                    tick={CHART_TICK_STYLE}
                     axisLine={false}
                     tickLine={false}
                     allowDecimals={false}

@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
 import { AppLayout } from '../components/layout/AppLayout'
-import { Card, CardHeader, CardTitle, CardBody } from '../components/ui/Card'
+import { Card, CardHeader, CardTitle } from '../components/ui/Card'
 import { StatCard } from '../components/ui/StatCard'
 import { RoleBadge } from '../components/ui/Badge'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
+import { SortableTh } from '../components/ui/SortableTh'
+import { DataState } from '../components/ui/DataState'
+import { FilterBar } from '../components/ui/FilterBar'
 import { ProgressBar } from '../components/ui/ProgressBar'
-import { LoadingState } from '../components/ui/LoadingState'
-import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
 import { usePlayerPerformance, usePlayerSurvivability } from '../hooks/useGoldData'
 import { formatNumber, formatDate, toFiniteNumber, meanIgnoringNulls } from '../utils/format'
@@ -76,11 +77,6 @@ export function Performance() {
     else { setSortKey(key); setSortDesc(true) }
   }
 
-  function SortIcon({ k }: { k: SortKey }) {
-    if (sortKey !== k) return <span className="text-ctp-overlay0 ml-1">↕</span>
-    return <span className="text-ctp-mauve ml-1">{sortDesc ? '↓' : '↑'}</span>
-  }
-
   const ROLES: { key: RoleFilter; label: string }[] = [
     { key: 'all',    label: 'All'    },
     { key: 'dps',    label: 'DPS'    },
@@ -101,7 +97,7 @@ export function Performance() {
       )}
 
       {/* Filter row */}
-      <div className="flex flex-wrap items-center gap-3">
+      <FilterBar>
         {/* Role tabs */}
         <div className="flex items-center gap-1 bg-ctp-surface0 rounded-lg p-1 border border-ctp-surface1">
           {ROLES.map(r => (
@@ -130,55 +126,32 @@ export function Performance() {
         />
 
         <span className="text-xs font-mono text-ctp-surface2 ml-auto">{sorted.length} players</span>
-      </div>
+      </FilterBar>
 
       {/* Player rankings table */}
       <Card>
         <CardHeader>
           <CardTitle>Player Rankings</CardTitle>
         </CardHeader>
-        {perf.loading ? (
-          <CardBody><LoadingState rows={10} /></CardBody>
-        ) : perf.error ? (
-          <CardBody><ErrorState message={perf.error} /></CardBody>
-        ) : (
+        <DataState loading={perf.loading} error={perf.error} data={sorted} loadingRows={10}>
+          {(data) => (
           <Table>
             <THead>
               <tr>
                 <Th className="w-8">#</Th>
                 <Th>Player</Th>
                 <Th>Role</Th>
-                <Th right>
-                  <button onClick={() => toggleSort('avg_rank_percent')} className="hover:text-ctp-text">
-                    Avg Parse <SortIcon k="avg_rank_percent" />
-                  </button>
-                </Th>
-                <Th right>
-                  <button onClick={() => toggleSort('best_rank_percent')} className="hover:text-ctp-text">
-                    Best Parse <SortIcon k="best_rank_percent" />
-                  </button>
-                </Th>
-                <Th right>
-                  <button onClick={() => toggleSort('avg_throughput_per_second')} className="hover:text-ctp-text">
-                    Avg DPS/HPS <SortIcon k="avg_throughput_per_second" />
-                  </button>
-                </Th>
-                <Th right>
-                  <button onClick={() => toggleSort('avg_item_level')} className="hover:text-ctp-text">
-                    Avg ilvl <SortIcon k="avg_item_level" />
-                  </button>
-                </Th>
-                <Th right>
-                  <button onClick={() => toggleSort('kills_tracked')} className="hover:text-ctp-text">
-                    Kills <SortIcon k="kills_tracked" />
-                  </button>
-                </Th>
+                <SortableTh right sortKey="avg_rank_percent" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Avg Parse</SortableTh>
+                <SortableTh right sortKey="best_rank_percent" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Best Parse</SortableTh>
+                <SortableTh right sortKey="avg_throughput_per_second" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Avg DPS/HPS</SortableTh>
+                <SortableTh right sortKey="avg_item_level" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Avg ilvl</SortableTh>
+                <SortableTh right sortKey="kills_tracked" currentKey={sortKey} desc={sortDesc} onSort={toggleSort}>Kills</SortableTh>
                 <Th>Deaths</Th>
                 <Th>Last Seen</Th>
               </tr>
             </THead>
             <TBody>
-              {sorted.map((p, i) => {
+              {data.map((p, i) => {
                 const sv = survivMap[p.player_name]
                 return (
                   <Tr key={p.player_name}>
@@ -241,7 +214,8 @@ export function Performance() {
               })}
             </TBody>
           </Table>
-        )}
+          )}
+        </DataState>
       </Card>
 
       {/* Survivability section */}
@@ -250,11 +224,8 @@ export function Performance() {
           <CardTitle>Survivability</CardTitle>
           <p className="text-xs text-ctp-overlay0 mt-0.5">Death counts and most common killing blows</p>
         </CardHeader>
-        {surv.loading ? (
-          <CardBody><LoadingState rows={6} /></CardBody>
-        ) : surv.error ? (
-          <CardBody><ErrorState message={surv.error} /></CardBody>
-        ) : (
+        <DataState loading={surv.loading} error={surv.error} data={surv.data} loadingRows={6}>
+          {() => (
           <Table>
             <THead>
               <tr>
@@ -282,7 +253,7 @@ export function Performance() {
                       </div>
                     </Td>
                     <Td right mono style={{ color: wipeColor }}>{formatNumber(s.total_deaths)}</Td>
-                    <Td right mono style={{ color: getDeathRateColor(Number(s.deaths_per_kill) || 0) }}>
+                    <Td right mono style={{ color: getDeathRateColor(toFiniteNumber(s.deaths_per_kill) ?? 0) }}>
                       {s.deaths_per_kill ? s.deaths_per_kill.toFixed(1) : '—'}
                     </Td>
                     <Td className="text-xs text-ctp-overlay1 max-w-[200px] truncate">
@@ -293,7 +264,8 @@ export function Performance() {
                 ))}
             </TBody>
           </Table>
-        )}
+          )}
+        </DataState>
       </Card>
     </AppLayout>
   )

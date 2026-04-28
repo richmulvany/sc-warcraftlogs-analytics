@@ -4,6 +4,8 @@ import {
 } from 'recharts'
 import { formatThroughput } from '../../constants/wow'
 import { getClassColor } from '../../constants/wow'
+import type { ChartTooltipProps } from './types'
+import { CHART_TICK_STYLE } from '../../utils/chartStyle'
 
 interface DataPoint {
   date: string
@@ -18,8 +20,7 @@ interface Props {
   avgThroughput?: number
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function Tip({ active, payload, label }: any) {
+function Tip({ active, payload, label }: ChartTooltipProps<DataPoint>) {
   if (!active || !payload?.length) return null
   const d = payload[0].payload as DataPoint
   return (
@@ -58,14 +59,14 @@ export function DpsOverTimeChart({ data, playerClass, avgThroughput }: Props) {
         <XAxis
           dataKey="date"
           tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-          tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+          tick={CHART_TICK_STYLE}
           axisLine={false}
           tickLine={false}
           interval="preserveStartEnd"
         />
         <YAxis
           tickFormatter={v => formatThroughput(v)}
-          tick={{ fontSize: 10, fill: '#6c7086', fontFamily: 'IBM Plex Mono, monospace' }}
+          tick={CHART_TICK_STYLE}
           axisLine={false}
           tickLine={false}
         />

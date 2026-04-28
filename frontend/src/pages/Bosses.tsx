@@ -10,11 +10,13 @@ import { FilterTabs } from '../components/ui/FilterTabs'
 import { DiffBadge } from '../components/ui/Badge'
 import { ProgressBar } from '../components/ui/ProgressBar'
 import { Table, THead, TBody, Th, Td, Tr } from '../components/ui/Table'
-import { LoadingState, SkeletonCard } from '../components/ui/LoadingState'
+import { DataState } from '../components/ui/DataState'
+import { FilterBar } from '../components/ui/FilterBar'
+import { SkeletonCard } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { BossProgressHistoryChart } from '../components/charts/BossProgressHistoryChart'
 import { useBossProgression, useBestKills, useBossWipeAnalysis, useBossPullHistory, useGuildZoneRanks, useBossMechanics } from '../hooks/useGoldData'
-import { formatNumber, formatDate, formatPct } from '../utils/format'
+import { formatNumber, formatDate, formatPct, hasRealText, hasValue, toFiniteNumber } from '../utils/format'
 import { DIFFICULTY_ORDER, formatDuration } from '../constants/wow'
 import { useColourBlind } from '../context/ColourBlindContext'
 import { isIncludedZoneName } from '../utils/zones'
@@ -74,14 +76,6 @@ export function Bosses() {
   const [selectedTier, setSelectedTier] = useState('')
   const [selectedBoss, setSelectedBoss] = useState('All')
   const [search, setSearch] = useState('')
-
-  function hasRealText(value: unknown): value is string {
-    return typeof value === 'string' && value.trim() !== '' && value.trim().toLowerCase() !== 'null'
-  }
-
-  function hasValue(value: unknown): boolean {
-    return value !== null && value !== undefined && String(value).trim() !== '' && String(value).trim().toLowerCase() !== 'null'
-  }
 
   const canonicalZoneByEncounter = useMemo(() => {
     const counts = new Map<string, Map<string, number>>()
@@ -204,7 +198,7 @@ export function Bosses() {
     wipeAnalysis.data
       .filter(row => canonicalZoneByEncounter.get(String(row.encounter_id)) === row.zone_name)
       .forEach(row => {
-      m.set(`${row.encounter_id}-${row.difficulty}`, Number(row.best_wipe_pct) || 100)
+      m.set(`${row.encounter_id}-${row.difficulty}`, toFiniteNumber(row.best_wipe_pct) ?? 100)
       })
     return m
   }, [wipeAnalysis.data, canonicalZoneByEncounter])
@@ -378,20 +372,18 @@ export function Bosses() {
         )}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <FilterTabs options={DIFFS} value={diff} onChange={setDiff} />
-          <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48" />
-          <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52" />
-          <input
-            type="text"
-            placeholder="Search boss…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-44"
-          />
-        </div>
-      </div>
+      <FilterBar>
+        <FilterTabs options={DIFFS} value={diff} onChange={setDiff} />
+        <FilterSelect value={selectedTier} onChange={setSelectedTier} options={tierOptions} className="min-w-48" />
+        <FilterSelect value={selectedBoss} onChange={setSelectedBoss} options={bossOptions} className="min-w-52" />
+        <input
+          type="text"
+          placeholder="Search boss…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="bg-ctp-surface0 border border-ctp-surface1 rounded-xl px-3 py-1.5 text-xs text-ctp-subtext1 placeholder-ctp-overlay0 font-mono focus:outline-none focus:border-ctp-mauve/40 transition-colors w-44"
+        />
+      </FilterBar>
 
       {/* Signal Board + Boss Spotlight */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
@@ -623,11 +615,8 @@ export function Bosses() {
           <CardTitle>Detailed Progression</CardTitle>
           <p className="text-xs text-ctp-overlay1 mt-0.5">Full stats per boss encounter in the selected scope</p>
         </CardHeader>
-        {prog.loading ? (
-          <CardBody><LoadingState rows={8} /></CardBody>
-        ) : prog.error ? (
-          <CardBody><ErrorState message={prog.error} /></CardBody>
-        ) : (
+        <DataState loading={prog.loading} error={prog.error} data={filtered} loadingRows={8}>
+          {(data) => (
           <div className="max-h-[34rem] overflow-auto">
             <Table>
             <THead>
@@ -645,7 +634,7 @@ export function Bosses() {
               </tr>
             </THead>
             <TBody>
-              {filtered.map(b => {
+              {data.map(b => {
                 const killed = b.is_killed === 'True' || b.is_killed === (true as unknown as string)
                 const bestHpRemaining = killed ? 0 : (bestHpMap.get(`${b.encounter_id}-${b.difficulty}`) ?? 100)
                 const bk = wipeMap[`${b.encounter_id}-${b.difficulty}`]
@@ -686,7 +675,8 @@ export function Bosses() {
             </TBody>
             </Table>
           </div>
-        )}
+          )}
+        </DataState>
       </Card>
     </AppLayout>
   )
