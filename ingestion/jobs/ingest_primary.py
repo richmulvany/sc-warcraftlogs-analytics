@@ -77,11 +77,14 @@ logger.info(
 # COMMAND ----------
 
 # DBTITLE 1,Authentication
-client_id = dbutils.secrets.get(scope="warcraftlogs", key="client_id")  # noqa: F821
-client_secret = dbutils.secrets.get(scope="warcraftlogs", key="client_secret")  # noqa: F821
-
-adapter = WarcraftLogsAdapter(WarcraftLogsConfig(client_id=client_id, client_secret=client_secret))
-adapter.authenticate()
+adapter: WarcraftLogsAdapter | None = None
+try:
+    client_id = dbutils.secrets.get(scope="warcraftlogs", key="client_id")  # noqa: F821
+    client_secret = dbutils.secrets.get(scope="warcraftlogs", key="client_secret")  # noqa: F821
+    adapter = WarcraftLogsAdapter(WarcraftLogsConfig(client_id=client_id, client_secret=client_secret))
+    adapter.authenticate()
+except Exception as exc:
+    logger.warning("WarcraftLogs API not configured or failed: %s — skipping WCL ingestion", exc)
 
 # COMMAND ----------
 
@@ -116,54 +119,55 @@ def _mark_archived(report_code: str) -> None:
 
 run_ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 ingested_at = datetime.now(UTC).isoformat()
-guild_member_records: list[dict[str, object]] = []
-
-# Helper: throttle between API calls to stay within 30 req/min
-def _sleep() -> None:
-    time.sleep(2)
+all_report_codes: list[str] = []
 
 # COMMAND ----------
 
 # DBTITLE 1,Zone Catalog
 # Fetch once per run — zones rarely change but always refresh so new raid tiers
 # appear automatically.
-logger.info("Fetching zone catalog …")
-zone_result = adapter.fetch_zone_catalog()
-with open(f"{wcl_landing}/zone_catalog/{run_ts}_zones.jsonl", "w") as fh:
-    for zone in zone_result.records:
-        fh.write(json.dumps({**zone, "_source": "wcl", "_ingested_at": ingested_at}) + "\n")
-logger.info("zone_catalog → %d zones", zone_result.total_records)
-_sleep()
+if adapter is not None:
+    try:
+        logger.info("Fetching zone catalog …")
+        zone_result = adapter.fetch_zone_catalog()
+        with open(f"{wcl_landing}/zone_catalog/{run_ts}_zones.jsonl", "w") as fh:
+            for zone in zone_result.records:
+                fh.write(json.dumps({**zone, "_source": "wcl", "_ingested_at": ingested_at}) + "\n")
+        logger.info("zone_catalog → %d zones", zone_result.total_records)
+    except Exception as exc:
+        logger.warning("WCL zone catalog ingestion failed: %s — skipping", exc)
 
 # COMMAND ----------
 
 # DBTITLE 1,Guild Reports
 # Fetch all pages and write each as a JSONL file keyed by run timestamp + page.
 # The silver layer deduplicates on report code, so re-runs are safe.
-logger.info("Fetching guild reports …")
-page, has_more = 1, True
-all_report_codes: list[str] = []
+if adapter is not None:
+    try:
+        logger.info("Fetching guild reports …")
+        page, has_more = 1, True
 
-while has_more:
-    result = adapter.fetch_guild_reports(guild_name, server_slug, server_region, page=page)
-    if not result.records:
-        logger.warning("No records returned for guild_reports page %d — stopping", page)
-        break
+        while has_more:
+            result = adapter.fetch_guild_reports(guild_name, server_slug, server_region, page=page)
+            if not result.records:
+                logger.warning("No records returned for guild_reports page %d — stopping", page)
+                break
 
-    records = [{**r, "_source": "wcl", "_ingested_at": ingested_at} for r in result.records]
-    all_report_codes.extend(r["code"] for r in result.records if r.get("code"))
+            records = [{**r, "_source": "wcl", "_ingested_at": ingested_at} for r in result.records]
+            all_report_codes.extend(r["code"] for r in result.records if r.get("code"))
 
-    out_path = f"{wcl_landing}/guild_reports/{run_ts}_p{page}.jsonl"
-    with open(out_path, "w") as fh:
-        for record in records:
-            fh.write(json.dumps(record) + "\n")
+            out_path = f"{wcl_landing}/guild_reports/{run_ts}_p{page}.jsonl"
+            with open(out_path, "w") as fh:
+                for record in records:
+                    fh.write(json.dumps(record) + "\n")
 
-    logger.info("guild_reports page %d → %d records", page, len(records))
-    has_more = result.has_more
-    page += 1
-    _sleep()
+            logger.info("guild_reports page %d → %d records", page, len(records))
+            has_more = result.has_more
+            page += 1
 
-logger.info("Total report codes collected: %d", len(all_report_codes))
+        logger.info("Total report codes collected: %d", len(all_report_codes))
+    except Exception as exc:
+        logger.warning("WCL guild reports ingestion failed: %s — skipping", exc)
 
 # COMMAND ----------
 
@@ -179,184 +183,182 @@ logger.info("Total report codes collected: %d", len(all_report_codes))
 
 RAID_DIFFICULTIES = {3, 4, 5}  # Normal, Heroic, Mythic
 
-for report_code in all_report_codes:
+if adapter is not None:
+    try:
+        for report_code in all_report_codes:
 
-    # Skip any report already known to be archived from a previous run.
-    if _is_archived(report_code):
-        logger.info("report_fights: %s is archived — skipping", report_code)
-        continue
+            if _is_archived(report_code):
+                logger.info("report_fights: %s is archived — skipping", report_code)
+                continue
 
-    # ── 3a: Fight details ──────────────────────────────────────────────────
-    fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
-    if not os.path.exists(fight_file):
-        try:
-            fight_result = adapter.fetch_report_fights(report_code)
-        except ArchivedReportError:
-            _mark_archived(report_code)
-            continue
-        if fight_result.records:
-            report_data = fight_result.records[0]
-            with open(fight_file, "w") as fh:
-                fh.write(
-                    json.dumps({**report_data, "_source": "wcl", "_ingested_at": ingested_at})
-                    + "\n"
-                )
-            logger.info(
-                "report_fights: %s → %d fights",
-                report_code,
-                len(report_data.get("fights") or []),
-            )
-        _sleep()
-    else:
-        logger.info("report_fights: %s already fetched — skipping", report_code)
-        with open(fight_file) as fh:
-            report_data = json.loads(fh.readline())
-
-    fights = report_data.get("fights") or []
-
-    # ── 3b: Actor roster ──────────────────────────────────────────────────
-    roster_file = f"{wcl_landing}/actor_roster/{report_code}.jsonl"
-    if not os.path.exists(roster_file):
-        try:
-            roster_result = adapter.fetch_actor_roster(report_code)
-        except ArchivedReportError:
-            _mark_archived(report_code)
-            continue
-        if roster_result.records:
-            with open(roster_file, "w") as fh:
-                fh.write(
-                    json.dumps(
-                        {**roster_result.records[0], "_source": "wcl", "_ingested_at": ingested_at}
+            fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
+            if not os.path.exists(fight_file):
+                try:
+                    fight_result = adapter.fetch_report_fights(report_code)
+                except ArchivedReportError:
+                    _mark_archived(report_code)
+                    continue
+                if fight_result.records:
+                    report_data = fight_result.records[0]
+                    with open(fight_file, "w") as fh:
+                        fh.write(
+                            json.dumps({**report_data, "_source": "wcl", "_ingested_at": ingested_at})
+                            + "\n"
+                        )
+                    logger.info(
+                        "report_fights: %s → %d fights",
+                        report_code,
+                        len(report_data.get("fights") or []),
                     )
-                    + "\n"
-                )
-            logger.info(
-                "actor_roster: %s → %d actors",
-                report_code,
-                len(roster_result.records[0].get("actors") or []),
-            )
-        _sleep()
-    else:
-        logger.info("actor_roster: %s already fetched — skipping", report_code)
+            else:
+                logger.info("report_fights: %s already fetched — skipping", report_code)
+                with open(fight_file) as fh:
+                    report_data = json.loads(fh.readline())
 
-    # ── 3c: Player details for kill fights ────────────────────────────────
-    kill_fights = [
-        f for f in fights
-        if f.get("kill")
-        and f.get("difficulty", 0) in RAID_DIFFICULTIES
-        and (f.get("encounterID") or 0) > 0
-    ]
-    logger.info("report %s: %d kill fights to process for player details", report_code, len(kill_fights))
+            fights = report_data.get("fights") or []
 
-    for fight in kill_fights:
-        fight_id = fight["id"]
-        details_file = f"{wcl_landing}/player_details/{report_code}_{fight_id}.jsonl"
-        if os.path.exists(details_file):
-            logger.info("player_details: %s fight %d already fetched — skipping", report_code, fight_id)
-            continue
+            roster_file = f"{wcl_landing}/actor_roster/{report_code}.jsonl"
+            if not os.path.exists(roster_file):
+                try:
+                    roster_result = adapter.fetch_actor_roster(report_code)
+                except ArchivedReportError:
+                    _mark_archived(report_code)
+                    continue
+                if roster_result.records:
+                    with open(roster_file, "w") as fh:
+                        fh.write(
+                            json.dumps(
+                                {**roster_result.records[0], "_source": "wcl", "_ingested_at": ingested_at}
+                            )
+                            + "\n"
+                        )
+                    logger.info(
+                        "actor_roster: %s → %d actors",
+                        report_code,
+                        len(roster_result.records[0].get("actors") or []),
+                    )
+            else:
+                logger.info("actor_roster: %s already fetched — skipping", report_code)
 
-        try:
-            pd_result = adapter.fetch_player_details(report_code, fight_id)
-        except ArchivedReportError:
-            _mark_archived(report_code)
-            break  # all fights in this report are archived; move to next report
-        if pd_result.records:
-            record = {
-                **pd_result.records[0],
-                "boss_name": fight.get("name"),
-                "encounter_id": fight.get("encounterID"),
-                "difficulty": fight.get("difficulty"),
-                "is_kill": fight.get("kill"),
-                "duration_ms": (fight.get("endTime", 0) or 0) - (fight.get("startTime", 0) or 0),
-                "zone_id": report_data.get("zone", {}).get("id") if report_data.get("zone") else None,
-                "zone_name": report_data.get("zone", {}).get("name") if report_data.get("zone") else None,
-                "_source": "wcl",
-                "_ingested_at": ingested_at,
-            }
-            with open(details_file, "w") as fh:
-                fh.write(json.dumps(record) + "\n")
-            logger.info("player_details: %s fight %d written", report_code, fight_id)
-        _sleep()
+            kill_fights = [
+                f for f in fights
+                if f.get("kill")
+                and f.get("difficulty", 0) in RAID_DIFFICULTIES
+                and (f.get("encounterID") or 0) > 0
+            ]
+            logger.info("report %s: %d kill fights to process for player details", report_code, len(kill_fights))
 
-    # ── 3d: Cast events for consumable + defensive analysis ───────────────
-    raid_fights = [
-        f for f in fights
-        if f.get("difficulty", 0) in RAID_DIFFICULTIES
-        and (f.get("encounterID") or 0) > 0
-    ]
-    raid_fight_ids = [int(f["id"]) for f in raid_fights if f.get("id") is not None]
-    casts_file_pattern = f"{wcl_landing}/fight_casts/{report_code}*.jsonl"
-    cast_files = sorted(glob(casts_file_pattern))
-    casts_file = cast_files[-1] if cast_files else f"{wcl_landing}/fight_casts/{report_code}.jsonl"
-    should_fetch_casts = bool(raid_fight_ids) and not cast_files
-    if raid_fight_ids and cast_files:
-        try:
-            with open(casts_file) as fh:
-                existing_cast_record = json.loads(fh.readline() or "{}")
-            existing_fight_ids = {
-                int(fight_id) for fight_id in existing_cast_record.get("fight_ids", [])
-                if fight_id is not None
-            }
-            should_fetch_casts = (
-                "combatant_info_json" not in existing_cast_record
-                or "buffs_json" not in existing_cast_record
-                or not set(raid_fight_ids).issubset(existing_fight_ids)
-            )
-            if should_fetch_casts:
-                logger.info("fight_casts: %s stale/incomplete — refetching", report_code)
-                casts_file = f"{wcl_landing}/fight_casts/{report_code}_{run_ts}.jsonl"
-        except Exception as exc:
-            logger.warning("fight_casts: %s unreadable (%s) — refetching", report_code, exc)
-            should_fetch_casts = True
-            casts_file = f"{wcl_landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+            for fight in kill_fights:
+                fight_id = fight["id"]
+                details_file = f"{wcl_landing}/player_details/{report_code}_{fight_id}.jsonl"
+                if os.path.exists(details_file):
+                    logger.info("player_details: %s fight %d already fetched — skipping", report_code, fight_id)
+                    continue
 
-    if raid_fight_ids and should_fetch_casts:
-        try:
-            casts_result = adapter.fetch_fight_casts(report_code, raid_fight_ids)
-        except ArchivedReportError:
-            _mark_archived(report_code)
-            continue
-        if casts_result.records:
-            with open(casts_file, "w") as fh:
-                fh.write(
-                    json.dumps({**casts_result.records[0], "_source": "wcl", "_ingested_at": ingested_at})
-                    + "\n"
-                )
-            logger.info(
-                "fight_casts: %s → %d fights",
-                report_code,
-                len(raid_fight_ids),
-            )
-        _sleep()
-    elif raid_fight_ids:
-        logger.info("fight_casts: %s already fetched — skipping", report_code)
+                try:
+                    pd_result = adapter.fetch_player_details(report_code, fight_id)
+                except ArchivedReportError:
+                    _mark_archived(report_code)
+                    break
+                if pd_result.records:
+                    record = {
+                        **pd_result.records[0],
+                        "boss_name": fight.get("name"),
+                        "encounter_id": fight.get("encounterID"),
+                        "difficulty": fight.get("difficulty"),
+                        "is_kill": fight.get("kill"),
+                        "duration_ms": (fight.get("endTime", 0) or 0) - (fight.get("startTime", 0) or 0),
+                        "zone_id": report_data.get("zone", {}).get("id") if report_data.get("zone") else None,
+                        "zone_name": report_data.get("zone", {}).get("name") if report_data.get("zone") else None,
+                        "_source": "wcl",
+                        "_ingested_at": ingested_at,
+                    }
+                    with open(details_file, "w") as fh:
+                        fh.write(json.dumps(record) + "\n")
+                    logger.info("player_details: %s fight %d written", report_code, fight_id)
+
+            raid_fights = [
+                f for f in fights
+                if f.get("difficulty", 0) in RAID_DIFFICULTIES
+                and (f.get("encounterID") or 0) > 0
+            ]
+            raid_fight_ids = [int(f["id"]) for f in raid_fights if f.get("id") is not None]
+            casts_file_pattern = f"{wcl_landing}/fight_casts/{report_code}*.jsonl"
+            cast_files = sorted(glob(casts_file_pattern))
+            casts_file = cast_files[-1] if cast_files else f"{wcl_landing}/fight_casts/{report_code}.jsonl"
+            should_fetch_casts = bool(raid_fight_ids) and not cast_files
+            if raid_fight_ids and cast_files:
+                try:
+                    with open(casts_file) as fh:
+                        existing_cast_record = json.loads(fh.readline() or "{}")
+                    existing_fight_ids = {
+                        int(fight_id) for fight_id in existing_cast_record.get("fight_ids", [])
+                        if fight_id is not None
+                    }
+                    should_fetch_casts = (
+                        "combatant_info_json" not in existing_cast_record
+                        or "buffs_json" not in existing_cast_record
+                        or not set(raid_fight_ids).issubset(existing_fight_ids)
+                    )
+                    if should_fetch_casts:
+                        logger.info("fight_casts: %s stale/incomplete — refetching", report_code)
+                        casts_file = f"{wcl_landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+                except Exception as exc:
+                    logger.warning("fight_casts: %s unreadable (%s) — refetching", report_code, exc)
+                    should_fetch_casts = True
+                    casts_file = f"{wcl_landing}/fight_casts/{report_code}_{run_ts}.jsonl"
+
+            if raid_fight_ids and should_fetch_casts:
+                try:
+                    casts_result = adapter.fetch_fight_casts(report_code, raid_fight_ids)
+                except ArchivedReportError:
+                    _mark_archived(report_code)
+                    continue
+                if casts_result.records:
+                    with open(casts_file, "w") as fh:
+                        fh.write(
+                            json.dumps({**casts_result.records[0], "_source": "wcl", "_ingested_at": ingested_at})
+                            + "\n"
+                        )
+                    logger.info(
+                        "fight_casts: %s → %d fights",
+                        report_code,
+                        len(raid_fight_ids),
+                    )
+            elif raid_fight_ids:
+                logger.info("fight_casts: %s already fetched — skipping", report_code)
+    except Exception as exc:
+        logger.warning("WCL report/fight ingestion failed: %s — skipping remaining WCL report stages", exc)
 
 # COMMAND ----------
 
 # DBTITLE 1,Raid Attendance
 # Fetch paginated attendance (players present/benched/absent per report).
 # The attendance API returns zone {id, name} directly on each record.
-logger.info("Fetching raid attendance …")
-page, has_more = 1, True
+if adapter is not None:
+    try:
+        logger.info("Fetching raid attendance …")
+        page, has_more = 1, True
 
-while has_more:
-    result = adapter.fetch_raid_attendance(guild_name, server_slug, server_region, page=page)
-    if not result.records:
-        logger.warning("No records returned for raid_attendance page %d — stopping", page)
-        break
+        while has_more:
+            result = adapter.fetch_raid_attendance(guild_name, server_slug, server_region, page=page)
+            if not result.records:
+                logger.warning("No records returned for raid_attendance page %d — stopping", page)
+                break
 
-    records = [{**r, "_source": "wcl", "_ingested_at": ingested_at} for r in result.records]
-    out_path = f"{wcl_landing}/raid_attendance/{run_ts}_p{page}.jsonl"
-    with open(out_path, "w") as fh:
-        for record in records:
-            fh.write(json.dumps(record) + "\n")
+            records = [{**r, "_source": "wcl", "_ingested_at": ingested_at} for r in result.records]
+            out_path = f"{wcl_landing}/raid_attendance/{run_ts}_p{page}.jsonl"
+            with open(out_path, "w") as fh:
+                for record in records:
+                    fh.write(json.dumps(record) + "\n")
 
-    logger.info("raid_attendance page %d → %d records", page, len(records))
-    has_more = result.has_more
-    page += 1
-    _sleep()
+            logger.info("raid_attendance page %d → %d records", page, len(records))
+            has_more = result.has_more
+            page += 1
 
-logger.info("WCL ingestion complete.")
+        logger.info("WCL ingestion complete.")
+    except Exception as exc:
+        logger.warning("WCL raid attendance ingestion failed: %s — skipping", exc)
 
 # COMMAND ----------
 
@@ -382,7 +384,6 @@ try:
         guild_slug=guild_slug,
     )
     bz_adapter.close()
-    _sleep()
 
     records = [
         {
@@ -392,7 +393,6 @@ try:
         }
         for r in roster_result.records
     ]
-    guild_member_records = records
 
     members_file = f"{blizzard_landing}/guild_members/{run_ts}.jsonl"
     with open(members_file, "w") as fh:
@@ -459,23 +459,6 @@ def _realm_to_slug(value: object) -> str:
     while "--" in cleaned:
         cleaned = cleaned.replace("--", "-")
     return REALM_SLUG_OVERRIDES.get(cleaned.replace("-", ""), cleaned.strip("-"))
-
-
-def _raiderio_candidates_from_current_roster() -> list[dict[str, str]]:
-    """All guild members from the current Blizzard API response."""
-    candidates: list[dict[str, str]] = []
-    for member in guild_member_records:
-        name = str(member.get("name") or "").strip()
-        if not name:
-            continue
-        candidates.append(
-            {
-                "player_name": name,
-                "realm_slug": _realm_to_slug(member.get("realm_slug")),
-                "region": RAIDER_IO_REGION,
-            }
-        )
-    return candidates
 
 
 def _raiderio_candidates_from_table(
@@ -550,10 +533,7 @@ if RAIDER_IO_EXPORT_ENABLED:
 
         seen_candidates: set[tuple[str, str, str]] = set()
         raiderio_candidates: list[dict[str, str]] = []
-        for candidate in (
-            _raiderio_candidates_from_current_roster()
-            + _raiderio_candidates_from_existing_player_tables()
-        ):
+        for candidate in _raiderio_candidates_from_existing_player_tables():
             key = (
                 candidate["player_name"].casefold(),
                 candidate["realm_slug"],
@@ -641,70 +621,73 @@ else:
 # rankings are populated or the file ages past RANKINGS_BACKFILL_MAX_AGE_DAYS
 # (after which we assume WCL is never going to rank those fights — e.g. exotic
 # off-spec, partition split, or guild-private report).
-logger.info("Fetching fight rankings …")
-
-for report_code in all_report_codes:
-    if _is_archived(report_code):
-        logger.info("fight_rankings: %s is archived — skipping", report_code)
-        continue
-
-    rankings_file = f"{wcl_landing}/fight_rankings/{report_code}.jsonl"
-    if os.path.exists(rankings_file):
-        incomplete, total, null_chars, total_chars = rankings_completeness(rankings_file)
-        file_age_days = (time.time() - os.path.getmtime(rankings_file)) / 86400
-        if incomplete == 0:
-            logger.info(
-                "fight_rankings: %s already fetched (complete, %d/%d null chars) — skipping",
-                report_code, null_chars, total_chars,
-            )
-            continue
-        if file_age_days >= RANKINGS_BACKFILL_MAX_AGE_DAYS:
-            logger.info(
-                "fight_rankings: %s has %d/%d incomplete fights (%d/%d null chars) but is %.1fd old — accepting as final",
-                report_code, incomplete, total, null_chars, total_chars, file_age_days,
-            )
-            continue
-        logger.info(
-            "fight_rankings: %s has %d/%d incomplete fights (%d/%d null chars, age %.1fd) — re-fetching",
-            report_code, incomplete, total, null_chars, total_chars, file_age_days,
-        )
-
-    fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
-    if not os.path.exists(fight_file):
-        logger.warning("fight_rankings: no fight file for %s — skipping", report_code)
-        continue
-
-    with open(fight_file) as fh:
-        report_data_local = json.loads(fh.readline())
-
-    fights_local = report_data_local.get("fights") or []
-    kill_fight_ids = [
-        f["id"]
-        for f in fights_local
-        if f.get("kill")
-        and f.get("difficulty", 0) in RAID_DIFFICULTIES
-        and (f.get("encounterID") or 0) > 0
-    ]
-
-    if not kill_fight_ids:
-        logger.info("fight_rankings: %s has no qualifying kill fights — skipping", report_code)
-        continue
-
+if adapter is not None:
     try:
-        rankings_result = adapter.fetch_report_rankings(report_code, kill_fight_ids)
-    except ArchivedReportError:
-        _mark_archived(report_code)
-        continue
-    if rankings_result.records:
-        record = {
-            **rankings_result.records[0],
-            "_source": "wcl",
-            "_ingested_at": ingested_at,
-        }
-        with open(rankings_file, "w") as fh:
-            fh.write(json.dumps(record) + "\n")
-        logger.info("fight_rankings: %s written (%d kill fights)", report_code, len(kill_fight_ids))
-    _sleep()
+        logger.info("Fetching fight rankings …")
+
+        for report_code in all_report_codes:
+            if _is_archived(report_code):
+                logger.info("fight_rankings: %s is archived — skipping", report_code)
+                continue
+
+            rankings_file = f"{wcl_landing}/fight_rankings/{report_code}.jsonl"
+            if os.path.exists(rankings_file):
+                incomplete, total, null_chars, total_chars = rankings_completeness(rankings_file)
+                file_age_days = (time.time() - os.path.getmtime(rankings_file)) / 86400
+                if incomplete == 0:
+                    logger.info(
+                        "fight_rankings: %s already fetched (complete, %d/%d null chars) — skipping",
+                        report_code, null_chars, total_chars,
+                    )
+                    continue
+                if file_age_days >= RANKINGS_BACKFILL_MAX_AGE_DAYS:
+                    logger.info(
+                        "fight_rankings: %s has %d/%d incomplete fights (%d/%d null chars) but is %.1fd old — accepting as final",
+                        report_code, incomplete, total, null_chars, total_chars, file_age_days,
+                    )
+                    continue
+                logger.info(
+                    "fight_rankings: %s has %d/%d incomplete fights (%d/%d null chars, age %.1fd) — re-fetching",
+                    report_code, incomplete, total, null_chars, total_chars, file_age_days,
+                )
+
+            fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
+            if not os.path.exists(fight_file):
+                logger.warning("fight_rankings: no fight file for %s — skipping", report_code)
+                continue
+
+            with open(fight_file) as fh:
+                report_data_local = json.loads(fh.readline())
+
+            fights_local = report_data_local.get("fights") or []
+            kill_fight_ids = [
+                f["id"]
+                for f in fights_local
+                if f.get("kill")
+                and f.get("difficulty", 0) in RAID_DIFFICULTIES
+                and (f.get("encounterID") or 0) > 0
+            ]
+
+            if not kill_fight_ids:
+                logger.info("fight_rankings: %s has no qualifying kill fights — skipping", report_code)
+                continue
+
+            try:
+                rankings_result = adapter.fetch_report_rankings(report_code, kill_fight_ids)
+            except ArchivedReportError:
+                _mark_archived(report_code)
+                continue
+            if rankings_result.records:
+                record = {
+                    **rankings_result.records[0],
+                    "_source": "wcl",
+                    "_ingested_at": ingested_at,
+                }
+                with open(rankings_file, "w") as fh:
+                    fh.write(json.dumps(record) + "\n")
+                logger.info("fight_rankings: %s written (%d kill fights)", report_code, len(kill_fight_ids))
+    except Exception as exc:
+        logger.warning("WCL fight rankings ingestion failed: %s — skipping", exc)
 
 # COMMAND ----------
 
@@ -713,93 +696,96 @@ for report_code in all_report_codes:
 # WCL table API. Multi-fight Deaths responses can truncate on long reports, so
 # fetches are done one fight at a time and written as JSONL records.
 # Skip if already fetched.
-logger.info("Fetching fight deaths …")
-
-for report_code in all_report_codes:
-    if _is_archived(report_code):
-        logger.info("fight_deaths: %s is archived — skipping", report_code)
-        continue
-
-    deaths_file_pattern = f"{wcl_landing}/fight_deaths/{report_code}*.jsonl"
-    death_files = sorted(glob(deaths_file_pattern))
-    deaths_file = death_files[-1] if death_files else f"{wcl_landing}/fight_deaths/{report_code}.jsonl"
-
-    fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
-    if not os.path.exists(fight_file):
-        logger.warning("fight_deaths: no fight file for %s — skipping", report_code)
-        continue
-
-    with open(fight_file) as fh:
-        report_data_local = json.loads(fh.readline())
-
-    fights_local = report_data_local.get("fights") or []
-    all_boss_fight_ids = [
-        f["id"]
-        for f in fights_local
-        if f.get("difficulty", 0) in RAID_DIFFICULTIES
-        and (f.get("encounterID") or 0) > 0
-    ]
-
-    if not all_boss_fight_ids:
-        logger.info("fight_deaths: %s has no qualifying boss fights — skipping", report_code)
-        continue
-
-    should_fetch_deaths = not death_files
-    if death_files:
-        try:
-            line_count = 0
-            existing_fight_ids: set[int] = set()
-            has_legacy_multi_fight_record = False
-            with open(deaths_file) as fh:
-                for line in fh:
-                    raw_record = json.loads(line)
-                    line_count += 1
-                    record_fight_ids = {
-                        int(fight_id)
-                        for fight_id in raw_record.get("fight_ids", [])
-                        if fight_id is not None
-                    }
-                    existing_fight_ids.update(record_fight_ids)
-                    if len(record_fight_ids) > 1:
-                        has_legacy_multi_fight_record = True
-            should_fetch_deaths = (
-                has_legacy_multi_fight_record
-                or line_count < len(all_boss_fight_ids)
-                or not set(all_boss_fight_ids).issubset(existing_fight_ids)
-            )
-            if should_fetch_deaths:
-                logger.info("fight_deaths: %s stale/incomplete — refetching", report_code)
-                deaths_file = f"{wcl_landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
-        except Exception as exc:
-            logger.warning("fight_deaths: %s unreadable (%s) — refetching", report_code, exc)
-            should_fetch_deaths = True
-            deaths_file = f"{wcl_landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
-
-    if not should_fetch_deaths:
-        logger.info("fight_deaths: %s already fetched — skipping", report_code)
-        continue
-
+if adapter is not None:
     try:
-        deaths_result = adapter.fetch_fight_deaths(report_code, all_boss_fight_ids)
-    except ArchivedReportError:
-        _mark_archived(report_code)
-        continue
-    if deaths_result.records:
-        with open(deaths_file, "w") as fh:
-            for raw_record in deaths_result.records:
-                record = {
-                    **raw_record,
-                    "_source": "wcl",
-                    "_ingested_at": ingested_at,
-                }
-                fh.write(json.dumps(record) + "\n")
-        logger.info(
-            "fight_deaths: %s written (%d boss fights, %d records)",
-            report_code,
-            len(all_boss_fight_ids),
-            len(deaths_result.records),
-        )
-    _sleep()
+        logger.info("Fetching fight deaths …")
+
+        for report_code in all_report_codes:
+            if _is_archived(report_code):
+                logger.info("fight_deaths: %s is archived — skipping", report_code)
+                continue
+
+            deaths_file_pattern = f"{wcl_landing}/fight_deaths/{report_code}*.jsonl"
+            death_files = sorted(glob(deaths_file_pattern))
+            deaths_file = death_files[-1] if death_files else f"{wcl_landing}/fight_deaths/{report_code}.jsonl"
+
+            fight_file = f"{wcl_landing}/report_fights/{report_code}.jsonl"
+            if not os.path.exists(fight_file):
+                logger.warning("fight_deaths: no fight file for %s — skipping", report_code)
+                continue
+
+            with open(fight_file) as fh:
+                report_data_local = json.loads(fh.readline())
+
+            fights_local = report_data_local.get("fights") or []
+            all_boss_fight_ids = [
+                f["id"]
+                for f in fights_local
+                if f.get("difficulty", 0) in RAID_DIFFICULTIES
+                and (f.get("encounterID") or 0) > 0
+            ]
+
+            if not all_boss_fight_ids:
+                logger.info("fight_deaths: %s has no qualifying boss fights — skipping", report_code)
+                continue
+
+            should_fetch_deaths = not death_files
+            if death_files:
+                try:
+                    line_count = 0
+                    existing_fight_ids: set[int] = set()
+                    has_legacy_multi_fight_record = False
+                    with open(deaths_file) as fh:
+                        for line in fh:
+                            raw_record = json.loads(line)
+                            line_count += 1
+                            record_fight_ids = {
+                                int(fight_id)
+                                for fight_id in raw_record.get("fight_ids", [])
+                                if fight_id is not None
+                            }
+                            existing_fight_ids.update(record_fight_ids)
+                            if len(record_fight_ids) > 1:
+                                has_legacy_multi_fight_record = True
+                    should_fetch_deaths = (
+                        has_legacy_multi_fight_record
+                        or line_count < len(all_boss_fight_ids)
+                        or not set(all_boss_fight_ids).issubset(existing_fight_ids)
+                    )
+                    if should_fetch_deaths:
+                        logger.info("fight_deaths: %s stale/incomplete — refetching", report_code)
+                        deaths_file = f"{wcl_landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
+                except Exception as exc:
+                    logger.warning("fight_deaths: %s unreadable (%s) — refetching", report_code, exc)
+                    should_fetch_deaths = True
+                    deaths_file = f"{wcl_landing}/fight_deaths/{report_code}_{run_ts}.jsonl"
+
+            if not should_fetch_deaths:
+                logger.info("fight_deaths: %s already fetched — skipping", report_code)
+                continue
+
+            try:
+                deaths_result = adapter.fetch_fight_deaths(report_code, all_boss_fight_ids)
+            except ArchivedReportError:
+                _mark_archived(report_code)
+                continue
+            if deaths_result.records:
+                with open(deaths_file, "w") as fh:
+                    for raw_record in deaths_result.records:
+                        record = {
+                            **raw_record,
+                            "_source": "wcl",
+                            "_ingested_at": ingested_at,
+                        }
+                        fh.write(json.dumps(record) + "\n")
+                logger.info(
+                    "fight_deaths: %s written (%d boss fights, %d records)",
+                    report_code,
+                    len(all_boss_fight_ids),
+                    len(deaths_result.records),
+                )
+    except Exception as exc:
+        logger.warning("WCL fight deaths ingestion failed: %s — skipping", exc)
 
 
 # COMMAND ----------
@@ -818,7 +804,7 @@ EXCLUDED_ZONE_NAMES = [
     if name.strip()
 ]
 
-if GUILD_ZONE_RANKS_ENABLED:
+if GUILD_ZONE_RANKS_ENABLED and adapter is not None:
     try:
         zones_query = f"""
             SELECT DISTINCT CAST(zone_id AS BIGINT) AS zone_id, zone_name
@@ -855,10 +841,11 @@ if GUILD_ZONE_RANKS_ENABLED:
                     }
                     fh.write(json.dumps(record) + "\n")
                     rank_count += 1
-                _sleep()
         logger.info("guild_zone_ranks → %d zones", rank_count)
     except Exception as exc:
         logger.warning("Guild zone ranks ingestion failed: %s — skipping", exc)
+elif GUILD_ZONE_RANKS_ENABLED:
+    logger.info("Skipping guild zone ranks: WarcraftLogs adapter unavailable")
 else:
     logger.info("Skipping guild zone ranks: GUILD_ZONE_RANKS_ENABLED=false")
 
