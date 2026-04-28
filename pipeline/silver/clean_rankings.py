@@ -1,4 +1,5 @@
 # Databricks notebook source
+# ruff: noqa: I001
 # Silver layer — parsed WCL fight rankings
 #
 # silver_player_rankings — one row per player per kill fight with WCL parse
@@ -45,7 +46,7 @@ from pyspark.sql.types import (
     StructType,
 )
 
-from pipeline.expectations.common_expectations import REPORT_FIGHT_PLAYER_UNIQUE
+from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT, REPORT_FIGHT_PLAYER_UNIQUE
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ _RANKINGS_SCHEMA = StructType([
 @dlt.expect_or_drop("valid_ranking_ref", "report_code IS NOT NULL AND fight_id IS NOT NULL")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL")
 @dlt.expect_or_fail(*REPORT_FIGHT_PLAYER_UNIQUE)
+@dlt.expect(*INGESTED_AT_PRESENT)
 # Warn-only: tracks WCL parse-rankings completeness over time. Nulls are
 # legitimate (unrankable specs, archived/private reports, async compute lag),
 # but a sustained spike usually indicates an ingestion or Auto Loader issue.

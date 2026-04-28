@@ -7,6 +7,8 @@
 import dlt
 from pyspark.sql import functions as F
 
+from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT
+
 
 @dlt.table(
     name="02_silver.sc_analytics_warcraftlogs.silver_raid_attendance",
@@ -18,6 +20,7 @@ from pyspark.sql import functions as F
 )
 @dlt.expect_or_drop("valid_report_code", "report_code IS NOT NULL AND LENGTH(report_code) > 0")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL AND LENGTH(player_name) > 0")
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_raid_attendance():
     # Join to silver_guild_reports (batch) for zone and date context.
     # Earlier attendance files don't carry zone/startTime fields, so we resolve

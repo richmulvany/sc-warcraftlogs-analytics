@@ -1,4 +1,5 @@
 # Databricks notebook source
+# ruff: noqa: I001
 # Silver layer — player actor roster and per-fight combatant info
 #
 # silver_actor_roster       — one row per player per report (class, realm)
@@ -35,7 +36,7 @@ from pipeline.consumables import (  # noqa: E402
     classify_weapon_enhancement_names,
     join_consumable_names,
 )
-from pipeline.expectations.common_expectations import REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
+from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT, REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
 
 # ── Schemas for playerDetails JSON blob ───────────────────────────────────────
 # WCL playerDetails(includeCombatantInfo: true) structure:
@@ -120,6 +121,7 @@ _join_consumable_names_udf = F.udf(join_consumable_names, StringType())
 @dlt.expect_or_drop("valid_report_code", "report_code IS NOT NULL")
 @dlt.expect_or_drop("valid_actor_id",    "actor_id IS NOT NULL")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL AND LENGTH(player_name) > 0")
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_actor_roster():
     return (
         spark.readStream.table("01_bronze.warcraftlogs.bronze_actor_roster")  # noqa: F821
@@ -160,6 +162,7 @@ def silver_actor_roster():
 @dlt.expect_or_drop("valid_fight_ref",   "report_code IS NOT NULL AND fight_id IS NOT NULL")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL AND LENGTH(player_name) > 0")
 @dlt.expect_or_fail(*REPORT_FIGHT_PLAYER_UNIQUE)
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_player_performance():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_player_details")  # noqa: F821
 

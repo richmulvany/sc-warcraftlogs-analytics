@@ -1,4 +1,5 @@
 # Databricks notebook source
+# ruff: noqa: I001
 # Silver layer — parsed WCL fight death events
 #
 # silver_player_deaths — one row per death event per player per report.
@@ -57,12 +58,11 @@ from pyspark.sql.types import (  # noqa: E402
 )
 
 from pipeline.consumables import (  # noqa: E402
-    classify_flask_or_phial_names,
-    classify_food_names,
-    classify_weapon_enhancement_names,
-    join_consumable_names,
+    MIDNIGHT_FLASK_OR_PHIAL_NAMES,
+    MIDNIGHT_FOOD_NAMES,
+    MIDNIGHT_WEAPON_ENHANCEMENT_NAMES,
 )
-from pipeline.expectations.common_expectations import REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
+from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT, REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
 from pipeline.gold._cooldown_rules import cooldown_rules_sql  # noqa: E402
 
 # ── Schema for the table(dataType: Deaths) JSON scalar ────────────────────────
@@ -229,11 +229,36 @@ _COMBATANT_INFO_EVENTS_SCHEMA = StructType([
     StructField("data", ArrayType(_COMBATANT_INFO_EVENT_STRUCT), True),
 ])
 
-_classify_food_udf = F.udf(classify_food_names, ArrayType(StringType()))
-_classify_flask_udf = F.udf(classify_flask_or_phial_names, ArrayType(StringType()))
-_classify_weapon_udf = F.udf(classify_weapon_enhancement_names, ArrayType(StringType()))
-_join_consumable_names_udf = F.udf(join_consumable_names, StringType())
 _COOLDOWN_RULES_SQL = cooldown_rules_sql()
+
+
+def _sql_string_array(values: set[str]) -> str:
+    return "array(" + ", ".join("'" + value.replace("'", "''") + "'" for value in sorted(values)) + ")"
+
+
+def _normalized_name_sql(name_sql: str) -> str:
+    return (
+        "trim(regexp_replace(regexp_replace(lower(coalesce("
+        f"{name_sql}, '')), \"'\", ''), '\\\\s+', ' '))"
+    )
+
+
+def _classified_name_array_sql(source_col: str, explicit_names: set[str], keywords: tuple[str, ...]) -> str:
+    normalized_name = _normalized_name_sql("name")
+    clauses = [f"array_contains({_sql_string_array(explicit_names)}, {normalized_name})"]
+    clauses.extend(
+        f"{normalized_name} LIKE '%{keyword_sql}%'"
+        for keyword_sql in (keyword.replace("'", "''") for keyword in keywords)
+    )
+    return (
+        f"filter({source_col}, name -> {normalized_name} <> '' AND ("
+        + " OR ".join(clauses)
+        + "))"
+    )
+
+
+def _joined_name_column(array_col: str) -> F.Column:
+    return F.when(F.size(F.col(array_col)) > 0, F.array_join(F.col(array_col), " | ")).otherwise(F.lit(None))
 
 
 # ── Parsed Player Cast Events ─────────────────────────────────────────────────
@@ -246,6 +271,7 @@ _COOLDOWN_RULES_SQL = cooldown_rules_sql()
     ),
     table_properties={"quality": "silver"},
 )
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_player_cast_events():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_casts")  # noqa: F821
     actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
@@ -326,6 +352,7 @@ def silver_player_cast_events():
     ),
     table_properties={"quality": "silver"},
 )
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_player_combatant_buffs():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_casts")  # noqa: F821
     actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
@@ -408,9 +435,46 @@ def silver_player_combatant_buffs():
 
     classified = (
         grouped
-        .withColumn("food_buff_names_array", _classify_food_udf(F.col("aura_names")))
-        .withColumn("flask_or_phial_names_array", _classify_flask_udf(F.col("aura_names")))
-        .withColumn("weapon_enhancement_names_array", _classify_weapon_udf(F.col("aura_names")))
+        .withColumn(
+            "food_buff_names_array",
+            F.expr(
+                _classified_name_array_sql(
+                    "aura_names",
+                    MIDNIGHT_FOOD_NAMES,
+                    ("well fed", "feast"),
+                )
+            ),
+        )
+        .withColumn(
+            "flask_or_phial_names_array",
+            F.expr(
+                _classified_name_array_sql(
+                    "aura_names",
+                    MIDNIGHT_FLASK_OR_PHIAL_NAMES,
+                    ("flask", "phial"),
+                )
+            ),
+        )
+        .withColumn(
+            "weapon_enhancement_names_array",
+            F.expr(
+                _classified_name_array_sql(
+                    "aura_names",
+                    MIDNIGHT_WEAPON_ENHANCEMENT_NAMES,
+                    (
+                        " oil",
+                        "oil ",
+                        "whetstone",
+                        "weightstone",
+                        "razorstone",
+                        "shots",
+                        "enchanted edge",
+                        "lynxeye",
+                        "hawkeye",
+                    ),
+                )
+            ),
+        )
     )
 
     return (
@@ -423,11 +487,11 @@ def silver_player_combatant_buffs():
             "spec_id",
             "talent_spell_ids",
             F.when(F.size(F.col("food_buff_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_food_buff"),
-            _join_consumable_names_udf(F.col("food_buff_names_array")).alias("food_buff_names"),
+            _joined_name_column("food_buff_names_array").alias("food_buff_names"),
             F.when(F.size(F.col("flask_or_phial_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_flask_or_phial_buff"),
-            _join_consumable_names_udf(F.col("flask_or_phial_names_array")).alias("flask_or_phial_names"),
+            _joined_name_column("flask_or_phial_names_array").alias("flask_or_phial_names"),
             F.when(F.size(F.col("weapon_enhancement_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_weapon_enhancement_aura"),
-            _join_consumable_names_udf(F.col("weapon_enhancement_names_array")).alias("weapon_enhancement_aura_names"),
+            _joined_name_column("weapon_enhancement_names_array").alias("weapon_enhancement_aura_names"),
             "_ingested_at",
         )
     )
@@ -443,6 +507,7 @@ def silver_player_combatant_buffs():
     ),
     table_properties={"quality": "silver"},
 )
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_player_cooldown_capacity():
     return spark.sql(  # noqa: F821
         f"""

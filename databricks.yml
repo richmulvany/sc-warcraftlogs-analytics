@@ -81,17 +81,17 @@ targets:
     mode: development
     default: true
     workspace:
-      root_path: /Workspace/sc-analytics/${bundle.target}
+      root_path: /Workspace/Users/${var.developer_user}/sc-analytics/${bundle.target}
     variables:
       schema: warcraftlogs
     permissions:
     - user_name: ${var.developer_user}
       level: CAN_MANAGE
     resources:
-      jobs:
-        daily_orchestrator:
-          schedule:
-            pause_status: PAUSED
+      pipelines:
+        warcraftlogs_pipeline:
+          run_as:
+            user_name: ${var.developer_user}
   production:
     mode: production
     default: false
@@ -108,10 +108,14 @@ targets:
       jobs:
         daily_orchestrator:
           schedule:
+            quartz_cron_expression: "0 15 22 * * ?"
+            timezone_id: Europe/London
             pause_status: UNPAUSED
       pipelines:
         warcraftlogs_pipeline:
           development: false
+          run_as:
+            service_principal_name: ${var.service_principal_application_id}
 
 resources:
   pipelines:
@@ -122,8 +126,6 @@ resources:
       name: ${var.pipeline_name}
       catalog: ${var.catalog}
       schema: ${var.schema}
-      run_as:
-        user_name: ${var.developer_user}
       serverless: true
 
       libraries:
@@ -209,9 +211,9 @@ resources:
     ingestion_daily:
       name: sc-analytics-ingestion-daily-2215
       tasks:
-        - task_key: ingest_primary
+        - task_key: ingest_wcl
           notebook_task:
-            notebook_path: ingestion/jobs/ingest_primary.py
+            notebook_path: ingestion/jobs/ingest_wcl.py
             base_parameters:
               catalog: ${var.catalog}
               schema: ${var.schema}
@@ -232,6 +234,45 @@ resources:
               blizzard_profile_export_cap: ${var.blizzard_profile_export_cap}
               blizzard_profile_sleep_seconds: ${var.blizzard_profile_sleep_seconds}
               guild_zone_ranks_enabled: ${var.guild_zone_ranks_enabled}
+        - task_key: ingest_blizzard
+          depends_on:
+            - task_key: ingest_wcl
+          notebook_task:
+            notebook_path: ingestion/jobs/ingest_blizzard.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              guild_name: ${var.guild_name}
+              guild_server_slug: ${var.guild_server_slug}
+              guild_server_region: ${var.guild_server_region}
+              profile_candidate_catalog: ${var.profile_candidate_catalog}
+              profile_candidate_schema: ${var.profile_candidate_schema}
+              blizzard_profile_export_enabled: ${var.blizzard_profile_export_enabled}
+              blizzard_profile_export_cap: ${var.blizzard_profile_export_cap}
+              blizzard_profile_sleep_seconds: ${var.blizzard_profile_sleep_seconds}
+        - task_key: ingest_raiderio
+          depends_on:
+            - task_key: ingest_blizzard
+          notebook_task:
+            notebook_path: ingestion/jobs/ingest_raiderio.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              guild_server_slug: ${var.guild_server_slug}
+              guild_server_region: ${var.guild_server_region}
+              raider_io_export_enabled: "true"
+              raider_io_region: "eu"
+              raider_io_season: "current"
+              raider_io_profile_export_cap: "0"
+              raider_io_request_sleep_seconds: "0.25"
+        - task_key: ingest_google_sheets
+          depends_on:
+            - task_key: ingest_raiderio
+          notebook_task:
+            notebook_path: ingestion/jobs/ingest_google_sheets.py
+            base_parameters:
+              live_roster_sheet_id: ${var.live_roster_sheet_id}
+              live_roster_sheet_gid: ${var.live_roster_sheet_gid}
 
     # ── Stage 2: SDP/DLT pipeline ──────────────────────────────────────────────
     # Triggers the bundle-managed DLT pipeline by ID — no hard-coded values.
@@ -272,10 +313,6 @@ resources:
     # Quartz format: "sec min hour day-of-month month day-of-week" → "0 15 22 * * ?".
     daily_orchestrator:
       name: sc-analytics-daily-orchestrator
-      schedule:
-        quartz_cron_expression: "0 15 22 * * ?"
-        timezone_id: Europe/London
-        pause_status: PAUSED
       tasks:
         - task_key: ingestion
           run_job_task:

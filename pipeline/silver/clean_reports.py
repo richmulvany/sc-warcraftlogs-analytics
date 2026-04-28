@@ -8,6 +8,8 @@
 import dlt
 from pyspark.sql import functions as F
 
+from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT
+
 RAID_DIFFICULTIES = (3, 4, 5)  # Normal=3, Heroic=4, Mythic=5  (M+=10 excluded)
 
 
@@ -21,6 +23,7 @@ RAID_DIFFICULTIES = (3, 4, 5)  # Normal=3, Heroic=4, Mythic=5  (M+=10 excluded)
 )
 @dlt.expect_or_drop("valid_report_code", "code IS NOT NULL AND LENGTH(code) > 0")
 @dlt.expect("valid_start_time", "start_time_utc IS NOT NULL")
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_guild_reports():
     return (
         spark.readStream.table("01_bronze.warcraftlogs.bronze_guild_reports")  # noqa: F821
@@ -56,6 +59,7 @@ def silver_guild_reports():
 @dlt.expect_or_drop("valid_report_code", "report_code IS NOT NULL")
 @dlt.expect_or_drop("is_raid_encounter", "encounter_id IS NOT NULL AND encounter_id > 0")
 @dlt.expect_or_drop("is_raid_difficulty", "difficulty IN (3, 4, 5)")
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_fight_events():
     reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 

@@ -74,6 +74,15 @@ logger.info(
     guild_name, server_slug, server_region,
 )
 
+ACTIVE_STAGE = _config_value("stage", "all").strip().lower() or "all"
+
+
+def _stage_enabled(*names: str) -> bool:
+    return ACTIVE_STAGE == "all" or ACTIVE_STAGE in {name.strip().lower() for name in names}
+
+
+logger.info("Active ingestion stage: %s", ACTIVE_STAGE)
+
 # COMMAND ----------
 
 # DBTITLE 1,Authentication
@@ -126,7 +135,7 @@ all_report_codes: list[str] = []
 # DBTITLE 1,Zone Catalog
 # Fetch once per run — zones rarely change but always refresh so new raid tiers
 # appear automatically.
-if adapter is not None:
+if _stage_enabled("wcl") and adapter is not None:
     try:
         logger.info("Fetching zone catalog …")
         zone_result = adapter.fetch_zone_catalog()
@@ -142,7 +151,7 @@ if adapter is not None:
 # DBTITLE 1,Guild Reports
 # Fetch all pages and write each as a JSONL file keyed by run timestamp + page.
 # The silver layer deduplicates on report code, so re-runs are safe.
-if adapter is not None:
+if _stage_enabled("wcl") and adapter is not None:
     try:
         logger.info("Fetching guild reports …")
         page, has_more = 1, True
@@ -183,7 +192,7 @@ if adapter is not None:
 
 RAID_DIFFICULTIES = {3, 4, 5}  # Normal, Heroic, Mythic
 
-if adapter is not None:
+if _stage_enabled("wcl") and adapter is not None:
     try:
         for report_code in all_report_codes:
 
@@ -335,7 +344,7 @@ if adapter is not None:
 # DBTITLE 1,Raid Attendance
 # Fetch paginated attendance (players present/benched/absent per report).
 # The attendance API returns zone {id, name} directly on each record.
-if adapter is not None:
+if _stage_enabled("wcl") and adapter is not None:
     try:
         logger.info("Fetching raid attendance …")
         page, has_more = 1, True
@@ -367,44 +376,45 @@ if adapter is not None:
 # Only runs when Blizzard credentials are configured in the secret scope.
 # The roster changes frequently (member joins/leaves/rank changes), so we always
 # overwrite rather than skip on re-run.
-try:
-    bz_client_id = dbutils.secrets.get(scope="warcraftlogs", key="blizzard_client_id")  # noqa: F821
-    bz_client_secret = dbutils.secrets.get(scope="warcraftlogs", key="blizzard_client_secret")  # noqa: F821
+if _stage_enabled("blizzard"):
+    try:
+        bz_client_id = dbutils.secrets.get(scope="warcraftlogs", key="blizzard_client_id")  # noqa: F821
+        bz_client_secret = dbutils.secrets.get(scope="warcraftlogs", key="blizzard_client_secret")  # noqa: F821
 
-    from ingestion.src.adapters.blizzard.client import BlizzardAdapter  # noqa: PLC0415
+        from ingestion.src.adapters.blizzard.client import BlizzardAdapter  # noqa: PLC0415
 
-    bz_region = server_region.lower()
-    # Build guild slug from guild name: lowercase, spaces → hyphens
-    guild_slug = guild_name.lower().replace(" ", "-")
+        bz_region = server_region.lower()
+        # Build guild slug from guild name: lowercase, spaces → hyphens
+        guild_slug = guild_name.lower().replace(" ", "-")
 
-    bz_adapter = BlizzardAdapter()
-    bz_adapter.authenticate(bz_client_id, bz_client_secret, region=bz_region)
-    roster_result = bz_adapter.fetch_guild_roster(
-        realm_slug=server_slug,
-        guild_slug=guild_slug,
-    )
-    bz_adapter.close()
+        bz_adapter = BlizzardAdapter()
+        bz_adapter.authenticate(bz_client_id, bz_client_secret, region=bz_region)
+        roster_result = bz_adapter.fetch_guild_roster(
+            realm_slug=server_slug,
+            guild_slug=guild_slug,
+        )
+        bz_adapter.close()
 
-    records = [
-        {
-            **r,
-            "_source": "blizzard",
-            "_ingested_at": ingested_at,
-        }
-        for r in roster_result.records
-    ]
+        records = [
+            {
+                **r,
+                "_source": "blizzard",
+                "_ingested_at": ingested_at,
+            }
+            for r in roster_result.records
+        ]
 
-    members_file = f"{blizzard_landing}/guild_members/{run_ts}.jsonl"
-    with open(members_file, "w") as fh:
-        for record in records:
-            fh.write(json.dumps(record) + "\n")
+        members_file = f"{blizzard_landing}/guild_members/{run_ts}.jsonl"
+        with open(members_file, "w") as fh:
+            for record in records:
+                fh.write(json.dumps(record) + "\n")
 
-    logger.info("guild_members → %d members", len(records))
+        logger.info("guild_members → %d members", len(records))
 
-except Exception as e:
-    logger.warning(
-        "Blizzard API not configured or failed: %s — skipping guild members", e
-    )
+    except Exception as e:
+        logger.warning(
+            "Blizzard API not configured or failed: %s — skipping guild members", e
+        )
 
 # COMMAND ----------
 
@@ -544,7 +554,7 @@ def _raiderio_candidates_from_existing_player_tables() -> list[dict[str, str]]:
     )
 
 
-if RAIDER_IO_EXPORT_ENABLED:
+if _stage_enabled("raiderio") and RAIDER_IO_EXPORT_ENABLED:
     try:
         from ingestion.src.adapters.raiderio.client import (  # noqa: PLC0415
             RaiderIoAdapter,
@@ -628,7 +638,7 @@ if RAIDER_IO_EXPORT_ENABLED:
         logger.info("raiderio_character_profiles → %d profiles", rows_written)
     except Exception as e:
         logger.warning("Raider.IO API failed: %s — skipping Mythic+ profile ingestion", e)
-else:
+elif _stage_enabled("raiderio"):
     logger.info("Skipping Raider.IO character profiles: RAIDER_IO_EXPORT_ENABLED=false")
 
 # COMMAND ----------
@@ -642,7 +652,7 @@ else:
 # rankings are populated or the file ages past RANKINGS_BACKFILL_MAX_AGE_DAYS
 # (after which we assume WCL is never going to rank those fights — e.g. exotic
 # off-spec, partition split, or guild-private report).
-if adapter is not None:
+if _stage_enabled("wcl") and adapter is not None:
     try:
         logger.info("Fetching fight rankings …")
 
@@ -732,7 +742,7 @@ if adapter is not None:
 # WCL table API. Multi-fight Deaths responses can truncate on long reports, so
 # fetches are done one fight at a time and written as JSONL records.
 # Skip if already fetched.
-if adapter is not None:
+if _stage_enabled("wcl") and adapter is not None:
     try:
         logger.info("Fetching fight deaths …")
 
@@ -840,7 +850,7 @@ EXCLUDED_ZONE_NAMES = [
     if name.strip()
 ]
 
-if GUILD_ZONE_RANKS_ENABLED and adapter is not None:
+if _stage_enabled("wcl") and GUILD_ZONE_RANKS_ENABLED and adapter is not None:
     try:
         zones_query = f"""
             SELECT DISTINCT CAST(zone_id AS BIGINT) AS zone_id, zone_name
@@ -880,9 +890,9 @@ if GUILD_ZONE_RANKS_ENABLED and adapter is not None:
         logger.info("guild_zone_ranks → %d zones", rank_count)
     except Exception as exc:
         logger.warning("Guild zone ranks ingestion failed: %s — skipping", exc)
-elif GUILD_ZONE_RANKS_ENABLED:
+elif _stage_enabled("wcl") and GUILD_ZONE_RANKS_ENABLED:
     logger.info("Skipping guild zone ranks: WarcraftLogs adapter unavailable")
-else:
+elif _stage_enabled("wcl"):
     logger.info("Skipping guild zone ranks: GUILD_ZONE_RANKS_ENABLED=false")
 
 # COMMAND ----------
@@ -894,7 +904,7 @@ else:
 LIVE_ROSTER_SHEET_ID = _config_value("live_roster_sheet_id", "")
 LIVE_ROSTER_SHEET_GID = _config_value("live_roster_sheet_gid", "0")
 
-if LIVE_ROSTER_SHEET_ID:
+if _stage_enabled("google_sheets") and LIVE_ROSTER_SHEET_ID:
     try:
         from ingestion.src.adapters.google_sheets.client import GoogleSheetsAdapter  # noqa: PLC0415
 
@@ -914,7 +924,7 @@ if LIVE_ROSTER_SHEET_ID:
                     len(sheet_result.records[0].get("csv_text", "")))
     except Exception as exc:
         logger.warning("Live raid roster ingestion failed: %s — skipping", exc)
-else:
+elif _stage_enabled("google_sheets"):
     logger.info("Skipping live raid roster: live_roster_sheet_id not configured")
 
 # COMMAND ----------
@@ -930,7 +940,7 @@ BLIZZARD_PROFILE_EXPORT_ENABLED = (
 BLIZZARD_PROFILE_EXPORT_CAP = int(_config_value("blizzard_profile_export_cap", "0"))
 BLIZZARD_PROFILE_SLEEP_SECONDS = float(_config_value("blizzard_profile_sleep_seconds", "0.05"))
 
-if BLIZZARD_PROFILE_EXPORT_ENABLED:
+if _stage_enabled("blizzard") and BLIZZARD_PROFILE_EXPORT_ENABLED:
     try:
         bz_client_id = dbutils.secrets.get(scope="warcraftlogs", key="blizzard_client_id")  # noqa: F821
         bz_client_secret = dbutils.secrets.get(scope="warcraftlogs", key="blizzard_client_secret")  # noqa: F821
@@ -1094,7 +1104,7 @@ if BLIZZARD_PROFILE_EXPORT_ENABLED:
         )
     except Exception as exc:
         logger.warning("Blizzard profile ingestion failed: %s — skipping", exc)
-else:
+elif _stage_enabled("blizzard"):
     logger.info("Skipping Blizzard profiles: BLIZZARD_PROFILE_EXPORT_ENABLED=false")
 
 # COMMAND ----------
