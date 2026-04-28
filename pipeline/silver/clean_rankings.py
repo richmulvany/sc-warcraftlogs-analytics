@@ -34,7 +34,8 @@
 # Note: "rank" is a string in "~1265" format, not a number.
 
 import dlt
-from pyspark.sql import Window, functions as F
+from pyspark.sql import Window
+from pyspark.sql import functions as F
 from pyspark.sql.types import (
     ArrayType,
     DoubleType,
@@ -43,6 +44,8 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
+
+from pipeline.expectations.common_expectations import REPORT_FIGHT_PLAYER_UNIQUE
 
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
@@ -102,6 +105,7 @@ _RANKINGS_SCHEMA = StructType([
 )
 @dlt.expect_or_drop("valid_ranking_ref", "report_code IS NOT NULL AND fight_id IS NOT NULL")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL")
+@dlt.expect_or_fail(*REPORT_FIGHT_PLAYER_UNIQUE)
 # Warn-only: tracks WCL parse-rankings completeness over time. Nulls are
 # legitimate (unrankable specs, archived/private reports, async compute lag),
 # but a sustained spike usually indicates an ingestion or Auto Loader issue.
@@ -160,6 +164,7 @@ def silver_player_rankings():
                 F.col("fight_entry.encounter.name").alias("encounter_name"),
                 F.col("fight_entry.difficulty").alias("difficulty"),
                 F.col("fight_entry.size").alias("fight_size"),
+                F.col("_ingested_at"),
                 F.explode(chars_col).alias("character"),
                 F.lit(role_label).alias("role"),
             )
@@ -177,6 +182,10 @@ def silver_player_rankings():
 
     return (
         all_players
+        .withColumn(
+            "_duplicate_count",
+            F.count(F.lit(1)).over(Window.partitionBy("report_code", "fight_id", "player_name")),
+        )
         .select(
             F.col("report_code"),
             F.col("fight_id"),
@@ -193,6 +202,8 @@ def silver_player_rankings():
             F.col("character.bracketPercent").alias("bracket_percent"),
             F.col("character.rank").alias("rank_string"),   # "~1265" approximate rank
             F.col("character.totalParses").alias("total_parses"),
+            F.col("_ingested_at"),
+            F.col("_duplicate_count"),
         )
         .filter(F.col("player_name").isNotNull())
         .dropDuplicates(["report_code", "fight_id", "player_name"])

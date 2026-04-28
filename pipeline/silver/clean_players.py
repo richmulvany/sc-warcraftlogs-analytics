@@ -20,6 +20,7 @@ if _REPO_ROOT and _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 import dlt  # noqa: E402
+from pyspark.sql import Window  # noqa: E402
 from pyspark.sql import functions as F  # noqa: E402
 from pyspark.sql.types import (  # noqa: E402
     ArrayType,
@@ -34,6 +35,7 @@ from pipeline.consumables import (  # noqa: E402
     classify_weapon_enhancement_names,
     join_consumable_names,
 )
+from pipeline.expectations.common_expectations import REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
 
 # ── Schemas for playerDetails JSON blob ───────────────────────────────────────
 # WCL playerDetails(includeCombatantInfo: true) structure:
@@ -157,6 +159,7 @@ def silver_actor_roster():
 )
 @dlt.expect_or_drop("valid_fight_ref",   "report_code IS NOT NULL AND fight_id IS NOT NULL")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL AND LENGTH(player_name) > 0")
+@dlt.expect_or_fail(*REPORT_FIGHT_PLAYER_UNIQUE)
 def silver_player_performance():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_player_details")  # noqa: F821
 
@@ -222,6 +225,10 @@ def silver_player_performance():
 
     return (
         with_weapon_enhancements
+        .withColumn(
+            "_duplicate_count",
+            F.count(F.lit(1)).over(Window.partitionBy("report_code", "fight_id", F.trim(F.col("player.name")))),
+        )
         .select(
             F.col("report_code"),
             F.col("fight_id"),
@@ -259,6 +266,7 @@ def silver_player_performance():
             F.col("player.combatantInfo.stats.Mastery.min").alias("mastery_rating"),
             F.col("player.combatantInfo.stats.Versatility.min").alias("versatility_rating"),
             F.col("_ingested_at"),
+            F.col("_duplicate_count"),
         )
         .filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
         .dropDuplicates(["report_code", "fight_id", "player_name"])

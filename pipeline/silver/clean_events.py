@@ -45,6 +45,7 @@ if _REPO_ROOT and _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 import dlt  # noqa: E402
+from pyspark.sql import Window  # noqa: E402
 from pyspark.sql import functions as F  # noqa: E402
 from pyspark.sql.types import (  # noqa: E402
     ArrayType,
@@ -61,6 +62,7 @@ from pipeline.consumables import (  # noqa: E402
     classify_weapon_enhancement_names,
     join_consumable_names,
 )
+from pipeline.expectations.common_expectations import REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
 
 # ── Schema for the table(dataType: Deaths) JSON scalar ────────────────────────
 
@@ -108,6 +110,7 @@ _TABLE_SCHEMA = StructType([
     ),
     table_properties={"quality": "silver"},
 )
+@dlt.expect_or_fail(*REPORT_FIGHT_PLAYER_UNIQUE)
 def silver_player_deaths():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_deaths")  # noqa: F821
 
@@ -149,6 +152,7 @@ def silver_player_deaths():
             F.col("entry.type").alias("player_class"),
             F.col("entry.timestamp").alias("death_timestamp_ms"),
             F.col("entry.overkill").alias("overkill"),
+            F.col("_ingested_at"),
             # Killing blow: filter events to non-friendly damage sources (newest first),
             # take element [0] — the hit closest to the death timestamp.
             # FILTER() is a Spark SQL higher-order function available in Spark 3.x+.
@@ -158,6 +162,12 @@ def silver_player_deaths():
         )
         .withColumn("killing_blow_name", F.col("kb_event.ability.name"))
         .withColumn("killing_blow_id",   F.col("kb_event.ability.guid"))
+        .withColumn(
+            "_duplicate_count",
+            F.count(F.lit(1)).over(
+                Window.partitionBy("report_code", "fight_id", "player_name", "death_timestamp_ms")
+            ),
+        )
         .drop("kb_event")
         .filter(F.col("player_name").isNotNull())
     )
@@ -377,6 +387,7 @@ def silver_player_combatant_buffs():
         .agg(
             F.max("spec_id").alias("spec_id"),
             F.flatten(F.collect_list("aura_names_raw")).alias("aura_names"),
+            F.max("_ingested_at").alias("_ingested_at"),
         )
     )
 
@@ -401,5 +412,6 @@ def silver_player_combatant_buffs():
             _join_consumable_names_udf(F.col("flask_or_phial_names_array")).alias("flask_or_phial_names"),
             F.when(F.size(F.col("weapon_enhancement_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_weapon_enhancement_aura"),
             _join_consumable_names_udf(F.col("weapon_enhancement_names_array")).alias("weapon_enhancement_aura_names"),
+            "_ingested_at",
         )
     )
