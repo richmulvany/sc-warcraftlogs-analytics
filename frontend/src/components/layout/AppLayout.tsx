@@ -61,7 +61,7 @@ export function AppLayout({ children, title, subtitle, actions, nav, hideHeader 
         )}
 
         {/* Scrollable page body */}
-        <main className="flex-1 overflow-y-auto animate-fade-in">
+        <main className="flex-1 overflow-y-auto animate-fade-in motion-reduce:animate-none">
           <div className={`mx-auto w-full max-w-none ${maxW} px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-7 space-y-6 md:space-y-7`}>
             {children}
           </div>

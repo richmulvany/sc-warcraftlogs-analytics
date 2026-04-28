@@ -157,7 +157,7 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
             onClick={() => setCbOpen(o => !o)}
             className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-ctp-surface1/30 transition-colors"
           >
-            <Eye className="w-3 h-3 text-ctp-overlay1 flex-shrink-0" />
+            <Eye className="w-3 h-3 text-ctp-overlay1 flex-shrink-0" aria-hidden="true" />
             <p className="text-[10px] font-mono text-ctp-overlay1 uppercase tracking-wide flex-1 text-left">
               Colour mode
             </p>
@@ -169,7 +169,7 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
             <ChevronDown className={clsx(
               'w-3 h-3 text-ctp-overlay0 transition-transform flex-shrink-0',
               cbOpen && 'rotate-180'
-            )} />
+            )} aria-hidden="true" />
           </button>
 
           {cbOpen && (
@@ -197,8 +197,6 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
       <div className="px-5 py-3 border-t border-ctp-surface0 flex-shrink-0">
         <p className="text-[10px] font-mono text-ctp-overlay0 leading-relaxed">
           WarcraftLogs Analytics
-          <br />
-          <span className="text-ctp-surface2">debug export · v0.2</span>
         </p>
       </div>
     </aside>
