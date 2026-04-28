@@ -55,7 +55,8 @@ The frontend currently consumes published dashboard assets, primarily JSON. Lega
     ├── frontend/                      # React + Vite + TypeScript dashboard
     │
     ├── scripts/
-    │   ├── export_gold_tables.py       # legacy/local CSV export support
+    │   ├── dev/
+    │   │   └── export_gold_tables.py   # legacy/local CSV export support
     │   └── publish_dashboard_assets.py # recommended JSON asset publishing
     │
     ├── docs/
@@ -164,7 +165,7 @@ Only inspect pipeline files if the landing/output shape is needed.
 Relevant areas are usually:
 
     scripts/publish_dashboard_assets.py
-    scripts/export_gold_tables.py
+    scripts/dev/export_gold_tables.py
     databricks.yml
     frontend/
     docs/architecture/dashboard_data_publishing.md
@@ -640,7 +641,7 @@ Recommended production path:
 
 Legacy/local fallback:
 
-    scripts/export_gold_tables.py
+    scripts/dev/export_gold_tables.py
 
 Be careful when editing export/publishing logic:
 

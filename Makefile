@@ -85,7 +85,7 @@ deploy-frontend:
 
 export-data:
 	@echo ">> Exporting gold tables to static JSON..."
-	$(PYTHON) scripts/export_gold_tables.py
+	$(PYTHON) scripts/dev/export_gold_tables.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

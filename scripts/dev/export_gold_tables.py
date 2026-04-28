@@ -5,7 +5,7 @@ The React app reads CSVs from `frontend/public/data`, so this script exports the
 same files the frontend consumes rather than the old JSON sample format.
 
 Usage:
-    python scripts/export_gold_tables.py
+    python scripts/dev/export_gold_tables.py
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from ingestion.src.adapters.wcl.client import WarcraftLogsAdapter, WarcraftLogsC
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 load_dotenv(REPO_ROOT / ".env")
 
 CATALOG = os.environ.get("DATABRICKS_CATALOG", "04_sdp")

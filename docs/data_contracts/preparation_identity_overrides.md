@@ -6,7 +6,7 @@
 | **Version** | 0.1.0 |
 | **Effective date** | 2026-04-24 |
 | **Producer** | Admin-managed Unity Catalog table (`00_governance.warcraftlogs_admin.preparation_identity_overrides`) |
-| **Consumer** | Frontend dashboard (`frontend/src/pages/Preparation.tsx`) via static export (`scripts/export_gold_tables.py`) |
+| **Consumer** | Frontend dashboard (`frontend/src/pages/Preparation.tsx`) via static export (`scripts/dev/export_gold_tables.py`) |
 | **Owner** | richmulvany |
 | **Spec** | [datacontract.com v0.9](https://datacontract.com) |
 
@@ -95,7 +95,7 @@ frontend parser.
 ## Change Management
 
 1. Update the UC table definition and this contract in the same change.
-2. Update the governed export in `scripts/export_gold_tables.py` if the exported column set changes.
+2. Update the governed export in `scripts/dev/export_gold_tables.py` if the exported column set changes.
 3. Update the Preparation page parser if a breaking change is introduced.
 
 ---

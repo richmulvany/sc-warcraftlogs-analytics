@@ -1,9 +1,9 @@
 """
 Publish dashboard-ready JSON assets to a Unity Catalog volume.
 
-This coexists with ``scripts/export_gold_tables.py`` during migration. The old
-CSV export remains available for local fallback, while this script produces the
-runtime JSON assets and manifest consumed by the new static publishing flow:
+This coexists with ``scripts/dev/export_gold_tables.py`` during migration. The
+old CSV export remains available for local fallback, while this script produces
+the runtime JSON assets and manifest consumed by the new static publishing flow:
 
 Databricks gold tables -> UC volume JSON assets -> GitHub Actions -> R2
 """
@@ -746,28 +746,82 @@ def _volume_path_is_locally_writeable(output_path: str) -> bool:
     return output_path.startswith("/Volumes/") and Path("/Volumes").exists()
 
 
+def _databricks_target(remote_path: str) -> str:
+    return f"dbfs:{remote_path}" if remote_path.startswith("/Volumes/") else remote_path
+
+
+def _databricks_cp_path(
+    source_path: str | Path, target_path: str, *, recursive: bool = False
+) -> None:
+    source = _databricks_target(source_path) if isinstance(source_path, str) else str(source_path)
+    target = _databricks_target(target_path)
+    args = ["databricks", "fs", "cp", source, target, "--overwrite"]
+    if recursive:
+        args.append("-r")
+    subprocess.run(args, check=True)
+
+
 def _databricks_cp(local_path: Path, remote_path: str) -> None:
-    target = f"dbfs:{remote_path}" if remote_path.startswith("/Volumes/") else remote_path
-    subprocess.run(
-        ["databricks", "fs", "cp", str(local_path), target, "--overwrite"],
-        check=True,
-    )
+    _databricks_cp_path(local_path, remote_path)
 
 
-def _databricks_cp_dir(local_path: Path, remote_path: str) -> None:
-    target = f"dbfs:{remote_path}" if remote_path.startswith("/Volumes/") else remote_path
-    subprocess.run(
-        ["databricks", "fs", "cp", str(local_path), target, "-r"],
-        check=True,
-    )
+def _databricks_cp_dir(source_path: str | Path, remote_path: str) -> None:
+    _databricks_cp_path(source_path, remote_path, recursive=True)
 
 
 def _databricks_rm(remote_path: str) -> None:
-    target = f"dbfs:{remote_path}" if remote_path.startswith("/Volumes/") else remote_path
+    target = _databricks_target(remote_path)
     subprocess.run(
         ["databricks", "fs", "rm", target, "-r"],
         check=False,
     )
+
+
+def _databricks_exists(remote_path: str) -> bool:
+    target = _databricks_target(remote_path)
+    result = subprocess.run(
+        ["databricks", "fs", "ls", target],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
+
+
+def _databricks_cat(remote_path: str) -> str:
+    target = _databricks_target(remote_path)
+    result = subprocess.run(
+        ["databricks", "fs", "cat", target],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout
+
+
+def _validate_remote_manifest_tree(remote_dir: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(_databricks_cat(f"{remote_dir}/manifest.json"))
+    except subprocess.CalledProcessError as exc:
+        raise RuntimeError(f"Manifest file not found remotely: {remote_dir}/manifest.json") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"Remote manifest is not valid JSON: {remote_dir}/manifest.json"
+        ) from exc
+
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Remote manifest payload must be an object: {remote_dir}/manifest.json")
+    _validate_manifest_datasets(payload)
+    datasets = cast(dict[str, dict[str, Any]], payload["datasets"])
+    for dataset_name, metadata in datasets.items():
+        dataset_path = metadata.get("path")
+        if not isinstance(dataset_path, str) or not dataset_path:
+            raise RuntimeError(f'Remote manifest dataset "{dataset_name}" is missing a valid path.')
+        if not _databricks_exists(f"{remote_dir}/{dataset_path}"):
+            raise RuntimeError(
+                f'Remote manifest dataset "{dataset_name}" did not write {dataset_path}.'
+            )
+    return payload
 
 
 def _query_rows(
@@ -883,30 +937,117 @@ def write_manifest(
     return payload
 
 
+def _expected_dataset_names() -> set[str]:
+    return set(EXPORT_TABLES) | set(QUERY_EXPORTS)
+
+
+def _validate_manifest_datasets(manifest: dict[str, Any]) -> None:
+    datasets = manifest.get("datasets")
+    if not isinstance(datasets, dict):
+        raise RuntimeError("Manifest is missing the datasets mapping.")
+
+    expected = _expected_dataset_names()
+    actual = set(datasets)
+    if actual != expected:
+        missing = sorted(expected - actual)
+        extra = sorted(actual - expected)
+        details: list[str] = []
+        if missing:
+            details.append(f"missing={','.join(missing)}")
+        if extra:
+            details.append(f"extra={','.join(extra)}")
+        raise RuntimeError(f"Manifest datasets mismatch ({' '.join(details)})")
+
+
+def _load_manifest(manifest_path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"Manifest file not found: {manifest_path}") from exc
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Manifest file is not valid JSON: {manifest_path}") from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"Manifest payload must be an object: {manifest_path}")
+    return payload
+
+
+def _validate_manifest_tree(publish_dir: Path) -> dict[str, Any]:
+    manifest = _load_manifest(publish_dir / "manifest.json")
+    _validate_manifest_datasets(manifest)
+    datasets = cast(dict[str, dict[str, Any]], manifest["datasets"])
+    for dataset_name, metadata in datasets.items():
+        dataset_path = metadata.get("path")
+        if not isinstance(dataset_path, str) or not dataset_path:
+            raise RuntimeError(f'Manifest dataset "{dataset_name}" is missing a valid path.')
+        if not (publish_dir / dataset_path).is_file():
+            raise RuntimeError(f'Manifest dataset "{dataset_name}" did not write {dataset_path}.')
+    return manifest
+
+
+def _copy_tree_dir(source: Path, destination: Path) -> None:
+    shutil.copytree(source, destination)
+
+
 def _publish_local_tree(staging_root: Path, output_path: str) -> None:
     target_root = Path(output_path)
     target_root.mkdir(parents=True, exist_ok=True)
     latest_dir = target_root / "latest"
+    latest_new_dir = target_root / "latest.new"
+    latest_backup_dir = target_root / "latest.prev"
     snapshots_dir = target_root / "snapshots"
-    shutil.rmtree(latest_dir, ignore_errors=True)
-    shutil.copytree(staging_root / "latest", latest_dir)
     snapshots_dir.mkdir(parents=True, exist_ok=True)
     snapshot_id = next((staging_root / "snapshots").iterdir()).name
-    shutil.copytree(
-        staging_root / "snapshots" / snapshot_id,
-        snapshots_dir / snapshot_id,
-        dirs_exist_ok=True,
-    )
+    snapshot_target = snapshots_dir / snapshot_id
+    shutil.rmtree(snapshot_target, ignore_errors=True)
+    _copy_tree_dir(staging_root / "snapshots" / snapshot_id, snapshot_target)
+
+    shutil.rmtree(latest_new_dir, ignore_errors=True)
+    shutil.rmtree(latest_backup_dir, ignore_errors=True)
+    try:
+        _copy_tree_dir(staging_root / "latest", latest_new_dir)
+        _validate_manifest_tree(latest_new_dir)
+
+        if latest_dir.exists():
+            latest_dir.rename(latest_backup_dir)
+        try:
+            latest_new_dir.rename(latest_dir)
+        except Exception:
+            if latest_backup_dir.exists() and not latest_dir.exists():
+                latest_backup_dir.rename(latest_dir)
+            raise
+        shutil.rmtree(latest_backup_dir, ignore_errors=True)
+    except Exception:
+        shutil.rmtree(latest_new_dir, ignore_errors=True)
+        shutil.rmtree(latest_backup_dir, ignore_errors=True)
+        raise
 
 
 def _publish_remote_tree(staging_root: Path, output_path: str) -> None:
     latest_remote = f"{output_path}/latest"
+    latest_new_remote = f"{output_path}/latest.new"
+    latest_backup_remote = f"{output_path}/latest.prev"
     snapshot_id = next((staging_root / "snapshots").iterdir()).name
     snapshot_remote = f"{output_path}/snapshots/{snapshot_id}"
-    _databricks_rm(latest_remote)
     _databricks_rm(snapshot_remote)
-    _databricks_cp_dir(staging_root / "latest", latest_remote)
     _databricks_cp_dir(staging_root / "snapshots" / snapshot_id, snapshot_remote)
+    _databricks_rm(latest_new_remote)
+    _databricks_rm(latest_backup_remote)
+    try:
+        _databricks_cp_dir(staging_root / "latest", latest_new_remote)
+        _validate_remote_manifest_tree(latest_new_remote)
+        if _databricks_exists(latest_remote):
+            _databricks_cp_dir(latest_remote, latest_backup_remote)
+        _databricks_rm(latest_remote)
+        _databricks_cp_dir(latest_new_remote, latest_remote)
+        _validate_remote_manifest_tree(latest_remote)
+    except Exception:
+        _databricks_rm(latest_new_remote)
+        if not _databricks_exists(latest_remote) and _databricks_exists(latest_backup_remote):
+            _databricks_cp_dir(latest_backup_remote, latest_remote)
+        _databricks_rm(latest_backup_remote)
+        raise
+    _databricks_rm(latest_new_remote)
+    _databricks_rm(latest_backup_remote)
 
 
 def _publish_tree(staging_root: Path, output_path: str) -> None:
@@ -974,11 +1115,13 @@ def main() -> None:
             snapshot_id=snapshot_id,
             datasets=dataset_results,
         )
+        _validate_manifest_datasets(manifest)
         manifest_byte_size = (snapshot_dir / "manifest.json").stat().st_size
         total_export_bytes = (
             sum(dataset.byte_size for dataset in dataset_results) + manifest_byte_size
         )
         _validate_total_export_size(total_export_bytes)
+        _validate_manifest_tree(snapshot_dir)
 
         shutil.copytree(snapshot_dir, latest_dir, dirs_exist_ok=True)
         _publish_tree(staging_root, output_path)

@@ -41,7 +41,7 @@ All CI checks must pass. PRs require at least one approving review.
 1. Create `pipeline/gold/your_table.py` with the DLT definition
 2. Add expectations to `pipeline/expectations/your_table_expectations.py`
 3. Add an entry to `docs/data_dictionary/README.md`
-4. Update `scripts/export_gold_tables.py` to include the new table
+4. Update `scripts/dev/export_gold_tables.py` to include the new table
 5. Add a corresponding API function in `frontend/src/api/`
 
 ## Adding a new API endpoint
