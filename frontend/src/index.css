@@ -22,6 +22,12 @@
 
   /* ── Selection ── */
   ::selection { background: rgba(203,166,247,0.25); color: #cdd6f4; }
+
+  /* ── Focus ring for keyboard navigation ── */
+  *:focus-visible {
+    outline: 2px solid theme('colors.ctp.mauve');
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
