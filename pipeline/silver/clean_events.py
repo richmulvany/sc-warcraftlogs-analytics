@@ -63,6 +63,7 @@ from pipeline.consumables import (  # noqa: E402
     join_consumable_names,
 )
 from pipeline.expectations.common_expectations import REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
+from pipeline.gold._cooldown_rules import cooldown_rules_sql  # noqa: E402
 
 # ── Schema for the table(dataType: Deaths) JSON scalar ────────────────────────
 
@@ -196,6 +197,12 @@ _CAST_EVENTS_SCHEMA = StructType([
     StructField("data", ArrayType(_CAST_EVENT_STRUCT), True),
 ])
 
+_COMBATANT_INFO_TALENT_STRUCT = StructType([
+    StructField("spellID", LongType(), True),
+    StructField("id", LongType(), True),
+    StructField("talentID", LongType(), True),
+])
+
 _COMBATANT_INFO_AURA_STRUCT = StructType([
     StructField("abilityGameId", LongType(), True),
     StructField("icon", StringType(), True),
@@ -214,6 +221,7 @@ _COMBATANT_INFO_EVENT_STRUCT = StructType([
     StructField("source", _COMBATANT_SOURCE_STRUCT, True),
     StructField("fight", LongType(), True),
     StructField("specID", LongType(), True),
+    StructField("talentTree", ArrayType(_COMBATANT_INFO_TALENT_STRUCT), True),
     StructField("auras", ArrayType(_COMBATANT_INFO_AURA_STRUCT), True),
 ])
 
@@ -225,6 +233,7 @@ _classify_food_udf = F.udf(classify_food_names, ArrayType(StringType()))
 _classify_flask_udf = F.udf(classify_flask_or_phial_names, ArrayType(StringType()))
 _classify_weapon_udf = F.udf(classify_weapon_enhancement_names, ArrayType(StringType()))
 _join_consumable_names_udf = F.udf(join_consumable_names, StringType())
+_COOLDOWN_RULES_SQL = cooldown_rules_sql()
 
 
 # ── Parsed Player Cast Events ─────────────────────────────────────────────────
@@ -334,6 +343,11 @@ def silver_player_combatant_buffs():
             F.coalesce(F.col("event.sourceID"), F.col("event.source.id")).alias("actor_id"),
             F.col("event.specID").alias("spec_id"),
             F.expr("transform(coalesce(event.auras, array()), aura -> trim(aura.name))").alias("aura_names_raw"),
+            F.expr(
+                "filter(transform(coalesce(event.talentTree, array()), "
+                "talent -> cast(coalesce(talent.spellID, talent.id, talent.talentID) as string)), "
+                "talent_id -> talent_id is not null)"
+            ).alias("talent_spell_ids_raw"),
             F.col("_ingested_at"),
         )
         .filter(F.col("actor_id").isNotNull())
@@ -387,6 +401,7 @@ def silver_player_combatant_buffs():
         .agg(
             F.max("spec_id").alias("spec_id"),
             F.flatten(F.collect_list("aura_names_raw")).alias("aura_names"),
+            F.array_distinct(F.flatten(F.collect_list("talent_spell_ids_raw"))).alias("talent_spell_ids"),
             F.max("_ingested_at").alias("_ingested_at"),
         )
     )
@@ -406,6 +421,7 @@ def silver_player_combatant_buffs():
             "player_name",
             "player_class",
             "spec_id",
+            "talent_spell_ids",
             F.when(F.size(F.col("food_buff_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_food_buff"),
             _join_consumable_names_udf(F.col("food_buff_names_array")).alias("food_buff_names"),
             F.when(F.size(F.col("flask_or_phial_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_flask_or_phial_buff"),
@@ -414,4 +430,184 @@ def silver_player_combatant_buffs():
             _join_consumable_names_udf(F.col("weapon_enhancement_names_array")).alias("weapon_enhancement_aura_names"),
             "_ingested_at",
         )
+    )
+
+
+# Materialized because both gold wipe diagnostics tables reuse the same spec/talent gating join.
+@dlt.table(
+    name="02_silver.sc_analytics_warcraftlogs.silver_player_cooldown_capacity",
+    comment=(
+        "Per-player pull cooldown tracking state for wipe diagnostics. "
+        "Materializes spec/talent-gated cooldown availability, cast evidence, "
+        "and pull-level capacity so downstream gold products do not re-derive it."
+    ),
+    table_properties={"quality": "silver"},
+)
+def silver_player_cooldown_capacity():
+    return spark.sql(  # noqa: F821
+        f"""
+        WITH cooldown_rules AS (
+          SELECT *
+          FROM VALUES
+            {_COOLDOWN_RULES_SQL}
+          AS cooldown_rules(cooldown_category, player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids)
+        ),
+        instrumented_pulls AS (
+          SELECT DISTINCT report_code, fight_id
+          FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cast_events
+          WHERE fight_id IS NOT NULL
+        ),
+        report_player_casts AS (
+          SELECT DISTINCT report_code, player_name, ability_id
+          FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cast_events
+        ),
+        player_casts AS (
+          SELECT
+            report_code,
+            fight_id,
+            player_name,
+            ability_id,
+            COUNT(*) AS actual_casts,
+            MAX(cast_timestamp_ms) AS last_cast_on_pull_ms
+          FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cast_events
+          GROUP BY report_code, fight_id, player_name, ability_id
+        ),
+        player_pulls AS (
+          SELECT
+            f.report_code,
+            f.fight_id,
+            f.encounter_id,
+            f.boss_name,
+            f.zone_name,
+            f.zone_id,
+            f.difficulty,
+            f.difficulty_label,
+            f.raid_night_date,
+            f.duration_seconds,
+            f.is_kill,
+            a.player_name,
+            a.player_class
+          FROM (
+            SELECT
+              report_code,
+              fight_id,
+              encounter_id,
+              boss_name,
+              zone_name,
+              zone_id,
+              difficulty,
+              difficulty_label,
+              raid_night_date,
+              duration_seconds,
+              is_kill,
+              EXPLODE(friendly_player_ids) AS actor_id
+            FROM 02_silver.sc_analytics_warcraftlogs.silver_fight_events
+          ) f
+          INNER JOIN 02_silver.sc_analytics_warcraftlogs.silver_actor_roster a
+            ON f.report_code = a.report_code
+           AND f.actor_id = a.actor_id
+          INNER JOIN instrumented_pulls i
+            ON f.report_code = i.report_code
+           AND f.fight_id = i.fight_id
+          WHERE a.player_name IS NOT NULL
+            AND a.player_name != ''
+        ),
+        player_pull_state AS (
+          SELECT
+            p.*,
+            b.spec_id,
+            b.talent_spell_ids,
+            CASE WHEN b.report_code IS NOT NULL THEN true ELSE false END AS has_combatant_info
+          FROM player_pulls p
+          LEFT JOIN 02_silver.sc_analytics_warcraftlogs.silver_player_combatant_buffs b
+            ON p.report_code = b.report_code
+           AND p.fight_id = b.fight_id
+           AND p.player_name = b.player_name
+        )
+        SELECT
+          p.report_code,
+          p.fight_id,
+          p.encounter_id,
+          p.boss_name,
+          p.zone_name,
+          p.zone_id,
+          p.difficulty,
+          p.difficulty_label,
+          p.raid_night_date,
+          p.duration_seconds,
+          p.is_kill,
+          p.player_name,
+          p.player_class,
+          p.spec_id,
+          r.cooldown_category,
+          r.ability_id,
+          r.ability_name,
+          r.cooldown_seconds,
+          r.active_seconds,
+          r.allowed_spec_ids,
+          r.required_talent_spell_ids,
+          p.talent_spell_ids,
+          p.has_combatant_info,
+          CASE
+            WHEN p.spec_id IS NULL THEN CAST(NULL AS BOOLEAN)
+            WHEN r.allowed_spec_ids = '' THEN true
+            ELSE ARRAY_CONTAINS(SPLIT(r.allowed_spec_ids, '\\\\|'), CAST(p.spec_id AS STRING))
+          END AS spec_eligible,
+          CASE
+            WHEN r.required_talent_spell_ids = '' THEN true
+            WHEN p.talent_spell_ids IS NULL THEN CAST(NULL AS BOOLEAN)
+            ELSE EXISTS(
+              SPLIT(r.required_talent_spell_ids, '\\\\|'),
+              talent_id -> ARRAY_CONTAINS(p.talent_spell_ids, talent_id)
+            )
+          END AS talent_present,
+          CASE WHEN rpc.ability_id IS NOT NULL THEN true ELSE false END AS cast_seen_in_report,
+          COALESCE(pc.actual_casts, 0) AS actual_casts,
+          pc.last_cast_on_pull_ms,
+          CASE
+            WHEN COALESCE(p.duration_seconds, 0) > 0
+            THEN CAST(FLOOR(COALESCE(p.duration_seconds, 0) / r.cooldown_seconds) + 1 AS BIGINT)
+            ELSE CAST(0 AS BIGINT)
+          END AS possible_casts,
+          CASE
+            WHEN p.has_combatant_info = false OR p.spec_id IS NULL THEN 'unknown_missing_combatant_info'
+            WHEN r.allowed_spec_ids <> ''
+             AND NOT ARRAY_CONTAINS(SPLIT(r.allowed_spec_ids, '\\\\|'), CAST(p.spec_id AS STRING))
+            THEN 'untracked_spec_ineligible'
+            WHEN r.required_talent_spell_ids <> ''
+             AND NOT EXISTS(
+               SPLIT(r.required_talent_spell_ids, '\\\\|'),
+               talent_id -> p.talent_spell_ids IS NOT NULL AND ARRAY_CONTAINS(p.talent_spell_ids, talent_id)
+             )
+             AND rpc.ability_id IS NULL
+            THEN 'untracked_talent_missing'
+            ELSE 'tracked'
+          END AS cooldown_tracking_state,
+          CASE
+            WHEN p.has_combatant_info = false OR p.spec_id IS NULL THEN false
+            WHEN r.allowed_spec_ids <> ''
+             AND NOT ARRAY_CONTAINS(SPLIT(r.allowed_spec_ids, '\\\\|'), CAST(p.spec_id AS STRING))
+            THEN false
+            WHEN r.required_talent_spell_ids <> ''
+             AND NOT EXISTS(
+               SPLIT(r.required_talent_spell_ids, '\\\\|'),
+               talent_id -> p.talent_spell_ids IS NOT NULL AND ARRAY_CONTAINS(p.talent_spell_ids, talent_id)
+             )
+             AND rpc.ability_id IS NULL
+            THEN false
+            ELSE true
+          END AS has_tracked_capacity
+        FROM player_pull_state p
+        INNER JOIN cooldown_rules r
+          ON p.player_class = r.player_class
+        LEFT JOIN report_player_casts rpc
+          ON p.report_code = rpc.report_code
+         AND p.player_name = rpc.player_name
+         AND r.ability_id = rpc.ability_id
+        LEFT JOIN player_casts pc
+          ON p.report_code = pc.report_code
+         AND p.fight_id = pc.fight_id
+         AND p.player_name = pc.player_name
+         AND r.ability_id = pc.ability_id
+        """
     )
