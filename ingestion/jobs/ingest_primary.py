@@ -31,6 +31,12 @@ if _bundle_root not in sys.path:
     sys.path.insert(0, _bundle_root)
 
 from ingestion.src.adapters.wcl.client import ArchivedReportError, WarcraftLogsAdapter, WarcraftLogsConfig
+from ingestion.src.utils.paths import LANDING_ROOTS, SOURCE_SUBDIRS
+from ingestion.src.utils.wcl_rankings import (
+    RANKINGS_BACKFILL_MAX_AGE_DAYS,
+    RANKINGS_INCOMPLETE_NULL_FRACTION,
+    rankings_completeness,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -80,37 +86,6 @@ adapter.authenticate()
 # COMMAND ----------
 
 # DBTITLE 1,Volume setup
-LANDING_ROOTS = {
-    "warcraftlogs": "/Volumes/01_bronze/warcraftlogs/landing",
-    "blizzard": "/Volumes/01_bronze/blizzard/landing",
-    "raiderio": "/Volumes/01_bronze/raiderio/landing",
-    "google_sheets": "/Volumes/01_bronze/google_sheets/landing",
-}
-SOURCE_SUBDIRS = {
-    "warcraftlogs": (
-        "guild_reports",
-        "report_fights",
-        "raid_attendance",
-        "actor_roster",
-        "player_details",
-        "zone_catalog",
-        "fight_rankings",
-        "fight_deaths",
-        "fight_casts",
-        "guild_zone_ranks",
-        "archived",
-    ),
-    "blizzard": (
-        "guild_members",
-        "character_media",
-        "character_equipment",
-        "character_achievements",
-        "item_media",
-    ),
-    "raiderio": ("raiderio_character_profiles",),
-    "google_sheets": ("live_raid_roster",),
-}
-
 for source_catalog, source_schema in (
     ("01_bronze", "warcraftlogs"),
     ("01_bronze", "blizzard"),
@@ -443,6 +418,35 @@ RAIDER_IO_PROFILE_EXPORT_CAP = int(_config_value("raider_io_profile_export_cap",
 RAIDER_IO_REQUEST_SLEEP_SECONDS = float(_config_value("raider_io_request_sleep_seconds", "0.25"))
 
 
+def _load_realm_overrides() -> dict[str, str]:
+    config_path = os.path.join(_bundle_root, "ingestion", "config", "realm_overrides.yml")
+    try:
+        import yaml  # noqa: PLC0415
+    except ImportError:
+        logger.warning("realm_overrides: pyyaml unavailable, using no overrides")
+        return {}
+
+    try:
+        with open(config_path) as fh:
+            config = yaml.safe_load(fh) or {}
+    except (OSError, ValueError) as exc:
+        logger.warning("realm_overrides: failed to load %s: %s", config_path, exc)
+        return {}
+
+    overrides = config.get("overrides")
+    if not isinstance(overrides, dict):
+        logger.warning("realm_overrides: invalid overrides payload in %s", config_path)
+        return {}
+
+    return {
+        str(key): str(value)
+        for key, value in overrides.items()
+    }
+
+
+REALM_SLUG_OVERRIDES = _load_realm_overrides()
+
+
 def _realm_to_slug(value: object) -> str:
     text = str(value or server_slug or "").strip()
     if not text:
@@ -454,15 +458,7 @@ def _realm_to_slug(value: object) -> str:
     ).lower()
     while "--" in cleaned:
         cleaned = cleaned.replace("--", "-")
-    overrides = {
-        "twistingnether": "twisting-nether",
-        "twisting-nether": "twisting-nether",
-        "defiasbrotherhood": "defias-brotherhood",
-        "defias-brotherhood": "defias-brotherhood",
-        "argentdawn": "argent-dawn",
-        "argent-dawn": "argent-dawn",
-    }
-    return overrides.get(cleaned.replace("-", ""), cleaned.strip("-"))
+    return REALM_SLUG_OVERRIDES.get(cleaned.replace("-", ""), cleaned.strip("-"))
 
 
 def _raiderio_candidates_from_current_roster() -> list[dict[str, str]]:
@@ -645,78 +641,7 @@ else:
 # rankings are populated or the file ages past RANKINGS_BACKFILL_MAX_AGE_DAYS
 # (after which we assume WCL is never going to rank those fights — e.g. exotic
 # off-spec, partition split, or guild-private report).
-RANKINGS_BACKFILL_MAX_AGE_DAYS = 14
 logger.info("Fetching fight rankings …")
-
-
-# A fight is incomplete if more than this fraction of its characters have a
-# null rankPercent. Tolerates a small number of genuinely unrankable rows
-# (exotic off-spec, very recent spec) without thrashing the refetch loop.
-RANKINGS_INCOMPLETE_NULL_FRACTION = 0.10
-
-
-def _rankings_completeness(path: str) -> tuple[int, int, int, int]:
-    """Return (incomplete_fights, total_fights, null_chars, total_chars).
-
-    A fight is considered incomplete if the fraction of characters with null
-    `rankPercent` exceeds RANKINGS_INCOMPLETE_NULL_FRACTION across the
-    role-appropriate payload — DPS payload for tanks/dps buckets, HPS payload
-    for the healers bucket.  This catches both the "rankings still computing"
-    state (all-null) and the partial-null state where most players ranked but
-    a subset are still pending.
-
-    A landing file that pre-dates the dual-metric fetch (no `rankings_hps_json`
-    field) is treated as incomplete so the ingestion job re-fetches and
-    populates the HPS payload.
-
-    Returns (0, 0, 0, 0) if the file cannot be parsed.
-    """
-    try:
-        with open(path) as fh:
-            record = json.loads(fh.readline())
-        dps_payload = json.loads(record.get("rankings_json") or "null")
-        hps_raw = record.get("rankings_hps_json")
-    except (OSError, ValueError):
-        return (0, 0, 0, 0)
-
-    # Legacy landing files without rankings_hps_json — force a re-fetch so
-    # healer parses become role-correct.
-    if hps_raw is None:
-        fights = (dps_payload or {}).get("data") or []
-        return (len(fights), len(fights), 0, 0)
-
-    try:
-        hps_payload = json.loads(hps_raw)
-    except ValueError:
-        return (0, 0, 0, 0)
-
-    dps_fights = (dps_payload or {}).get("data") or []
-    hps_fights = (hps_payload or {}).get("data") or []
-    hps_by_id = {f.get("fightID"): f for f in hps_fights if isinstance(f, dict)}
-
-    incomplete = 0
-    null_chars_total = 0
-    chars_total = 0
-    for fight in dps_fights:
-        dps_roles = (fight or {}).get("roles") or {}
-        hps_roles = (hps_by_id.get((fight or {}).get("fightID")) or {}).get("roles") or {}
-        fight_chars = 0
-        fight_nulls = 0
-        for role_key in ("tanks", "dps"):
-            for character in ((dps_roles.get(role_key) or {}).get("characters") or []):
-                fight_chars += 1
-                if character.get("rankPercent") is None:
-                    fight_nulls += 1
-        for character in ((hps_roles.get("healers") or {}).get("characters") or []):
-            fight_chars += 1
-            if character.get("rankPercent") is None:
-                fight_nulls += 1
-        chars_total += fight_chars
-        null_chars_total += fight_nulls
-        if fight_chars > 0 and (fight_nulls / fight_chars) > RANKINGS_INCOMPLETE_NULL_FRACTION:
-            incomplete += 1
-    return (incomplete, len(dps_fights), null_chars_total, chars_total)
-
 
 for report_code in all_report_codes:
     if _is_archived(report_code):
@@ -725,7 +650,7 @@ for report_code in all_report_codes:
 
     rankings_file = f"{wcl_landing}/fight_rankings/{report_code}.jsonl"
     if os.path.exists(rankings_file):
-        incomplete, total, null_chars, total_chars = _rankings_completeness(rankings_file)
+        incomplete, total, null_chars, total_chars = rankings_completeness(rankings_file)
         file_age_days = (time.time() - os.path.getmtime(rankings_file)) / 86400
         if incomplete == 0:
             logger.info(

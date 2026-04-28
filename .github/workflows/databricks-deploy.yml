@@ -22,8 +22,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install Databricks CLI
-        run: pip install databricks-cli
+      - name: Set up Databricks CLI
+        uses: databricks/setup-cli@main
       - name: Deploy via Asset Bundles
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}

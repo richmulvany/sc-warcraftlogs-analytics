@@ -2,7 +2,7 @@
 # Docs: https://docs.databricks.com/dev-tools/bundles/index.html
 
 bundle:
-  name: warcraftlogs-analytics
+  name: sc-analytics
 
 sync:
   exclude:
@@ -77,11 +77,27 @@ targets:
   development:
     mode: development
     default: true
+    workspace:
+      root_path: /Workspace/sc-analytics/${bundle.target}
     variables:
       schema: warcraftlogs
     permissions:
     - user_name: ${var.developer_user}
       level: CAN_MANAGE
+  production:
+    mode: production
+    default: false
+    workspace:
+      root_path: /Workspace/sc-analytics/${bundle.target}
+    variables:
+      schema: warcraftlogs
+    permissions:
+    - user_name: ${var.developer_user}
+      level: CAN_MANAGE
+    resources:
+      pipelines:
+        warcraftlogs_pipeline:
+          development: false
 
 resources:
   pipelines:

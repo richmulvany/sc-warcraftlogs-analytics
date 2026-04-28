@@ -11,16 +11,28 @@
 #   comes from the rankings endpoint — use silver_player_rankings.amount.
 #   fact_player_fight_performance joins both sources correctly.
 
-import dlt
-import re
-from pyspark.sql import functions as F
-from pyspark.sql.types import (
+import os
+import sys
+
+_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else None
+_REPO_ROOT = os.path.dirname(os.path.dirname(_HERE)) if _HERE else None
+if _REPO_ROOT and _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+import dlt  # noqa: E402
+from pyspark.sql import functions as F  # noqa: E402
+from pyspark.sql.types import (  # noqa: E402
     ArrayType,
     FloatType,
     LongType,
     StringType,
     StructField,
     StructType,
+)
+
+from pipeline.consumables import (  # noqa: E402
+    classify_weapon_enhancement_names,
+    join_consumable_names,
 )
 
 # ── Schemas for playerDetails JSON blob ───────────────────────────────────────
@@ -88,77 +100,6 @@ _PLAYER_DETAILS_SCHEMA = StructType([
         ]), True),
     ]), True),
 ])
-
-MIDNIGHT_WEAPON_ENHANCEMENT_NAMES = {
-    "thalassian phoenix oil",
-    "smuggler's enchanted edge",
-    "oil of dawn",
-    "refulgent weightstone",
-    "refulgent whetstone",
-    "refulgent razorstone",
-    "laced zoomshots",
-    "weighted boomshots",
-    "smuggler's lynxeye",
-    "farstrider's hawkeye",
-    "flametongue weapon",
-    "windfury weapon",
-    "earthliving weapon",
-}
-
-_SPACE_RE = re.compile(r"\s+")
-
-
-def _normalize_name(value: str | None) -> str:
-    if value is None:
-        return ""
-    return _SPACE_RE.sub(" ", value.strip().lower())
-
-
-def _unique_preserve(values):
-    seen = set()
-    ordered = []
-    for value in values:
-        if value not in seen:
-            seen.add(value)
-            ordered.append(value)
-    return ordered
-
-
-def classify_weapon_enhancement_names(names):
-    if not names:
-        return []
-    matched = []
-    for name in names:
-        trimmed = (name or "").strip()
-        normalized = _normalize_name(trimmed)
-        if not normalized:
-            continue
-        if normalized in MIDNIGHT_WEAPON_ENHANCEMENT_NAMES or any(
-            keyword in normalized
-            for keyword in (
-                " oil",
-                "oil ",
-                "whetstone",
-                "weightstone",
-                "razorstone",
-                "shots",
-                "enchanted edge",
-                "lynxeye",
-                "hawkeye",
-            )
-        ):
-            matched.append(trimmed)
-    return _unique_preserve(matched)
-
-
-def join_consumable_names(names):
-    cleaned = _unique_preserve(
-        (name or "").strip()
-        for name in (names or [])
-        if (name or "").strip()
-    )
-    return " | ".join(cleaned) if cleaned else None
-
 
 _classify_weapon_enhancement_udf = F.udf(classify_weapon_enhancement_names, ArrayType(StringType()))
 _join_consumable_names_udf = F.udf(join_consumable_names, StringType())

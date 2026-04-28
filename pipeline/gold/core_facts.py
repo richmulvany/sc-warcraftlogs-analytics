@@ -1,4 +1,5 @@
 # Databricks notebook source
+# ruff: noqa: I001
 # Gold layer — core fact tables
 #
 # fact_player_fight_performance — one row per player per kill fight with
@@ -14,22 +15,23 @@
 #   payload).  Already normalised per fight second.
 #   silver_player_performance (playerDetails endpoint) does NOT carry damage totals.
 
-import dlt
-from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, LongType, StringType, StructField, StructType
+import os
+import sys
 
-MIDNIGHT_COMBAT_POTION_NAMES = [
-    "lights potential",
-    "potion of recklessness",
-    "potion of zealotry",
-    "draught of rampant abandon",
-]
-MIDNIGHT_COMBAT_POTION_IDS = [
-    1236616,  # Light's Potential buff
-    1236994,  # Potion of Recklessness buff
-    1238443,  # Potion of Zealotry buff
-    1237154,  # Draught of Rampant Abandon buff
-]
+_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else None
+_REPO_ROOT = os.path.dirname(os.path.dirname(_HERE)) if _HERE else None
+if _REPO_ROOT and _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+import dlt  # noqa: E402
+from pyspark.sql import functions as F  # noqa: E402
+from pyspark.sql.types import ArrayType, LongType, StringType, StructField, StructType  # noqa: E402
+
+from pipeline.consumables import (  # noqa: E402
+    MIDNIGHT_COMBAT_POTION_IDS as COMBAT_POTION_IDS,
+    MIDNIGHT_COMBAT_POTION_NAMES as COMBAT_POTION_NAMES,
+    merge_consumable_name_strings,
+)
 
 _BUFF_ABILITY_STRUCT = StructType([
     StructField("name", StringType(), True),
@@ -49,20 +51,6 @@ _BUFF_EVENT_STRUCT = StructType([
 _BUFF_EVENTS_SCHEMA = StructType([
     StructField("data", ArrayType(_BUFF_EVENT_STRUCT), True),
 ])
-
-def merge_consumable_name_strings(*parts):
-    seen = set()
-    names = []
-    for part in parts:
-        if not part:
-            continue
-        for piece in str(part).split("|"):
-            cleaned = piece.strip()
-            if cleaned and cleaned not in seen:
-                seen.add(cleaned)
-                names.append(cleaned)
-    return " | ".join(names) if names else None
-
 
 _merge_consumable_names_udf = F.udf(merge_consumable_name_strings, StringType())
 
@@ -173,20 +161,24 @@ def fact_player_fight_performance():
             F.trim(
                 F.regexp_replace(
                     F.regexp_replace(
-                        F.lower(F.coalesce(F.col("event.ability.name"), F.lit(""))),
-                        r"[^a-z0-9]+",
+                        F.regexp_replace(
+                            F.lower(F.coalesce(F.col("event.ability.name"), F.lit(""))),
+                            r"'",
+                            "",
+                        ),
+                        r"\s+",
                         " ",
                     ),
-                    r"\s+",
-                    " ",
+                    r"^\s+|\s+$",
+                    "",
                 )
             ),
         )
         .withColumn("actor_id", F.coalesce(F.col("event.targetID"), F.col("event.sourceID")))
         .filter(
-            F.col("ability_name_normalized").isin(MIDNIGHT_COMBAT_POTION_NAMES)
-            | F.col("event.ability.guid").isin(MIDNIGHT_COMBAT_POTION_IDS)
-            | F.col("event.abilityGameID").isin(MIDNIGHT_COMBAT_POTION_IDS)
+            F.col("ability_name_normalized").isin(COMBAT_POTION_NAMES)
+            | F.col("event.ability.guid").isin(COMBAT_POTION_IDS)
+            | F.col("event.abilityGameID").isin(COMBAT_POTION_IDS)
         )
         .join(
             actors.select(

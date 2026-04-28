@@ -36,16 +36,30 @@
 #   - events[] are sorted newest-first; events[0] from a non-friendly source = killing blow
 #   - No "killingBlow" top-level field — derived from events[0]
 
-import dlt
-import re
-from pyspark.sql import functions as F
-from pyspark.sql.types import (
+import os
+import sys
+
+_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else None
+_REPO_ROOT = os.path.dirname(os.path.dirname(_HERE)) if _HERE else None
+if _REPO_ROOT and _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
+import dlt  # noqa: E402
+from pyspark.sql import functions as F  # noqa: E402
+from pyspark.sql.types import (  # noqa: E402
     ArrayType,
     BooleanType,
     LongType,
     StringType,
     StructField,
     StructType,
+)
+
+from pipeline.consumables import (  # noqa: E402
+    classify_flask_or_phial_names,
+    classify_food_names,
+    classify_weapon_enhancement_names,
+    join_consumable_names,
 )
 
 # ── Schema for the table(dataType: Deaths) JSON scalar ────────────────────────
@@ -196,155 +210,6 @@ _COMBATANT_INFO_EVENT_STRUCT = StructType([
 _COMBATANT_INFO_EVENTS_SCHEMA = StructType([
     StructField("data", ArrayType(_COMBATANT_INFO_EVENT_STRUCT), True),
 ])
-
-MIDNIGHT_FLASK_OR_PHIAL_NAMES = {
-    "flask of thalassian resistance",
-    "flask of the blood knights",
-    "flask of the magisters",
-    "flask of the shattered sun",
-    "vicious thalassian flask of honor",
-    "haranir phial of perception",
-    "haranir phial of ingenuity",
-    "haranir phial of finesse",
-}
-MIDNIGHT_WEAPON_ENHANCEMENT_NAMES = {
-    "thalassian phoenix oil",
-    "smuggler's enchanted edge",
-    "oil of dawn",
-    "refulgent weightstone",
-    "refulgent whetstone",
-    "refulgent razorstone",
-    "laced zoomshots",
-    "weighted boomshots",
-    "smuggler's lynxeye",
-    "farstrider's hawkeye",
-    "flametongue weapon",
-    "windfury weapon",
-    "earthliving weapon",
-}
-MIDNIGHT_COMBAT_POTION_NAMES = {
-    "light's potential",
-    "potion of recklessness",
-    "potion of zealotry",
-    "draught of rampant abandon",
-}
-MIDNIGHT_FOOD_NAMES = {
-    "silvermoon parade",
-    "harandar celebration",
-    "quel'dorei medley",
-    "blooming feast",
-    "royal roast",
-    "impossibly royal roast",
-    "flora frenzy",
-    "champion's bento",
-    "warped wise wings",
-    "void-kissed fish rolls",
-    "sun-seared lumifin",
-    "null and void plate",
-    "glitter skewers",
-    "fel-kissed filet",
-    "buttered root crab",
-    "arcano cutlets",
-    "tasty smoked tetra",
-    "crimson calamari",
-    "braised blood hunter",
-    "sunwell delight",
-    "hearthflame supper",
-    "fried bloomtail",
-    "felberry figs",
-    "eversong pudding",
-    "bloodthistle-wrapped cutlets",
-    "wise tails",
-    "twilight angler's medley",
-    "spellfire filet",
-    "spiced biscuits",
-    "silvermoon standard",
-    "quick sandwich",
-    "portable snack",
-    "mana-infused stew",
-    "forager's medley",
-    "farstrider rations",
-    "bloom skewers",
-}
-_SPACE_RE = re.compile(r"\s+")
-
-
-def _normalize_name(value: str | None) -> str:
-    if value is None:
-        return ""
-    return _SPACE_RE.sub(" ", value.strip().lower())
-
-
-def _unique_preserve(values):
-    seen = set()
-    ordered = []
-    for value in values:
-        if value not in seen:
-            seen.add(value)
-            ordered.append(value)
-    return ordered
-
-
-def _classify(names, matcher):
-    if not names:
-        return []
-    matched = []
-    for name in names:
-        trimmed = (name or "").strip()
-        if trimmed and matcher(trimmed):
-            matched.append(trimmed)
-    return _unique_preserve(matched)
-
-
-def classify_food_names(names):
-    def matcher(name: str) -> bool:
-        normalized = _normalize_name(name)
-        return normalized in MIDNIGHT_FOOD_NAMES or "well fed" in normalized or "feast" in normalized
-    return _classify(names, matcher)
-
-
-def classify_flask_or_phial_names(names):
-    def matcher(name: str) -> bool:
-        normalized = _normalize_name(name)
-        return normalized in MIDNIGHT_FLASK_OR_PHIAL_NAMES or "flask" in normalized or "phial" in normalized
-    return _classify(names, matcher)
-
-
-def classify_weapon_enhancement_names(names):
-    def matcher(name: str) -> bool:
-        normalized = _normalize_name(name)
-        return normalized in MIDNIGHT_WEAPON_ENHANCEMENT_NAMES or any(
-            keyword in normalized
-            for keyword in (
-                " oil",
-                "oil ",
-                "whetstone",
-                "weightstone",
-                "razorstone",
-                "shots",
-                "enchanted edge",
-                "lynxeye",
-                "hawkeye",
-            )
-        )
-    return _classify(names, matcher)
-
-
-def classify_combat_potion_names(names):
-    def matcher(name: str) -> bool:
-        normalized = _normalize_name(name)
-        return normalized in MIDNIGHT_COMBAT_POTION_NAMES
-    return _classify(names, matcher)
-
-
-def join_consumable_names(names):
-    cleaned = _unique_preserve(
-        (name or "").strip()
-        for name in (names or [])
-        if (name or "").strip()
-    )
-    return " | ".join(cleaned) if cleaned else None
-
 
 _classify_food_udf = F.udf(classify_food_names, ArrayType(StringType()))
 _classify_flask_udf = F.udf(classify_flask_or_phial_names, ArrayType(StringType()))
