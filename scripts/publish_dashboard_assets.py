@@ -28,6 +28,8 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service import sql
 from dotenv import load_dotenv
 
+from scripts.dashboard_asset_contracts import validate_dashboard_asset_rows
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(REPO_ROOT / ".env")
 
@@ -881,6 +883,7 @@ def export_dataset(
         warehouse_id,
         table_name=table_name,
     )
+    validate_dashboard_asset_rows(dataset_name, rows)
     output_file = output_dir / f"{dataset_name}.json"
     byte_size = write_json_file(output_file, rows)
     _validate_dataset_size(dataset_name, row_count=len(rows), byte_size=byte_size)
@@ -911,6 +914,7 @@ def export_query_dataset(
         warehouse_id,
         sql_text=sql_text,
     )
+    validate_dashboard_asset_rows(dataset_name, rows)
     output_file = output_dir / f"{dataset_name}.json"
     byte_size = write_json_file(output_file, rows)
     _validate_dataset_size(dataset_name, row_count=len(rows), byte_size=byte_size)
