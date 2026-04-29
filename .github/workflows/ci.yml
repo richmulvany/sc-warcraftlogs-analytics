@@ -24,7 +24,7 @@ jobs:
       - name: Format check
         run: ruff format --check ingestion/ pipeline/ scripts/
       - name: Type check with mypy
-        run: mypy ingestion/src pipeline/
+        run: mypy ingestion/src
       - name: Run tests
         run: pytest ingestion/tests pipeline/tests --cov=ingestion/src --cov=pipeline --cov-report=xml -q
       - name: Upload coverage

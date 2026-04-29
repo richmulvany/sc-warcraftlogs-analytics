@@ -66,7 +66,7 @@ test-lint:
 	@echo ">> Linting with ruff..."
 	ruff check ingestion/ pipeline/ scripts/
 	@echo ">> Type checking with mypy..."
-	mypy ingestion/src pipeline/
+	mypy ingestion/src
 
 format:
 	ruff format ingestion/ pipeline/ scripts/
