@@ -1,0 +1,116 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.wipe_cooldown_utilization
+info:
+  title: Wipe Cooldown Utilization Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+  description: >
+    Published JSON asset summarising tracked cooldown capacity and usage on
+    wipe pulls for the wipe-analysis dashboard.
+servers:
+  dashboard_json:
+    type: custom
+    description: Databricks gold table exported as static JSON through dashboard publishing.
+    location: /Volumes/03_gold/sc_analytics/dashboard_exports/latest/wipe_cooldown_utilization.json
+models:
+  wipe_cooldown_utilization:
+    type: table
+    description: Aggregated tracked cooldown capacity and usage on wipe pulls.
+    primaryKey:
+      - boss_name
+      - zone_name
+      - difficulty_label
+      - cooldown_category
+      - player_name
+      - player_class
+      - ability_id
+    fields:
+      boss_name:
+        type: string
+        required: true
+        primary: true
+        description: Boss display name.
+      zone_name:
+        type: string
+        required: true
+        primary: true
+        description: Raid zone display name.
+      difficulty_label:
+        type: string
+        required: true
+        primary: true
+        description: Human-readable difficulty label.
+      cooldown_category:
+        type: string
+        required: true
+        primary: true
+        description: Cooldown rule category.
+      player_name:
+        type: string
+        required: true
+        primary: true
+        description: Character name.
+      player_class:
+        type: string
+        required: true
+        primary: true
+        description: WarcraftLogs class name.
+      ability_id:
+        type: integer
+        required: true
+        primary: true
+        description: Spell identifier for the tracked cooldown.
+      ability_name:
+        type: string
+        required: true
+        description: Spell display name for the tracked cooldown.
+      possible_casts:
+        type: integer
+        required: true
+        description: Capacity from pull duration and tracked cooldown rules, not observed opportunity.
+      actual_casts:
+        type: integer
+        required: true
+        description: Number of matching casts observed in the scoped wipe pulls.
+      missed_casts:
+        type: integer
+        required: true
+        description: max(possible_casts - actual_casts, 0).
+quality:
+  type: custom
+  specification:
+    checks for wipe_cooldown_utilization:
+      - duplicate_count(boss_name, zone_name, difficulty_label, cooldown_category, player_name, player_class, ability_id) = 0
+      - possible_casts >= 0
+      - actual_casts >= 0
+      - missed_casts = max(possible_casts - actual_casts, 0)
+x-sc-analytics:
+  dashboardAsset:
+    dataset: wipe_cooldown_utilization
+    sourceTable: 03_gold.sc_analytics.gold_wipe_cooldown_utilization
+    publishedPath: wipe_cooldown_utilization.json
+    grain: >
+      One row per boss, zone, difficulty, cooldown category, player, class, and
+      ability in the published aggregation.
+    consumers:
+      - frontend/src/hooks/useGoldData.ts:useWipeCooldownUtilization
+      - frontend/src/features/wipe-analysis/index.tsx
+    freshness:
+      expectedAfterJob: daily_orchestrator
+      maxStalenessHours: 48
+    rules:
+      - name: valid_difficulty
+        field: difficulty_label
+        enum: [Normal, Heroic, Mythic]
+      - name: valid_cooldown_category
+        field: cooldown_category
+        enum: [personal, personal_spec, raid, external]
+      - name: non_negative_counts
+        expression: possible_casts >= 0 and actual_casts >= 0 and missed_casts >= 0
+      - name: missed_casts_formula
+        expression: missed_casts == max(possible_casts - actual_casts, 0)
+    breakingChanges:
+      - Removing or renaming any listed field.
+      - Changing the grain of the published aggregation.
+      - Changing possible_casts from capacity semantics to observed-use semantics.

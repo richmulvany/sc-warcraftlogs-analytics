@@ -19,6 +19,7 @@ from scripts.publish_dashboard_assets import (
     _validate_dataset_size,
     _validate_manifest_datasets,
     _validate_total_export_size,
+    export_query_dataset,
     normalise_row_for_json,
     write_manifest,
 )
@@ -130,6 +131,41 @@ def test_validate_manifest_datasets_rejects_missing_dataset(
                 },
             }
         )
+
+
+def test_export_query_dataset_validates_rows_before_writing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        publish_dashboard_assets,
+        "_query_rows",
+        lambda *_args, **_kwargs: [{"id": 1}],
+    )
+
+    def fail_validation(dataset_name: str, rows: list[dict[str, object]]) -> None:
+        assert dataset_name == "contracted_dataset"
+        assert rows == [{"id": 1}]
+        raise RuntimeError("contract failed")
+
+    monkeypatch.setattr(
+        publish_dashboard_assets,
+        "validate_dashboard_asset_rows",
+        fail_validation,
+    )
+
+    with pytest.raises(RuntimeError, match="contract failed"):
+        export_query_dataset(
+            None,
+            None,
+            None,
+            "contracted_dataset",
+            "03_gold.sc_analytics.contracted_dataset",
+            "SELECT 1 AS id",
+            tmp_path,
+        )
+
+    assert not (tmp_path / "contracted_dataset.json").exists()
 
 
 def test_publish_local_tree_failure_leaves_latest_intact(
