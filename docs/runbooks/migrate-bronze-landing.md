@@ -1,5 +1,7 @@
 # Runbook: Migrate Bronze Landing Volumes
 
+> Archive-only: this migration is complete. Keep this document only for historical recovery or environment rebuilds.
+
 ## Goal
 
 Move the existing raw landing data from the shared legacy volume:

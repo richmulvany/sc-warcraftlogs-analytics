@@ -15,6 +15,13 @@ The ingestion job is incremental. Re-running it should only fetch missing or sta
 databricks bundle run ingestion_daily
 ```
 
+The ingestion job now runs as four sequential source stages:
+
+- `ingest_wcl`
+- `ingest_blizzard`
+- `ingest_raiderio`
+- `ingest_google_sheets`
+
 Then run the DLT update (`sdp_post_ingestion`) and the asset write
 (`write_dashboard_assets`). To execute the full daily flow on demand, run the
 parent orchestrator instead — it chains all four stages with explicit
@@ -40,6 +47,7 @@ databricks bundle run daily_orchestrator
 |---------|-------|-----|
 | HTTP 429 in logs | WCL rate limit hit | Re-run the job. Retry handling is built in, but an interrupted run may still need another pass. |
 | HTTP 401 in logs | Invalid or rotated credentials | Update secrets in the `warcraftlogs` scope, then re-run ingestion. |
+| Blizzard 403 / OAuth failure | Blizzard credentials expired or wrong | Re-run only `ingest_blizzard` after rotating secrets. |
 | `ArchivedReportError` in logs | WCL report is archived | Expected. A skip marker is written under `/Volumes/01_bronze/warcraftlogs/landing/archived/`. |
 | Missing later wipe deaths on long reports | Legacy multi-fight `Deaths` payload truncated by WCL | Re-run ingestion after deploying the one-fight-at-a-time death fetch fix. |
 | Empty or stale silver/gold after successful ingestion | DLT update not run, or pipeline state stale | Run a pipeline update. Use full refresh only if a normal update does not recover. |

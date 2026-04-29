@@ -28,6 +28,7 @@ def silver_zone_catalog():
             F.col("frozen").alias("zone_frozen"),
             F.explode("encounters").alias("encounter"),
             F.col("difficulties"),
+            F.col("_ingested_at"),
         )
         .select(
             F.col("zone_id"),
@@ -40,6 +41,7 @@ def silver_zone_catalog():
                 F.col("difficulties"),
                 lambda d: d["name"],
             ).alias("difficulty_names"),
+            F.col("_ingested_at"),
         )
         .dropDuplicates(["zone_id", "encounter_id"])
     )

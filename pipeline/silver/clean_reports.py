@@ -1,4 +1,5 @@
 # Databricks notebook source
+# ruff: noqa: E402, I001
 # Silver layer — cleaned guild reports and fight events
 #
 # silver_guild_reports  — one row per report with parsed timestamps and zone
@@ -6,7 +7,49 @@
 #                         enriched with zone and difficulty label from the report
 
 import dlt
+import os
+import sys
 from pyspark.sql import functions as F
+
+
+def _ensure_repo_root_on_syspath() -> None:
+    candidates = [os.getcwd()]
+
+    module_file = globals().get("__file__")
+    if module_file:
+        candidates.append(os.path.abspath(module_file))
+
+    try:
+        notebook_path = (
+            dbutils.notebook.entry_point.getDbutils()  # noqa: F821
+            .notebook()
+            .getContext()
+            .notebookPath()
+            .get()
+        )
+        candidates.append(notebook_path)
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
+        while current and current != os.path.dirname(current):
+            pipeline_dir = (
+                current
+                if os.path.basename(current) == "pipeline"
+                else os.path.join(current, "pipeline")
+            )
+            if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
+                repo_root = os.path.dirname(pipeline_dir)
+                if repo_root not in sys.path:
+                    sys.path.insert(0, repo_root)
+                return
+            current = os.path.dirname(current)
+
+
+_ensure_repo_root_on_syspath()
+
+from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT
 
 RAID_DIFFICULTIES = (3, 4, 5)  # Normal=3, Heroic=4, Mythic=5  (M+=10 excluded)
 
@@ -21,6 +64,7 @@ RAID_DIFFICULTIES = (3, 4, 5)  # Normal=3, Heroic=4, Mythic=5  (M+=10 excluded)
 )
 @dlt.expect_or_drop("valid_report_code", "code IS NOT NULL AND LENGTH(code) > 0")
 @dlt.expect("valid_start_time", "start_time_utc IS NOT NULL")
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_guild_reports():
     return (
         spark.readStream.table("01_bronze.warcraftlogs.bronze_guild_reports")  # noqa: F821
@@ -56,6 +100,7 @@ def silver_guild_reports():
 @dlt.expect_or_drop("valid_report_code", "report_code IS NOT NULL")
 @dlt.expect_or_drop("is_raid_encounter", "encounter_id IS NOT NULL AND encounter_id > 0")
 @dlt.expect_or_drop("is_raid_difficulty", "difficulty IN (3, 4, 5)")
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_fight_events():
     reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
@@ -95,9 +140,9 @@ def silver_fight_events():
         .withColumn(
             "difficulty_label",
             F.when(F.col("difficulty") == 3, "Normal")
-             .when(F.col("difficulty") == 4, "Heroic")
-             .when(F.col("difficulty") == 5, "Mythic")
-             .otherwise("Unknown"),
+            .when(F.col("difficulty") == 4, "Heroic")
+            .when(F.col("difficulty") == 5, "Mythic")
+            .otherwise("Unknown"),
         )
         .withColumn("outcome", F.when(F.col("is_kill"), "kill").otherwise("wipe"))
         # ── Join zone + date from silver_guild_reports (batch dimension) ──

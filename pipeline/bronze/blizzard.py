@@ -28,16 +28,18 @@ def _autoload(subdir: str, schema: StructType):
 
 # ── Guild Members ──────────────────────────────────────────────────────────────
 
-_GUILD_MEMBERS_SCHEMA = StructType([
-    StructField("name", StringType(), True),
-    StructField("realm_slug", StringType(), True),
-    StructField("rank", LongType(), True),
-    StructField("class_id", LongType(), True),
-    StructField("class_name", StringType(), True),
-    StructField("level", LongType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_GUILD_MEMBERS_SCHEMA = StructType(
+    [
+        StructField("name", StringType(), True),
+        StructField("realm_slug", StringType(), True),
+        StructField("rank", LongType(), True),
+        StructField("class_id", LongType(), True),
+        StructField("class_name", StringType(), True),
+        StructField("level", LongType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -51,13 +53,15 @@ def bronze_guild_members():
 
 # ── Character Media (NEW — migrated from export script) ───────────────────────
 
-_CHARACTER_MEDIA_SCHEMA = StructType([
-    StructField("player_name", StringType(), True),
-    StructField("realm_slug", StringType(), True),
-    StructField("media_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_CHARACTER_MEDIA_SCHEMA = StructType(
+    [
+        StructField("player_name", StringType(), True),
+        StructField("realm_slug", StringType(), True),
+        StructField("media_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -72,13 +76,15 @@ def bronze_character_media():
 
 # ── Character Equipment (NEW) ─────────────────────────────────────────────────
 
-_CHARACTER_EQUIPMENT_SCHEMA = StructType([
-    StructField("player_name", StringType(), True),
-    StructField("realm_slug", StringType(), True),
-    StructField("equipment_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_CHARACTER_EQUIPMENT_SCHEMA = StructType(
+    [
+        StructField("player_name", StringType(), True),
+        StructField("realm_slug", StringType(), True),
+        StructField("equipment_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -93,13 +99,15 @@ def bronze_character_equipment():
 
 # ── Character Achievements (NEW) ──────────────────────────────────────────────
 
-_CHARACTER_ACHIEVEMENTS_SCHEMA = StructType([
-    StructField("player_name", StringType(), True),
-    StructField("realm_slug", StringType(), True),
-    StructField("achievements_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_CHARACTER_ACHIEVEMENTS_SCHEMA = StructType(
+    [
+        StructField("player_name", StringType(), True),
+        StructField("realm_slug", StringType(), True),
+        StructField("achievements_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -114,12 +122,14 @@ def bronze_character_achievements():
 
 # ── Item Media (NEW) ──────────────────────────────────────────────────────────
 
-_ITEM_MEDIA_SCHEMA = StructType([
-    StructField("item_id", LongType(), True),
-    StructField("media_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_ITEM_MEDIA_SCHEMA = StructType(
+    [
+        StructField("item_id", LongType(), True),
+        StructField("media_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(

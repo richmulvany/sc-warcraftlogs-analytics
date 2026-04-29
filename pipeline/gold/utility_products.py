@@ -9,8 +9,8 @@
 # Both tables previously lived as embedded SQL in scripts/export_gold_tables.py.
 # Migrating into DLT lets the export step become a pure CSV writer.
 
-import sys
 import os
+import sys
 
 # Make sibling module `_cooldown_rules` importable inside the DLT notebook
 # (Databricks workspace files are not on sys.path by default).
@@ -19,13 +19,12 @@ if _HERE and _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 import dlt  # noqa: E402
-
 from _cooldown_rules import (  # noqa: E402
     DEFENSIVE_ABILITY_IDS,
     DEFENSIVE_ABILITY_NAMES,
     EXCLUDED_ZONES,
-    HEALTHSTONE_ABILITY_IDS,
     HEALTH_POTION_ABILITY_IDS,
+    HEALTHSTONE_ABILITY_IDS,
     utility_ability_name_sql,
 )
 
@@ -42,6 +41,7 @@ _UTILITY_ABILITY_NAME_SQL = utility_ability_name_sql()
 
 
 # ── gold_weekly_activity ───────────────────────────────────────────────────────
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_weekly_activity",
@@ -72,6 +72,7 @@ def gold_weekly_activity():
 
 
 # ── gold_player_utility_by_pull ────────────────────────────────────────────────
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_player_utility_by_pull",

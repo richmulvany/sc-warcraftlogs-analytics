@@ -85,4 +85,4 @@ The preferred frontend path is manifest-driven JSON fetched from the published d
 - Any TypeScript row interface the consuming page needs
 - Any page/component wiring that consumes the dataset through the compatibility layer or `dashboardDataClient`
 
-If you need a temporary local fallback for development, `scripts/export_gold_tables.py` still exists, but it is no longer the primary production publishing path.
+If you need a temporary local fallback for development, `scripts/dev/export_gold_tables.py` still exists, but it is no longer the primary production publishing path.

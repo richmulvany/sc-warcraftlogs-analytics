@@ -31,7 +31,7 @@ def test_fetch_returns_records(adapter: ExampleAdapter) -> None:
         "has_more": False,
     }
     mock_response.raise_for_status = MagicMock()
-    adapter._client.get = MagicMock(return_value=mock_response)  # type: ignore[union-attr]
+    adapter._client.get = MagicMock(return_value=mock_response)  # type: ignore[method-assign,union-attr]
 
     result = adapter.fetch("entities")
     assert isinstance(result, FetchResult)
@@ -48,7 +48,7 @@ def test_fetch_handles_pagination(adapter: ExampleAdapter) -> None:
         "has_more": True,
     }
     mock_response.raise_for_status = MagicMock()
-    adapter._client.get = MagicMock(return_value=mock_response)  # type: ignore[union-attr]
+    adapter._client.get = MagicMock(return_value=mock_response)  # type: ignore[method-assign,union-attr]
 
     result = adapter.fetch("entities", params={"page": 1})
     assert result.has_more is True

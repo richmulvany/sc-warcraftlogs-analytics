@@ -16,6 +16,7 @@ from pyspark.sql.window import Window
 # Guild membership and rank are joined in from silver_guild_members using a
 # case-insensitive name match to handle capitalisation differences.
 
+
 @dlt.table(
     name="03_gold.sc_analytics.dim_player",
     comment=(
@@ -36,8 +37,7 @@ def dim_player():
     # Most recent class + realm snapshot per player from actor logs
     w_actor = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
     latest_actor = (
-        actors
-        .filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
+        actors.filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
         .withColumn("_rn", F.row_number().over(w_actor))
         .filter(F.col("_rn") == 1)
         .select("player_name", "player_class", "realm")
@@ -47,8 +47,7 @@ def dim_player():
     # Use this to fill in player_class when actor roster has null/blank class.
     w_perf = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
     perf_class = (
-        perf
-        .filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
+        perf.filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
         .filter(F.col("player_class").isNotNull() & (F.col("player_class") != ""))
         .withColumn("_rn", F.row_number().over(w_perf))
         .filter(F.col("_rn") == 1)
@@ -60,26 +59,20 @@ def dim_player():
 
     # All distinct player names from attendance (catches players not in actor roster)
     att_players = (
-        attendance
-        .filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
+        attendance.filter(F.col("player_name").isNotNull() & (F.col("player_name") != ""))
         .select("player_name")
         .distinct()
     )
 
     # Attendance date range per player
-    att_dates = (
-        attendance
-        .groupBy("player_name")
-        .agg(
-            F.min("raid_night_date").alias("first_seen_date"),
-            F.max("raid_night_date").alias("last_seen_date"),
-        )
+    att_dates = attendance.groupBy("player_name").agg(
+        F.min("raid_night_date").alias("first_seen_date"),
+        F.max("raid_night_date").alias("last_seen_date"),
     )
 
     # Union actor roster names with attendance-only names, then join actor info
     all_players = (
-        latest_actor
-        .select("player_name")
+        latest_actor.select("player_name")
         .union(att_players)
         .distinct()
         # Exclude blank names that can slip in through attendance data
@@ -88,8 +81,7 @@ def dim_player():
 
     # Bring in actor class/realm for all players (null for attendance-only)
     players_with_actor = (
-        all_players
-        .join(latest_actor, "player_name", "left")
+        all_players.join(latest_actor, "player_name", "left")
         # Fill missing player_class from performance data (more consistently populated)
         .join(perf_class, F.col("player_name") == perf_class._pc_player_name, "left")
         .withColumn(
@@ -100,27 +92,20 @@ def dim_player():
     )
 
     # Join attendance date range
-    players_with_dates = (
-        players_with_actor
-        .join(att_dates, "player_name", "left")
-    )
+    players_with_dates = players_with_actor.join(att_dates, "player_name", "left")
 
     # Join guild membership using case-insensitive name matching
-    guild_enriched = (
-        guild_members
-        .select(
-            F.lower("name").alias("_member_lower"),
-            F.col("name").alias("_member_name"),
-            F.col("rank"),
-            F.col("rank_label"),
-            F.col("rank_category"),
-            F.col("is_raid_team"),
-        )
+    guild_enriched = guild_members.select(
+        F.lower("name").alias("_member_lower"),
+        F.col("name").alias("_member_name"),
+        F.col("rank"),
+        F.col("rank_label"),
+        F.col("rank_category"),
+        F.col("is_raid_team"),
     )
 
     return (
-        players_with_dates
-        .join(
+        players_with_dates.join(
             guild_enriched,
             F.lower(F.col("player_name")) == F.col("_member_lower"),
             "left",
@@ -150,6 +135,7 @@ def dim_player():
 # is_active = attendance_rate_pct >= 25.0 OR rank IN (0, 1) so GMs and Officers
 # are always considered active regardless of recent attendance.
 
+
 @dlt.table(
     name="03_gold.sc_analytics.dim_guild_member",
     comment=(
@@ -167,8 +153,7 @@ def dim_guild_member():
 
     # Attendance stats per player (case-insensitive join to handle capitalisation)
     att_stats = (
-        attendance
-        .groupBy(F.lower("player_name").alias("_player_lower"))
+        attendance.groupBy(F.lower("player_name").alias("_player_lower"))
         .agg(
             F.count("*").alias("total_raids_tracked"),
             F.sum(F.when(F.col("presence") == 1, 1).otherwise(0)).alias("raids_present"),
@@ -178,17 +163,14 @@ def dim_guild_member():
         .withColumn(
             "attendance_rate_pct",
             F.round(
-                F.col("raids_present")
-                / F.greatest(F.col("total_raids_tracked"), F.lit(1))
-                * 100,
+                F.col("raids_present") / F.greatest(F.col("total_raids_tracked"), F.lit(1)) * 100,
                 1,
             ),
         )
     )
 
     return (
-        members
-        .join(
+        members.join(
             att_stats,
             F.lower(F.col("name")) == F.col("_player_lower"),
             "left",

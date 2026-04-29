@@ -24,8 +24,7 @@ def silver_guild_zone_ranks():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_guild_zone_ranks")  # noqa: F821
     w = Window.partitionBy("zone_id").orderBy(F.col("_ingested_at").desc())
     return (
-        raw
-        .withColumn("_rn", F.row_number().over(w))
+        raw.withColumn("_rn", F.row_number().over(w))
         .filter(F.col("_rn") == 1)
         .drop("_rn")
         .select(

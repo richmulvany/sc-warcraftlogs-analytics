@@ -26,7 +26,7 @@ Optional local checks:
 
 ```bash
 .venv/bin/ruff check .
-python3 -m py_compile scripts/export_gold_tables.py scripts/publish_dashboard_assets.py ingestion/src/adapters/wcl/client.py ingestion/src/adapters/blizzard/client.py
+python3 -m py_compile scripts/dev/export_gold_tables.py scripts/publish_dashboard_assets.py ingestion/src/adapters/wcl/client.py ingestion/src/adapters/blizzard/client.py
 cd frontend && npm run build && cd ..
 ```
 
@@ -137,7 +137,7 @@ This writes dashboard-ready JSON assets from persisted gold tables in `03_gold.s
 Local CSV export still exists as a compatibility fallback:
 
 ```bash
-.venv/bin/python scripts/export_gold_tables.py
+.venv/bin/python scripts/dev/export_gold_tables.py
 ```
 
 Use that only when you explicitly want local static assets for development or rollback.

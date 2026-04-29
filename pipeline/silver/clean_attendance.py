@@ -1,11 +1,54 @@
 # Databricks notebook source
+# ruff: noqa: E402, I001
 # Silver layer — cleaned and exploded raid attendance
 #
 # silver_raid_attendance — one row per player per raid report with presence
 #                          status, class, zone context, and raid night date.
 
 import dlt
+import os
+import sys
 from pyspark.sql import functions as F
+
+
+def _ensure_repo_root_on_syspath() -> None:
+    candidates = [os.getcwd()]
+
+    module_file = globals().get("__file__")
+    if module_file:
+        candidates.append(os.path.abspath(module_file))
+
+    try:
+        notebook_path = (
+            dbutils.notebook.entry_point.getDbutils()  # noqa: F821
+            .notebook()
+            .getContext()
+            .notebookPath()
+            .get()
+        )
+        candidates.append(notebook_path)
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
+        while current and current != os.path.dirname(current):
+            pipeline_dir = (
+                current
+                if os.path.basename(current) == "pipeline"
+                else os.path.join(current, "pipeline")
+            )
+            if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
+                repo_root = os.path.dirname(pipeline_dir)
+                if repo_root not in sys.path:
+                    sys.path.insert(0, repo_root)
+                return
+            current = os.path.dirname(current)
+
+
+_ensure_repo_root_on_syspath()
+
+from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT
 
 
 @dlt.table(
@@ -18,6 +61,7 @@ from pyspark.sql import functions as F
 )
 @dlt.expect_or_drop("valid_report_code", "report_code IS NOT NULL AND LENGTH(report_code) > 0")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL AND LENGTH(player_name) > 0")
+@dlt.expect(*INGESTED_AT_PRESENT)
 def silver_raid_attendance():
     # Join to silver_guild_reports (batch) for zone and date context.
     # Earlier attendance files don't carry zone/startTime fields, so we resolve
@@ -42,8 +86,8 @@ def silver_raid_attendance():
         .withColumn(
             "presence_status",
             F.when(F.col("presence") == 1, "present")
-             .when(F.col("presence") == 2, "benched")
-             .otherwise("absent"),
+            .when(F.col("presence") == 2, "benched")
+            .otherwise("absent"),
         )
         .join(
             reports.select(

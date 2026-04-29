@@ -15,13 +15,15 @@ LANDING = "/Volumes/01_bronze/google_sheets/landing"
 TARGET_SCHEMA = "01_bronze.google_sheets"
 
 
-_LIVE_RAID_ROSTER_SCHEMA = StructType([
-    StructField("sheet_id", StringType(), True),
-    StructField("gid", StringType(), True),
-    StructField("csv_text", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_LIVE_RAID_ROSTER_SCHEMA = StructType(
+    [
+        StructField("sheet_id", StringType(), True),
+        StructField("gid", StringType(), True),
+        StructField("csv_text", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(

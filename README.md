@@ -127,7 +127,7 @@ sc-warcraftlogs-analytics/
 │       ├── profile_products.py      # live roster, zone ranks, media, equipment, achievements
 │       └── _cooldown_rules.py       # shared cooldown/spec metadata
 ├── frontend/                     # React + Vite + TypeScript dashboard
-├── scripts/export_gold_tables.py    # legacy CSV export for local fallback
+├── scripts/dev/export_gold_tables.py # legacy CSV export for local fallback
 ├── scripts/publish_dashboard_assets.py  # gold tables -> UC Volume JSON assets
 ├── docs/                         # Architecture, data dictionary, runbooks, ADRs
 ├── databricks.yml                # Databricks Asset Bundle (pipeline + job config)
@@ -176,7 +176,7 @@ Implementation notes:
   weapon enhancements, and buff-based combat potion detection
 - shared identity overrides come from
   `00_governance.warcraftlogs_admin.preparation_identity_overrides` and are exported
-  by `scripts/export_gold_tables.py`
+  by `scripts/dev/export_gold_tables.py`
 
 ## Mythic+ Page
 

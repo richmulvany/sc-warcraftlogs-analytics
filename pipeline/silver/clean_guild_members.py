@@ -10,7 +10,6 @@ import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-
 # ── Cleaned Guild Members ──────────────────────────────────────────────────────
 # Deduplicates on player name keeping the most recent record (by _ingested_at).
 # Adds human-readable rank labels and raid-team classification.
@@ -35,37 +34,35 @@ def silver_guild_members():
     # runs are present in the bronze table.
     w = Window.partitionBy("name").orderBy(F.col("_ingested_at").desc())
     deduped = (
-        raw
-        .withColumn("_rn", F.row_number().over(w))
+        raw.withColumn("_rn", F.row_number().over(w))
         .filter(F.col("_rn") == 1)
         .drop("_rn", "_file_path")
     )
 
     return (
-        deduped
-        .withColumn(
+        deduped.withColumn(
             "rank_label",
             F.when(F.col("rank") == 0, "Guild Master")
-             .when(F.col("rank") == 1, "GM Alt")
-             .when(F.col("rank") == 2, "Officer")
-             .when(F.col("rank") == 3, "Officer Alt")
-             .when(F.col("rank") == 4, "Officer Alt")
-             .when(F.col("rank") == 5, "Raider")
-             .when(F.col("rank") == 6, "Raider Alt")
-             .when(F.col("rank") == 7, "Bestie")
-             .when(F.col("rank") == 8, "Trial")
-             .when(F.col("rank") == 9, "Social")
-             .otherwise(F.concat(F.lit("Rank "), F.col("rank").cast("string"))),
+            .when(F.col("rank") == 1, "GM Alt")
+            .when(F.col("rank") == 2, "Officer")
+            .when(F.col("rank") == 3, "Officer Alt")
+            .when(F.col("rank") == 4, "Officer Alt")
+            .when(F.col("rank") == 5, "Raider")
+            .when(F.col("rank") == 6, "Raider Alt")
+            .when(F.col("rank") == 7, "Bestie")
+            .when(F.col("rank") == 8, "Trial")
+            .when(F.col("rank") == 9, "Social")
+            .otherwise(F.concat(F.lit("Rank "), F.col("rank").cast("string"))),
         )
         .withColumn(
             "rank_category",
             F.when(F.col("rank").isin(0, 1), "GM")
-             .when(F.col("rank").isin(2, 3, 4), "Officer")
-             .when(F.col("rank") == 5, "Raider")
-             .when(F.col("rank") == 6, "Raider Alt")
-             .when(F.col("rank") == 7, "Bestie")
-             .when(F.col("rank") == 8, "Trial")
-             .otherwise("Social"),
+            .when(F.col("rank").isin(2, 3, 4), "Officer")
+            .when(F.col("rank") == 5, "Raider")
+            .when(F.col("rank") == 6, "Raider Alt")
+            .when(F.col("rank") == 7, "Bestie")
+            .when(F.col("rank") == 8, "Trial")
+            .otherwise("Social"),
         )
         .withColumn(
             "is_raid_team",
@@ -75,20 +72,20 @@ def silver_guild_members():
         # return a human-readable class name string, only the numeric class_id.
         .withColumn(
             "class_name",
-            F.when(F.col("class_id") == 1,  "Warrior")
-             .when(F.col("class_id") == 2,  "Paladin")
-             .when(F.col("class_id") == 3,  "Hunter")
-             .when(F.col("class_id") == 4,  "Rogue")
-             .when(F.col("class_id") == 5,  "Priest")
-             .when(F.col("class_id") == 6,  "Death Knight")
-             .when(F.col("class_id") == 7,  "Shaman")
-             .when(F.col("class_id") == 8,  "Mage")
-             .when(F.col("class_id") == 9,  "Warlock")
-             .when(F.col("class_id") == 10, "Monk")
-             .when(F.col("class_id") == 11, "Druid")
-             .when(F.col("class_id") == 12, "Demon Hunter")
-             .when(F.col("class_id") == 13, "Evoker")
-             .otherwise(F.lit(None)),
+            F.when(F.col("class_id") == 1, "Warrior")
+            .when(F.col("class_id") == 2, "Paladin")
+            .when(F.col("class_id") == 3, "Hunter")
+            .when(F.col("class_id") == 4, "Rogue")
+            .when(F.col("class_id") == 5, "Priest")
+            .when(F.col("class_id") == 6, "Death Knight")
+            .when(F.col("class_id") == 7, "Shaman")
+            .when(F.col("class_id") == 8, "Mage")
+            .when(F.col("class_id") == 9, "Warlock")
+            .when(F.col("class_id") == 10, "Monk")
+            .when(F.col("class_id") == 11, "Druid")
+            .when(F.col("class_id") == 12, "Demon Hunter")
+            .when(F.col("class_id") == 13, "Evoker")
+            .otherwise(F.lit(None)),
         )
         .select(
             "name",

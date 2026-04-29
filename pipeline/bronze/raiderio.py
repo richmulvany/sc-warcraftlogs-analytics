@@ -15,15 +15,17 @@ LANDING = "/Volumes/01_bronze/raiderio/landing"
 TARGET_SCHEMA = "01_bronze.raiderio"
 
 
-_RAIDERIO_CHARACTER_PROFILE_SCHEMA = StructType([
-    StructField("player_name", StringType(), True),
-    StructField("realm_slug", StringType(), True),
-    StructField("region", StringType(), True),
-    StructField("profile_url", StringType(), True),
-    StructField("profile_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_RAIDERIO_CHARACTER_PROFILE_SCHEMA = StructType(
+    [
+        StructField("player_name", StringType(), True),
+        StructField("realm_slug", StringType(), True),
+        StructField("region", StringType(), True),
+        StructField("profile_url", StringType(), True),
+        StructField("profile_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(

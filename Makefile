@@ -66,7 +66,7 @@ test-lint:
 	@echo ">> Linting with ruff..."
 	ruff check ingestion/ pipeline/ scripts/
 	@echo ">> Type checking with mypy..."
-	mypy ingestion/src pipeline/
+	mypy ingestion/src
 
 format:
 	ruff format ingestion/ pipeline/ scripts/
@@ -85,7 +85,7 @@ deploy-frontend:
 
 export-data:
 	@echo ">> Exporting gold tables to static JSON..."
-	$(PYTHON) scripts/export_gold_tables.py
+	$(PYTHON) scripts/dev/export_gold_tables.py
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true

@@ -18,15 +18,15 @@ import urllib.error
 import urllib.request
 
 dbutils.widgets.text("secret_scope", "sc-analytics")  # noqa: F821
-dbutils.widgets.text("github_repo", "")                   # noqa: F821
+dbutils.widgets.text("github_repo", "")  # noqa: F821
 dbutils.widgets.text("github_workflow", "publish-dashboard-data.yml")  # noqa: F821
-dbutils.widgets.text("github_ref", "main")                # noqa: F821
-dbutils.widgets.text("poll_seconds", "600")               # noqa: F821
+dbutils.widgets.text("github_ref", "main")  # noqa: F821
+dbutils.widgets.text("poll_seconds", "600")  # noqa: F821
 
-scope    = dbutils.widgets.get("secret_scope")             # noqa: F821
+scope = dbutils.widgets.get("secret_scope")  # noqa: F821
 workflow = dbutils.widgets.get("github_workflow") or "publish-dashboard-data.yml"
-ref      = dbutils.widgets.get("github_ref") or "main"
-poll_s   = int(dbutils.widgets.get("poll_seconds") or "600")
+ref = dbutils.widgets.get("github_ref") or "main"
+poll_s = int(dbutils.widgets.get("poll_seconds") or "600")
 
 
 def _secret(key: str, default: str = "") -> str:
@@ -45,9 +45,7 @@ if not token:
 
 repo = dbutils.widgets.get("github_repo") or _secret("github_repo")  # noqa: F821
 if not repo or "/" not in repo:
-    raise RuntimeError(
-        "github_repo must be set as a job parameter or secret in 'owner/repo' form"
-    )
+    raise RuntimeError("github_repo must be set as a job parameter or secret in 'owner/repo' form")
 
 api = f"https://api.github.com/repos/{repo}/actions/workflows/{workflow}/dispatches"
 print(f"Dispatching {workflow} on {repo}@{ref} via {api}")
@@ -71,7 +69,9 @@ try:
         if resp.status not in (201, 204):
             raise RuntimeError(f"workflow_dispatch returned HTTP {resp.status}")
 except urllib.error.HTTPError as e:
-    raise RuntimeError(f"workflow_dispatch failed: HTTP {e.code} — {e.read().decode('utf-8', 'replace')}") from e
+    raise RuntimeError(
+        f"workflow_dispatch failed: HTTP {e.code} — {e.read().decode('utf-8', 'replace')}"
+    ) from e
 
 print("workflow_dispatch accepted; polling for the matching run …")
 
@@ -111,7 +111,9 @@ if run is None:
     )
 
 conclusion = run.get("conclusion")
-print(f"Run {run.get('id')} status={run.get('status')} conclusion={conclusion} url={run.get('html_url')}")
+print(
+    f"Run {run.get('id')} status={run.get('status')} conclusion={conclusion} url={run.get('html_url')}"
+)
 if run.get("status") != "completed":
     raise RuntimeError(
         f"GitHub workflow run {run.get('id')} did not complete within {poll_s}s "

@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import Iterable
-
+from collections.abc import Iterable
 
 MIDNIGHT_FLASK_OR_PHIAL_NAMES = {
     "flask of thalassian resistance",
@@ -16,6 +15,7 @@ MIDNIGHT_FLASK_OR_PHIAL_NAMES = {
     "haranir phial of ingenuity",
     "haranir phial of finesse",
 }
+MIDNIGHT_FLASK_OR_PHIAL_IDS: tuple[int, ...] = ()
 
 MIDNIGHT_AUGMENT_RUNE_NAMES = {
     "void-touched augment rune",
@@ -23,26 +23,43 @@ MIDNIGHT_AUGMENT_RUNE_NAMES = {
 
 MIDNIGHT_WEAPON_ENHANCEMENT_NAMES = {
     "thalassian phoenix oil",
-    "smuggler's enchanted edge",
+    "smugglers enchanted edge",
     "oil of dawn",
     "refulgent weightstone",
     "refulgent whetstone",
     "refulgent razorstone",
     "laced zoomshots",
     "weighted boomshots",
-    "smuggler's lynxeye",
-    "farstrider's hawkeye",
+    "smugglers lynxeye",
+    "farstriders hawkeye",
+    "flametongue weapon",
+    "windfury weapon",
+    "earthliving weapon",
 }
+MIDNIGHT_WEAPON_ENHANCEMENT_IDS: tuple[int, ...] = ()
+
+MIDNIGHT_COMBAT_POTION_NAMES = {
+    "lights potential",
+    "potion of recklessness",
+    "potion of zealotry",
+    "draught of rampant abandon",
+}
+MIDNIGHT_COMBAT_POTION_IDS = (
+    1236616,  # Light's Potential buff
+    1236994,  # Potion of Recklessness buff
+    1238443,  # Potion of Zealotry buff
+    1237154,  # Draught of Rampant Abandon buff
+)
 
 MIDNIGHT_FOOD_NAMES = {
     "silvermoon parade",
     "harandar celebration",
-    "quel'dorei medley",
+    "queldorei medley",
     "blooming feast",
     "royal roast",
     "impossibly royal roast",
     "flora frenzy",
-    "champion's bento",
+    "champions bento",
     "warped wise wings",
     "void-kissed fish rolls",
     "sun-seared lumifin",
@@ -61,7 +78,7 @@ MIDNIGHT_FOOD_NAMES = {
     "eversong pudding",
     "bloodthistle-wrapped cutlets",
     "wise tails",
-    "twilight angler's medley",
+    "twilight anglers medley",
     "spellfire filet",
     "spiced biscuits",
     "silvermoon standard",
@@ -72,14 +89,17 @@ MIDNIGHT_FOOD_NAMES = {
     "farstrider rations",
     "bloom skewers",
 }
+MIDNIGHT_FOOD_IDS: tuple[int, ...] = ()
 
 _SPACE_RE = re.compile(r"\s+")
+_APOSTROPHE_RE = re.compile(r"[']")
 
 
 def _normalize_name(value: str | None) -> str:
     if value is None:
         return ""
-    return _SPACE_RE.sub(" ", value.strip().lower())
+    normalized = _APOSTROPHE_RE.sub("", value.strip().lower())
+    return _SPACE_RE.sub(" ", normalized)
 
 
 def _unique_preserve(values: Iterable[str]) -> list[str]:
@@ -137,6 +157,13 @@ def _match_weapon_enhancement(name: str) -> bool:
     return any(keyword in normalized for keyword in weapon_keywords)
 
 
+def _match_combat_potion(name: str) -> bool:
+    normalized = _normalize_name(name)
+    if not normalized:
+        return False
+    return normalized in MIDNIGHT_COMBAT_POTION_NAMES
+
+
 def _classify(names: Iterable[str] | None, matcher) -> list[str]:
     if not names:
         return []
@@ -164,11 +191,13 @@ def classify_weapon_enhancement_names(names: Iterable[str] | None) -> list[str]:
     return _classify(names, _match_weapon_enhancement)
 
 
+def classify_combat_potion_names(names: Iterable[str] | None) -> list[str]:
+    return _classify(names, _match_combat_potion)
+
+
 def join_consumable_names(names: Iterable[str] | None) -> str | None:
     cleaned = _unique_preserve(
-        (name or "").strip()
-        for name in (names or [])
-        if (name or "").strip()
+        (name or "").strip() for name in (names or []) if (name or "").strip()
     )
     return " | ".join(cleaned) if cleaned else None
 

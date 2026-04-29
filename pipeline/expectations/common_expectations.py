@@ -13,3 +13,9 @@ VALID_ID = ("valid_id", "id IS NOT NULL AND id > 0")
 VALID_TIMESTAMP = ("valid_timestamp", "created_at IS NOT NULL")
 NO_FUTURE_DATES = ("no_future_dates", "created_at <= current_timestamp()")
 VALID_STRING_NAME = ("valid_name", "name IS NOT NULL AND length(trim(name)) > 0")
+REPORT_FIGHT_PLAYER_UNIQUE = ("unique_player_per_fight", "_duplicate_count = 1")
+INGESTED_AT_PRESENT = ("ingested_at_present", "_ingested_at IS NOT NULL")
+FRESHNESS_WITHIN_48H = (
+    "freshness_within_48h",
+    "to_timestamp(_ingested_at) >= current_timestamp() - INTERVAL 48 HOURS",
+)

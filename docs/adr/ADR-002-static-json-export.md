@@ -11,7 +11,7 @@ the frontend, and pre-generated static files.
 
 ## Decision
 
-Export Gold tables to static CSV files via `scripts/export_gold_tables.py`.
+Export Gold tables to static CSV files via `scripts/dev/export_gold_tables.py`.
 The frontend fetches these files directly with no backend server.
 
 ## Rationale
