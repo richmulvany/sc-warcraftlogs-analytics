@@ -4,7 +4,7 @@ Base adapter interface for all data source adapters.
 To add a new data source:
   1. Create a new directory under adapters/
   2. Implement BaseAdapter in an adapter.py file
-  3. See adapters/example_adapter/ for a complete example
+  3. Add focused unit tests for the source-specific client behaviour
 """
 
 from abc import ABC, abstractmethod

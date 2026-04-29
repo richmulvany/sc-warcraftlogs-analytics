@@ -5,8 +5,9 @@
 
 ## Context
 
-This project is designed as a reusable template. The ingestion layer must be easy
-to swap when the template is applied to a different data source.
+This project ingests several source APIs. The ingestion layer must keep
+source-specific API logic isolated so job orchestration and downstream tables do
+not depend on each client's transport details.
 
 ## Decision
 
@@ -15,19 +16,20 @@ Implement a `BaseAdapter` abstract class with three required methods: `authentic
 
 ## Rationale
 
-- **Reusability** — cloning the template and replacing one adapter directory is all that's
-  needed to point the entire pipeline at a new data source
+- **Extensibility** — adding a source requires a focused adapter/client instead
+  of spreading API-specific HTTP logic through job scripts
 - **Testability** — adapters can be unit-tested in isolation with HTTP mocking
 - **Separation of concerns** — the Bronze/Silver/Gold layers are completely decoupled from
   the specifics of any API
 
 ## Alternatives Considered
 
-**Direct API calls in job scripts:** Simpler initially but tightly couples the pipeline
-to one data source. Reusing the template requires significant refactoring.
+**Direct API calls in job scripts:** Simpler initially but tightly couples
+orchestration to source-specific transport details.
 
-**Airbyte / Fivetran connectors:** Production-grade but introduces an external dependency
-and is overkill for a portfolio project with a single data source.
+**Airbyte / Fivetran connectors:** Production-grade but introduces an external
+dependency and does not fit all of the WarcraftLogs, Blizzard, Raider.IO, and
+Google Sheets source-specific logic in this repo.
 
 ## Consequences
 

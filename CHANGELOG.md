@@ -23,4 +23,4 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [0.1.0] - 2026-04-11
 
-Initial release of the template.
+Initial release of the analytics project.
