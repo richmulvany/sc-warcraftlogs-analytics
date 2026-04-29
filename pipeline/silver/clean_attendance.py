@@ -1,11 +1,48 @@
 # Databricks notebook source
+# ruff: noqa: E402, I001
 # Silver layer — cleaned and exploded raid attendance
 #
 # silver_raid_attendance — one row per player per raid report with presence
 #                          status, class, zone context, and raid night date.
 
 import dlt
+import os
+import sys
 from pyspark.sql import functions as F
+
+
+def _ensure_repo_root_on_syspath() -> None:
+    candidates = [os.getcwd()]
+
+    module_file = globals().get("__file__")
+    if module_file:
+        candidates.append(os.path.abspath(module_file))
+
+    try:
+        notebook_path = (
+            dbutils.notebook.entry_point.getDbutils()  # noqa: F821
+            .notebook()
+            .getContext()
+            .notebookPath()
+            .get()
+        )
+        candidates.append(notebook_path)
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
+        while current and current != os.path.dirname(current):
+            pipeline_dir = current if os.path.basename(current) == "pipeline" else os.path.join(current, "pipeline")
+            if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
+                repo_root = os.path.dirname(pipeline_dir)
+                if repo_root not in sys.path:
+                    sys.path.insert(0, repo_root)
+                return
+            current = os.path.dirname(current)
+
+
+_ensure_repo_root_on_syspath()
 
 from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT
 

@@ -11,6 +11,8 @@ _bundle_root = "/Workspace" + "/".join(_nb_path.split("/")[:-3])
 if _bundle_root not in sys.path:
     sys.path.insert(0, _bundle_root)
 
-from scripts.publish_dashboard_assets import main  # noqa: E402
+import scripts.publish_dashboard_assets as publisher  # noqa: E402
 
-main()
+publisher.spark = spark  # noqa: F821
+
+publisher.main()

@@ -18,10 +18,39 @@
 import os
 import sys
 
-_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else None
-_REPO_ROOT = os.path.dirname(os.path.dirname(_HERE)) if _HERE else None
-if _REPO_ROOT and _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+
+def _ensure_repo_root_on_syspath() -> None:
+    candidates = [os.getcwd()]
+
+    module_file = globals().get("__file__")
+    if module_file:
+        candidates.append(os.path.abspath(module_file))
+
+    try:
+        notebook_path = (
+            dbutils.notebook.entry_point.getDbutils()  # noqa: F821
+            .notebook()
+            .getContext()
+            .notebookPath()
+            .get()
+        )
+        candidates.append(notebook_path)
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
+        while current and current != os.path.dirname(current):
+            pipeline_dir = current if os.path.basename(current) == "pipeline" else os.path.join(current, "pipeline")
+            if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
+                repo_root = os.path.dirname(pipeline_dir)
+                if repo_root not in sys.path:
+                    sys.path.insert(0, repo_root)
+                return
+            current = os.path.dirname(current)
+
+
+_ensure_repo_root_on_syspath()
 
 import dlt  # noqa: E402
 from pyspark.sql import functions as F  # noqa: E402
@@ -30,7 +59,6 @@ from pyspark.sql.types import ArrayType, LongType, StringType, StructField, Stru
 from pipeline.consumables import (  # noqa: E402
     MIDNIGHT_COMBAT_POTION_IDS as COMBAT_POTION_IDS,
     MIDNIGHT_COMBAT_POTION_NAMES as COMBAT_POTION_NAMES,
-    merge_consumable_name_strings,
 )
 
 _BUFF_ABILITY_STRUCT = StructType([
@@ -52,7 +80,26 @@ _BUFF_EVENTS_SCHEMA = StructType([
     StructField("data", ArrayType(_BUFF_EVENT_STRUCT), True),
 ])
 
-_merge_consumable_names_udf = F.udf(merge_consumable_name_strings, StringType())
+_COMBAT_POTION_NAME_VALUES = tuple(sorted(COMBAT_POTION_NAMES))
+_COMBAT_POTION_ID_VALUES = tuple(COMBAT_POTION_IDS)
+
+
+def _merge_name_columns(left_col: str, right_col: str) -> F.Column:
+    merged = F.array_distinct(
+        F.filter(
+            F.transform(
+                F.flatten(
+                    F.array(
+                        F.split(F.coalesce(F.col(left_col), F.lit("")), r"\s*\|\s*"),
+                        F.split(F.coalesce(F.col(right_col), F.lit("")), r"\s*\|\s*"),
+                    )
+                ),
+                lambda value: F.trim(value),
+            ),
+            lambda value: value != "",
+        )
+    )
+    return F.when(F.size(merged) > 0, F.array_join(merged, " | ")).otherwise(F.lit(None).cast("string"))
 
 
 # ── Player Fight Performance Fact ──────────────────────────────────────────────
@@ -176,9 +223,9 @@ def fact_player_fight_performance():
         )
         .withColumn("actor_id", F.coalesce(F.col("event.targetID"), F.col("event.sourceID")))
         .filter(
-            F.col("ability_name_normalized").isin(COMBAT_POTION_NAMES)
-            | F.col("event.ability.guid").isin(COMBAT_POTION_IDS)
-            | F.col("event.abilityGameID").isin(COMBAT_POTION_IDS)
+            F.col("ability_name_normalized").isin(*_COMBAT_POTION_NAME_VALUES)
+            | F.col("event.ability.guid").isin(*_COMBAT_POTION_ID_VALUES)
+            | F.col("event.abilityGameID").isin(*_COMBAT_POTION_ID_VALUES)
         )
         .join(
             actors.select(
@@ -250,10 +297,7 @@ def fact_player_fight_performance():
         )
         .withColumn(
             "weapon_enhancement_names",
-            _merge_consumable_names_udf(
-                F.col("weapon_enhancement_names"),
-                F.col("weapon_enhancement_aura_names"),
-            ),
+            _merge_name_columns("weapon_enhancement_names", "weapon_enhancement_aura_names"),
         )
         .select(
             "report_code",

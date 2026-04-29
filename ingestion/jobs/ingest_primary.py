@@ -43,30 +43,22 @@ logger = logging.getLogger(__name__)
 
 # COMMAND ----------
 
-# DBTITLE 1,Configuration
-catalog = dbutils.widgets.get("catalog") if dbutils.widgets.get("catalog") else "04_sdp"  # noqa: F821
-schema = dbutils.widgets.get("schema") if dbutils.widgets.get("schema") else "warcraftlogs"  # noqa: F821
-guild_name = (
-    dbutils.widgets.get("guild_name") if dbutils.widgets.get("guild_name") else "Student Council"  # noqa: F821
-)
-server_slug = (
-    dbutils.widgets.get("guild_server_slug")  # noqa: F821
-    if dbutils.widgets.get("guild_server_slug")  # noqa: F821
-    else "twisting-nether"
-)
-server_region = (
-    dbutils.widgets.get("guild_server_region")  # noqa: F821
-    if dbutils.widgets.get("guild_server_region")  # noqa: F821
-    else "EU"
-)
-
-
 def _config_value(name: str, default: str) -> str:
     try:
         value = dbutils.widgets.get(name)  # noqa: F821
     except Exception:
         value = ""
     return value or os.environ.get(name.upper(), default)
+
+
+# DBTITLE 1,Configuration
+catalog = _config_value("catalog", "04_sdp")
+schema = _config_value("schema", "warcraftlogs")
+guild_name = _config_value("guild_name", "Student Council")
+server_slug = _config_value("guild_server_slug", "twisting-nether")
+server_region = _config_value("guild_server_region", "EU")
+PROFILE_CANDIDATE_CATALOG = _config_value("profile_candidate_catalog", "03_gold")
+PROFILE_CANDIDATE_SCHEMA = _config_value("profile_candidate_schema", "sc_analytics")
 
 
 logger.info(
@@ -493,6 +485,8 @@ def _log_fight_rankings_decision(
 
 
 def _raiderio_candidates_from_table(
+    source_catalog: str,
+    source_schema: str,
     table_name: str,
     name_expr: str,
     realm_expr: str,
@@ -505,12 +499,18 @@ def _raiderio_candidates_from_table(
             SELECT
               {name_expr} AS player_name,
               COALESCE(NULLIF({realm_expr}, ''), '{server_slug}') AS realm_slug
-            FROM `{catalog}`.`{schema}`.{table_name}
+            FROM `{source_catalog}`.`{source_schema}`.{table_name}
             WHERE {where_clause}
             """
         ).collect()
     except Exception as exc:
-        logger.info("raiderio: %s unavailable for candidate seed: %s", table_name, exc)
+        logger.info(
+            "raiderio: %s.%s.%s unavailable for candidate seed: %s",
+            source_catalog,
+            source_schema,
+            table_name,
+            exc,
+        )
         return []
 
     candidates = [
@@ -522,7 +522,13 @@ def _raiderio_candidates_from_table(
         for row in rows
         if str(row["player_name"] or "").strip()
     ]
-    logger.info("raiderio: %s contributed %d candidate rows", table_name, len(candidates))
+    logger.info(
+        "raiderio: %s.%s.%s contributed %d candidate rows",
+        source_catalog,
+        source_schema,
+        table_name,
+        len(candidates),
+    )
     return candidates
 
 
@@ -530,12 +536,16 @@ def _raiderio_candidates_from_existing_player_tables() -> list[dict[str, str]]:
     """Include known active/cross-realm players that are not in Blizzard guild membership."""
     return (
         _raiderio_candidates_from_table(
+            source_catalog="02_silver",
+            source_schema="sc_analytics_blizzard",
             table_name="silver_guild_members",
             name_expr="name",
             realm_expr="realm_slug",
             where_clause="name IS NOT NULL AND name != ''",
         )
         + _raiderio_candidates_from_table(
+            source_catalog=PROFILE_CANDIDATE_CATALOG,
+            source_schema=PROFILE_CANDIDATE_SCHEMA,
             table_name="gold_guild_roster",
             name_expr="name",
             realm_expr="realm",
@@ -546,6 +556,8 @@ def _raiderio_candidates_from_existing_player_tables() -> list[dict[str, str]]:
             """,
         )
         + _raiderio_candidates_from_table(
+            source_catalog=PROFILE_CANDIDATE_CATALOG,
+            source_schema=PROFILE_CANDIDATE_SCHEMA,
             table_name="gold_raid_team",
             name_expr="name",
             realm_expr="realm",
@@ -842,8 +854,6 @@ if _stage_enabled("wcl") and adapter is not None:
 # (parameterised so cutover remains a config flip — defaults can still point at
 # the legacy gold location, but should normally target 03_gold.sc_analytics).
 GUILD_ZONE_RANKS_ENABLED = _config_value("guild_zone_ranks_enabled", "true").lower() == "true"
-PROFILE_CANDIDATE_CATALOG = _config_value("profile_candidate_catalog", "03_gold")
-PROFILE_CANDIDATE_SCHEMA = _config_value("profile_candidate_schema", "sc_analytics")
 EXCLUDED_ZONE_NAMES = [
     name.strip()
     for name in _config_value("excluded_zone_names", "").split(",")

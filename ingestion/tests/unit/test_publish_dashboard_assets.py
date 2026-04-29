@@ -14,6 +14,7 @@ from scripts.publish_dashboard_assets import (
     MAX_DATASET_ROWS,
     MAX_TOTAL_EXPORT_BYTES,
     DatasetResult,
+    _get_spark_session,
     _publish_local_tree,
     _validate_dataset_size,
     _validate_manifest_datasets,
@@ -21,6 +22,17 @@ from scripts.publish_dashboard_assets import (
     normalise_row_for_json,
     write_manifest,
 )
+
+
+class _ExpiredSparkSession:
+    def sql(self, _statement: str):
+        raise RuntimeError("[NO_ACTIVE_SESSION] No active Spark session found.")
+
+
+def test_get_spark_session_ignores_expired_global_session(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(publish_dashboard_assets, "spark", _ExpiredSparkSession(), raising=False)
+
+    assert _get_spark_session() is None
 
 
 def test_normalise_row_for_json_handles_nested_types() -> None:

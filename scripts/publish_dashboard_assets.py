@@ -699,13 +699,24 @@ def _statement_rows_to_dicts(response: Any) -> list[dict[str, Any]]:
 
 def _get_spark_session() -> Any | None:
     spark_session = globals().get("spark")
-    if spark_session is not None:
-        return spark_session
-    try:
-        from pyspark.sql import SparkSession
-    except ImportError:
+    if spark_session is None:
+        try:
+            from pyspark.sql import SparkSession
+        except ImportError:
+            return None
+        spark_session = SparkSession.getActiveSession()
+
+    if spark_session is None:
         return None
-    return SparkSession.getActiveSession()
+
+    try:
+        spark_session.sql("SELECT 1").collect()
+    except Exception as exc:
+        logger.warning(
+            "Ignoring unavailable Spark session; falling back to Databricks SQL: %s", exc
+        )
+        return None
+    return spark_session
 
 
 def _parse_volume_path(path: str) -> tuple[str, str, str] | None:
@@ -715,13 +726,16 @@ def _parse_volume_path(path: str) -> tuple[str, str, str] | None:
     return parts[2], parts[3], parts[4]
 
 
-def _ensure_output_volume(client: WorkspaceClient | None, output_path: str) -> None:
+def _ensure_output_volume(
+    client: WorkspaceClient | None,
+    output_path: str,
+    spark_session: Any | None = None,
+) -> None:
     volume_parts = _parse_volume_path(output_path)
     if volume_parts is None:
         return
     catalog, schema, volume = volume_parts
     statement = f"CREATE VOLUME IF NOT EXISTS `{catalog}`.`{schema}`.`{volume}`"
-    spark_session = _get_spark_session()
     if spark_session is not None:
         spark_session.sql(statement)
         return
@@ -1073,7 +1087,7 @@ def main() -> None:
     spark_session = _get_spark_session()
     client = None if spark_session is not None else WorkspaceClient()
     warehouse_id = None if client is None else _first_warehouse_id(client)
-    _ensure_output_volume(client, output_path)
+    _ensure_output_volume(client, output_path, spark_session)
 
     generated_at = iso_utc_now()
     snapshot_id = make_snapshot_id()

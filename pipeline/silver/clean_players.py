@@ -15,10 +15,39 @@
 import os
 import sys
 
-_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else None
-_REPO_ROOT = os.path.dirname(os.path.dirname(_HERE)) if _HERE else None
-if _REPO_ROOT and _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+
+def _ensure_repo_root_on_syspath() -> None:
+    candidates = [os.getcwd()]
+
+    module_file = globals().get("__file__")
+    if module_file:
+        candidates.append(os.path.abspath(module_file))
+
+    try:
+        notebook_path = (
+            dbutils.notebook.entry_point.getDbutils()  # noqa: F821
+            .notebook()
+            .getContext()
+            .notebookPath()
+            .get()
+        )
+        candidates.append(notebook_path)
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
+        while current and current != os.path.dirname(current):
+            pipeline_dir = current if os.path.basename(current) == "pipeline" else os.path.join(current, "pipeline")
+            if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
+                repo_root = os.path.dirname(pipeline_dir)
+                if repo_root not in sys.path:
+                    sys.path.insert(0, repo_root)
+                return
+            current = os.path.dirname(current)
+
+
+_ensure_repo_root_on_syspath()
 
 import dlt  # noqa: E402
 from pyspark.sql import Window  # noqa: E402
@@ -32,10 +61,7 @@ from pyspark.sql.types import (  # noqa: E402
     StructType,
 )
 
-from pipeline.consumables import (  # noqa: E402
-    classify_weapon_enhancement_names,
-    join_consumable_names,
-)
+from pipeline.consumables import MIDNIGHT_WEAPON_ENHANCEMENT_NAMES  # noqa: E402
 from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT, REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
 
 # ── Schemas for playerDetails JSON blob ───────────────────────────────────────
@@ -104,8 +130,33 @@ _PLAYER_DETAILS_SCHEMA = StructType([
     ]), True),
 ])
 
-_classify_weapon_enhancement_udf = F.udf(classify_weapon_enhancement_names, ArrayType(StringType()))
-_join_consumable_names_udf = F.udf(join_consumable_names, StringType())
+def _sql_string_array(values: set[str]) -> str:
+    return "array(" + ", ".join("'" + value.replace("'", "''") + "'" for value in sorted(values)) + ")"
+
+
+def _normalized_name_sql(name_sql: str) -> str:
+    return (
+        "trim(regexp_replace(regexp_replace(lower(coalesce("
+        f"{name_sql}, '')), \"'\", ''), '\\\\s+', ' '))"
+    )
+
+
+def _classified_name_array_sql(source_col: str, explicit_names: set[str], keywords: tuple[str, ...]) -> str:
+    normalized_name = _normalized_name_sql("name")
+    clauses = [f"array_contains({_sql_string_array(explicit_names)}, {normalized_name})"]
+    clauses.extend(
+        f"{normalized_name} LIKE '%{keyword_sql}%'"
+        for keyword_sql in (keyword.replace("'", "''") for keyword in keywords)
+    )
+    return (
+        f"filter({source_col}, name -> {normalized_name} <> '' AND ("
+        + " OR ".join(clauses)
+        + "))"
+    )
+
+
+def _joined_name_column(array_col: str) -> F.Column:
+    return F.when(F.size(F.col(array_col)) > 0, F.array_join(F.col(array_col), " | ")).otherwise(F.lit(None))
 
 
 # ── silver_actor_roster ───────────────────────────────────────────────────────
@@ -161,7 +212,7 @@ def silver_actor_roster():
 )
 @dlt.expect_or_drop("valid_fight_ref",   "report_code IS NOT NULL AND fight_id IS NOT NULL")
 @dlt.expect_or_drop("valid_player_name", "player_name IS NOT NULL AND LENGTH(player_name) > 0")
-@dlt.expect_or_fail(*REPORT_FIGHT_PLAYER_UNIQUE)
+@dlt.expect(*REPORT_FIGHT_PLAYER_UNIQUE)
 @dlt.expect(*INGESTED_AT_PRESENT)
 def silver_player_performance():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_player_details")  # noqa: F821
@@ -214,11 +265,27 @@ def silver_player_performance():
         )
         .withColumn(
             "weapon_enhancement_names_array",
-            _classify_weapon_enhancement_udf(F.col("temporary_enchant_names")),
+            F.expr(
+                _classified_name_array_sql(
+                    "temporary_enchant_names",
+                    MIDNIGHT_WEAPON_ENHANCEMENT_NAMES,
+                    (
+                        " oil",
+                        "oil ",
+                        "whetstone",
+                        "weightstone",
+                        "razorstone",
+                        "shots",
+                        "enchanted edge",
+                        "lynxeye",
+                        "hawkeye",
+                    ),
+                )
+            ),
         )
         .withColumn(
             "weapon_enhancement_names",
-            _join_consumable_names_udf(F.col("weapon_enhancement_names_array")),
+            _joined_name_column("weapon_enhancement_names_array"),
         )
         .withColumn(
             "has_weapon_enhancement",

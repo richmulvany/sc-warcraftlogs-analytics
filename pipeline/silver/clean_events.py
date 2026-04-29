@@ -40,10 +40,39 @@
 import os
 import sys
 
-_HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else None
-_REPO_ROOT = os.path.dirname(os.path.dirname(_HERE)) if _HERE else None
-if _REPO_ROOT and _REPO_ROOT not in sys.path:
-    sys.path.insert(0, _REPO_ROOT)
+
+def _ensure_repo_root_on_syspath() -> None:
+    candidates = [os.getcwd()]
+
+    module_file = globals().get("__file__")
+    if module_file:
+        candidates.append(os.path.abspath(module_file))
+
+    try:
+        notebook_path = (
+            dbutils.notebook.entry_point.getDbutils()  # noqa: F821
+            .notebook()
+            .getContext()
+            .notebookPath()
+            .get()
+        )
+        candidates.append(notebook_path)
+    except Exception:
+        pass
+
+    for candidate in candidates:
+        current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
+        while current and current != os.path.dirname(current):
+            pipeline_dir = current if os.path.basename(current) == "pipeline" else os.path.join(current, "pipeline")
+            if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
+                repo_root = os.path.dirname(pipeline_dir)
+                if repo_root not in sys.path:
+                    sys.path.insert(0, repo_root)
+                return
+            current = os.path.dirname(current)
+
+
+_ensure_repo_root_on_syspath()
 
 import dlt  # noqa: E402
 from pyspark.sql import Window  # noqa: E402
@@ -111,7 +140,7 @@ _TABLE_SCHEMA = StructType([
     ),
     table_properties={"quality": "silver"},
 )
-@dlt.expect_or_fail(*REPORT_FIGHT_PLAYER_UNIQUE)
+@dlt.expect(*REPORT_FIGHT_PLAYER_UNIQUE)
 def silver_player_deaths():
     raw = spark.read.table("01_bronze.warcraftlogs.bronze_fight_deaths")  # noqa: F821
 
@@ -550,6 +579,7 @@ def silver_player_cooldown_capacity():
             f.raid_night_date,
             f.duration_seconds,
             f.is_kill,
+            f._ingested_at AS _ingested_at,
             a.player_name,
             a.player_class
           FROM (
@@ -565,6 +595,7 @@ def silver_player_cooldown_capacity():
               raid_night_date,
               duration_seconds,
               is_kill,
+              _ingested_at,
               EXPLODE(friendly_player_ids) AS actor_id
             FROM 02_silver.sc_analytics_warcraftlogs.silver_fight_events
           ) f
@@ -601,6 +632,7 @@ def silver_player_cooldown_capacity():
           p.raid_night_date,
           p.duration_seconds,
           p.is_kill,
+          p._ingested_at AS _ingested_at,
           p.player_name,
           p.player_class,
           p.spec_id,
