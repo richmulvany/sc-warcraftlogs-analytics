@@ -29,7 +29,12 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+          BUNDLE_VAR_developer_user: ${{ secrets.DATABRICKS_USER_NAME }}
         run: |
+          if [ -z "$BUNDLE_VAR_developer_user" ]; then
+            echo "::error title=Missing DATABRICKS_USER_NAME::Set the production environment secret DATABRICKS_USER_NAME to the Databricks user email used for Free Edition deployments."
+            exit 1
+          fi
           databricks bundle validate --target development
           databricks bundle validate --target production
       - name: Deploy via Asset Bundles
@@ -37,5 +42,10 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          BUNDLE_VAR_service_principal_application_id: ${{ secrets.DATABRICKS_SP_APP_ID }}
-        run: databricks bundle deploy --target production
+          BUNDLE_VAR_developer_user: ${{ secrets.DATABRICKS_USER_NAME }}
+        run: |
+          if [ -z "$BUNDLE_VAR_developer_user" ]; then
+            echo "::error title=Missing DATABRICKS_USER_NAME::Set the production environment secret DATABRICKS_USER_NAME to the Databricks user email used for Free Edition deployments."
+            exit 1
+          fi
+          databricks bundle deploy --target production

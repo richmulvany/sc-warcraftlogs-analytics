@@ -8,6 +8,10 @@ Deploy the Databricks bundle to the production target and keep the daily orchest
 
 - feature branches run `databricks bundle validate --target development` and `--target production`
 - `main` runs `databricks bundle deploy --target production`
+- Free Edition production deploys run as `developer_user` because service
+  principals are not available in this workspace setup.
+- CI sets `developer_user` from the GitHub `production` environment secret
+  `DATABRICKS_USER_NAME`.
 
 Workflow:
 
@@ -21,19 +25,22 @@ Workflow:
   - intended for on-demand runs only
 - `production`
   - workspace path is `/Workspace/sc-analytics/production`
-  - bundle runs as `service_principal_application_id`
+  - bundle runs as `developer_user`
   - `daily_orchestrator` is scheduled and `UNPAUSED`
 
 ## Manual validation
 
 ```bash
+BUNDLE_VAR_developer_user="<databricks-user-email>" \
 databricks bundle validate --target development
+BUNDLE_VAR_developer_user="<databricks-user-email>" \
 databricks bundle validate --target production
 ```
 
 ## Manual deploy
 
 ```bash
+BUNDLE_VAR_developer_user="<databricks-user-email>" \
 databricks bundle deploy --target production
 ```
 
