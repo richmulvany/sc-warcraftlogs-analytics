@@ -1,5 +1,5 @@
 # Databricks notebook source
-# ruff: noqa: I001
+# ruff: noqa: E402, I001
 # Silver layer — parsed WCL fight death events
 #
 # silver_player_deaths — one row per death event per player per report.
@@ -63,7 +63,11 @@ def _ensure_repo_root_on_syspath() -> None:
     for candidate in candidates:
         current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
         while current and current != os.path.dirname(current):
-            pipeline_dir = current if os.path.basename(current) == "pipeline" else os.path.join(current, "pipeline")
+            pipeline_dir = (
+                current
+                if os.path.basename(current) == "pipeline"
+                else os.path.join(current, "pipeline")
+            )
             if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
                 repo_root = os.path.dirname(pipeline_dir)
                 if repo_root not in sys.path:
@@ -91,44 +95,58 @@ from pipeline.consumables import (  # noqa: E402
     MIDNIGHT_FOOD_NAMES,
     MIDNIGHT_WEAPON_ENHANCEMENT_NAMES,
 )
-from pipeline.expectations.common_expectations import INGESTED_AT_PRESENT, REPORT_FIGHT_PLAYER_UNIQUE  # noqa: E402
+from pipeline.expectations.common_expectations import (
+    INGESTED_AT_PRESENT,
+    REPORT_FIGHT_PLAYER_UNIQUE,
+)  # noqa: E402
 from pipeline.gold._cooldown_rules import cooldown_rules_sql  # noqa: E402
 
 # ── Schema for the table(dataType: Deaths) JSON scalar ────────────────────────
 
-_ABILITY_STRUCT = StructType([
-    StructField("name", StringType(), True),
-    StructField("guid", LongType(),   True),
-])
+_ABILITY_STRUCT = StructType(
+    [
+        StructField("name", StringType(), True),
+        StructField("guid", LongType(), True),
+    ]
+)
 
-_EVENT_STRUCT = StructType([
-    StructField("timestamp",        LongType(),    True),
-    StructField("type",             StringType(),  True),  # "damage", "heal", etc.
-    StructField("sourceIsFriendly", BooleanType(), True),
-    StructField("ability",          _ABILITY_STRUCT, True),
-])
+_EVENT_STRUCT = StructType(
+    [
+        StructField("timestamp", LongType(), True),
+        StructField("type", StringType(), True),  # "damage", "heal", etc.
+        StructField("sourceIsFriendly", BooleanType(), True),
+        StructField("ability", _ABILITY_STRUCT, True),
+    ]
+)
 
-_ENTRY_STRUCT = StructType([
-    StructField("name",       StringType(),           True),  # player name
-    StructField("id",         LongType(),             True),  # actor ID
-    StructField("type",       StringType(),           True),  # WoW class
-    StructField("icon",       StringType(),           True),  # "ClassName-Spec"
-    StructField("timestamp",  LongType(),             True),  # ms from report start
-    StructField("fight",      LongType(),             True),  # fight ID
-    StructField("overkill",   LongType(),             True),
-    StructField("events",     ArrayType(_EVENT_STRUCT), True),
-])
+_ENTRY_STRUCT = StructType(
+    [
+        StructField("name", StringType(), True),  # player name
+        StructField("id", LongType(), True),  # actor ID
+        StructField("type", StringType(), True),  # WoW class
+        StructField("icon", StringType(), True),  # "ClassName-Spec"
+        StructField("timestamp", LongType(), True),  # ms from report start
+        StructField("fight", LongType(), True),  # fight ID
+        StructField("overkill", LongType(), True),
+        StructField("events", ArrayType(_EVENT_STRUCT), True),
+    ]
+)
 
-_TABLE_DATA_STRUCT = StructType([
-    StructField("entries", ArrayType(_ENTRY_STRUCT), True),
-])
+_TABLE_DATA_STRUCT = StructType(
+    [
+        StructField("entries", ArrayType(_ENTRY_STRUCT), True),
+    ]
+)
 
-_TABLE_SCHEMA = StructType([
-    StructField("data", _TABLE_DATA_STRUCT, True),
-])
+_TABLE_SCHEMA = StructType(
+    [
+        StructField("data", _TABLE_DATA_STRUCT, True),
+    ]
+)
 
 
 # ── Parsed Player Death Events ─────────────────────────────────────────────────
+
 
 @dlt.table(
     name="02_silver.sc_analytics_warcraftlogs.silver_player_deaths",
@@ -147,20 +165,16 @@ def silver_player_deaths():
     # Legacy bronze death files stored many fights in one record; WCL truncates
     # those responses on long reports. Once a report has any single-fight death
     # records, prefer those and ignore the older multi-fight payloads.
-    report_modes = (
-        raw
-        .groupBy("report_code")
-        .agg(
-            F.max(
-                F.when(F.size(F.coalesce(F.col("fight_ids"), F.array().cast("array<long>"))) == 1, F.lit(1))
-                .otherwise(F.lit(0))
-            ).alias("has_single_fight_records")
-        )
+    report_modes = raw.groupBy("report_code").agg(
+        F.max(
+            F.when(
+                F.size(F.coalesce(F.col("fight_ids"), F.array().cast("array<long>"))) == 1, F.lit(1)
+            ).otherwise(F.lit(0))
+        ).alias("has_single_fight_records")
     )
 
     filtered_raw = (
-        raw
-        .join(report_modes, on="report_code", how="left")
+        raw.join(report_modes, on="report_code", how="left")
         .filter(
             (F.col("has_single_fight_records") == 0)
             | (F.size(F.coalesce(F.col("fight_ids"), F.array().cast("array<long>"))) == 1)
@@ -169,8 +183,7 @@ def silver_player_deaths():
     )
 
     return (
-        filtered_raw
-        .withColumn("parsed", F.from_json(F.col("table_json"), _TABLE_SCHEMA))
+        filtered_raw.withColumn("parsed", F.from_json(F.col("table_json"), _TABLE_SCHEMA))
         # Drop rows where JSON parsing failed
         .filter(F.col("parsed").isNotNull())
         # Explode entries: one row per death event
@@ -191,7 +204,7 @@ def silver_player_deaths():
             ).alias("kb_event"),
         )
         .withColumn("killing_blow_name", F.col("kb_event.ability.name"))
-        .withColumn("killing_blow_id",   F.col("kb_event.ability.guid"))
+        .withColumn("killing_blow_id", F.col("kb_event.ability.guid"))
         .withColumn(
             "_duplicate_count",
             F.count(F.lit(1)).over(
@@ -205,64 +218,82 @@ def silver_player_deaths():
 
 # ── Schema for events(dataType: Casts) JSON scalar ────────────────────────────
 
-_CAST_ABILITY_STRUCT = StructType([
-    StructField("name", StringType(), True),
-    StructField("guid", LongType(), True),
-    StructField("type", LongType(), True),
-    StructField("abilityIcon", StringType(), True),
-])
+_CAST_ABILITY_STRUCT = StructType(
+    [
+        StructField("name", StringType(), True),
+        StructField("guid", LongType(), True),
+        StructField("type", LongType(), True),
+        StructField("abilityIcon", StringType(), True),
+    ]
+)
 
-_CAST_EVENT_STRUCT = StructType([
-    StructField("timestamp", LongType(), True),
-    StructField("type", StringType(), True),
-    StructField("sourceID", LongType(), True),
-    StructField("targetID", LongType(), True),
-    StructField("fight", LongType(), True),
-    StructField("abilityGameID", LongType(), True),
-    StructField("ability", _CAST_ABILITY_STRUCT, True),
-])
+_CAST_EVENT_STRUCT = StructType(
+    [
+        StructField("timestamp", LongType(), True),
+        StructField("type", StringType(), True),
+        StructField("sourceID", LongType(), True),
+        StructField("targetID", LongType(), True),
+        StructField("fight", LongType(), True),
+        StructField("abilityGameID", LongType(), True),
+        StructField("ability", _CAST_ABILITY_STRUCT, True),
+    ]
+)
 
-_CAST_EVENTS_SCHEMA = StructType([
-    StructField("data", ArrayType(_CAST_EVENT_STRUCT), True),
-])
+_CAST_EVENTS_SCHEMA = StructType(
+    [
+        StructField("data", ArrayType(_CAST_EVENT_STRUCT), True),
+    ]
+)
 
-_COMBATANT_INFO_TALENT_STRUCT = StructType([
-    StructField("spellID", LongType(), True),
-    StructField("id", LongType(), True),
-    StructField("talentID", LongType(), True),
-])
+_COMBATANT_INFO_TALENT_STRUCT = StructType(
+    [
+        StructField("spellID", LongType(), True),
+        StructField("id", LongType(), True),
+        StructField("talentID", LongType(), True),
+    ]
+)
 
-_COMBATANT_INFO_AURA_STRUCT = StructType([
-    StructField("abilityGameId", LongType(), True),
-    StructField("icon", StringType(), True),
-    StructField("name", StringType(), True),
-    StructField("stacks", LongType(), True),
-])
+_COMBATANT_INFO_AURA_STRUCT = StructType(
+    [
+        StructField("abilityGameId", LongType(), True),
+        StructField("icon", StringType(), True),
+        StructField("name", StringType(), True),
+        StructField("stacks", LongType(), True),
+    ]
+)
 
-_COMBATANT_SOURCE_STRUCT = StructType([
-    StructField("id", LongType(), True),
-])
+_COMBATANT_SOURCE_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+    ]
+)
 
-_COMBATANT_INFO_EVENT_STRUCT = StructType([
-    StructField("timestamp", LongType(), True),
-    StructField("type", StringType(), True),
-    StructField("sourceID", LongType(), True),
-    StructField("source", _COMBATANT_SOURCE_STRUCT, True),
-    StructField("fight", LongType(), True),
-    StructField("specID", LongType(), True),
-    StructField("talentTree", ArrayType(_COMBATANT_INFO_TALENT_STRUCT), True),
-    StructField("auras", ArrayType(_COMBATANT_INFO_AURA_STRUCT), True),
-])
+_COMBATANT_INFO_EVENT_STRUCT = StructType(
+    [
+        StructField("timestamp", LongType(), True),
+        StructField("type", StringType(), True),
+        StructField("sourceID", LongType(), True),
+        StructField("source", _COMBATANT_SOURCE_STRUCT, True),
+        StructField("fight", LongType(), True),
+        StructField("specID", LongType(), True),
+        StructField("talentTree", ArrayType(_COMBATANT_INFO_TALENT_STRUCT), True),
+        StructField("auras", ArrayType(_COMBATANT_INFO_AURA_STRUCT), True),
+    ]
+)
 
-_COMBATANT_INFO_EVENTS_SCHEMA = StructType([
-    StructField("data", ArrayType(_COMBATANT_INFO_EVENT_STRUCT), True),
-])
+_COMBATANT_INFO_EVENTS_SCHEMA = StructType(
+    [
+        StructField("data", ArrayType(_COMBATANT_INFO_EVENT_STRUCT), True),
+    ]
+)
 
 _COOLDOWN_RULES_SQL = cooldown_rules_sql()
 
 
 def _sql_string_array(values: set[str]) -> str:
-    return "array(" + ", ".join("'" + value.replace("'", "''") + "'" for value in sorted(values)) + ")"
+    return (
+        "array(" + ", ".join("'" + value.replace("'", "''") + "'" for value in sorted(values)) + ")"
+    )
 
 
 def _normalized_name_sql(name_sql: str) -> str:
@@ -272,7 +303,9 @@ def _normalized_name_sql(name_sql: str) -> str:
     )
 
 
-def _classified_name_array_sql(source_col: str, explicit_names: set[str], keywords: tuple[str, ...]) -> str:
+def _classified_name_array_sql(
+    source_col: str, explicit_names: set[str], keywords: tuple[str, ...]
+) -> str:
     normalized_name = _normalized_name_sql("name")
     clauses = [f"array_contains({_sql_string_array(explicit_names)}, {normalized_name})"]
     clauses.extend(
@@ -280,17 +313,18 @@ def _classified_name_array_sql(source_col: str, explicit_names: set[str], keywor
         for keyword_sql in (keyword.replace("'", "''") for keyword in keywords)
     )
     return (
-        f"filter({source_col}, name -> {normalized_name} <> '' AND ("
-        + " OR ".join(clauses)
-        + "))"
+        f"filter({source_col}, name -> {normalized_name} <> '' AND (" + " OR ".join(clauses) + "))"
     )
 
 
 def _joined_name_column(array_col: str) -> F.Column:
-    return F.when(F.size(F.col(array_col)) > 0, F.array_join(F.col(array_col), " | ")).otherwise(F.lit(None))
+    return F.when(F.size(F.col(array_col)) > 0, F.array_join(F.col(array_col), " | ")).otherwise(
+        F.lit(None)
+    )
 
 
 # ── Parsed Player Cast Events ─────────────────────────────────────────────────
+
 
 @dlt.table(
     name="02_silver.sc_analytics_warcraftlogs.silver_player_cast_events",
@@ -307,8 +341,7 @@ def silver_player_cast_events():
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     parsed = (
-        raw
-        .withColumn("parsed", F.from_json(F.col("events_json"), _CAST_EVENTS_SCHEMA))
+        raw.withColumn("parsed", F.from_json(F.col("events_json"), _CAST_EVENTS_SCHEMA))
         .filter(F.col("parsed").isNotNull())
         .withColumn("event", F.explode("parsed.data"))
         .select(
@@ -318,7 +351,9 @@ def silver_player_cast_events():
             F.col("event.sourceID").alias("actor_id"),
             F.col("event.targetID").alias("target_actor_id"),
             F.col("event.ability.name").alias("ability_name"),
-            F.coalesce(F.col("event.ability.guid"), F.col("event.abilityGameID")).alias("ability_id"),
+            F.coalesce(F.col("event.ability.guid"), F.col("event.abilityGameID")).alias(
+                "ability_id"
+            ),
             F.col("event.ability.abilityIcon").alias("ability_icon"),
             F.col("_ingested_at"),
         )
@@ -341,8 +376,7 @@ def silver_player_cast_events():
     )
 
     with_fight = (
-        parsed
-        .join(
+        parsed.join(
             fight_lookup,
             (parsed.report_code == fight_lookup._f_report_code)
             & (
@@ -360,8 +394,7 @@ def silver_player_cast_events():
     )
 
     return (
-        with_fight
-        .join(
+        with_fight.join(
             actor_lookup,
             (with_fight.report_code == actor_lookup._a_report_code)
             & (with_fight.actor_id == actor_lookup._a_actor_id),
@@ -388,8 +421,9 @@ def silver_player_combatant_buffs():
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     parsed = (
-        raw
-        .withColumn("parsed", F.from_json(F.col("combatant_info_json"), _COMBATANT_INFO_EVENTS_SCHEMA))
+        raw.withColumn(
+            "parsed", F.from_json(F.col("combatant_info_json"), _COMBATANT_INFO_EVENTS_SCHEMA)
+        )
         .filter(F.col("parsed").isNotNull())
         .withColumn("event", F.explode("parsed.data"))
         .select(
@@ -398,7 +432,9 @@ def silver_player_combatant_buffs():
             F.col("event.timestamp").alias("combatant_timestamp_ms"),
             F.coalesce(F.col("event.sourceID"), F.col("event.source.id")).alias("actor_id"),
             F.col("event.specID").alias("spec_id"),
-            F.expr("transform(coalesce(event.auras, array()), aura -> trim(aura.name))").alias("aura_names_raw"),
+            F.expr("transform(coalesce(event.auras, array()), aura -> trim(aura.name))").alias(
+                "aura_names_raw"
+            ),
             F.expr(
                 "filter(transform(coalesce(event.talentTree, array()), "
                 "talent -> cast(coalesce(talent.spellID, talent.id, talent.talentID) as string)), "
@@ -425,8 +461,7 @@ def silver_player_combatant_buffs():
     )
 
     with_fight = (
-        parsed
-        .join(
+        parsed.join(
             fight_lookup,
             (parsed.report_code == fight_lookup._f_report_code)
             & (
@@ -444,8 +479,7 @@ def silver_player_combatant_buffs():
     )
 
     grouped = (
-        with_fight
-        .join(
+        with_fight.join(
             actor_lookup,
             (with_fight.report_code == actor_lookup._a_report_code)
             & (with_fight.actor_id == actor_lookup._a_actor_id),
@@ -457,14 +491,15 @@ def silver_player_combatant_buffs():
         .agg(
             F.max("spec_id").alias("spec_id"),
             F.flatten(F.collect_list("aura_names_raw")).alias("aura_names"),
-            F.array_distinct(F.flatten(F.collect_list("talent_spell_ids_raw"))).alias("talent_spell_ids"),
+            F.array_distinct(F.flatten(F.collect_list("talent_spell_ids_raw"))).alias(
+                "talent_spell_ids"
+            ),
             F.max("_ingested_at").alias("_ingested_at"),
         )
     )
 
     classified = (
-        grouped
-        .withColumn(
+        grouped.withColumn(
             "food_buff_names_array",
             F.expr(
                 _classified_name_array_sql(
@@ -506,23 +541,28 @@ def silver_player_combatant_buffs():
         )
     )
 
-    return (
-        classified
-        .select(
-            "report_code",
-            "fight_id",
-            "player_name",
-            "player_class",
-            "spec_id",
-            "talent_spell_ids",
-            F.when(F.size(F.col("food_buff_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_food_buff"),
-            _joined_name_column("food_buff_names_array").alias("food_buff_names"),
-            F.when(F.size(F.col("flask_or_phial_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_flask_or_phial_buff"),
-            _joined_name_column("flask_or_phial_names_array").alias("flask_or_phial_names"),
-            F.when(F.size(F.col("weapon_enhancement_names_array")) > 0, F.lit(1)).otherwise(F.lit(0)).alias("has_weapon_enhancement_aura"),
-            _joined_name_column("weapon_enhancement_names_array").alias("weapon_enhancement_aura_names"),
-            "_ingested_at",
-        )
+    return classified.select(
+        "report_code",
+        "fight_id",
+        "player_name",
+        "player_class",
+        "spec_id",
+        "talent_spell_ids",
+        F.when(F.size(F.col("food_buff_names_array")) > 0, F.lit(1))
+        .otherwise(F.lit(0))
+        .alias("has_food_buff"),
+        _joined_name_column("food_buff_names_array").alias("food_buff_names"),
+        F.when(F.size(F.col("flask_or_phial_names_array")) > 0, F.lit(1))
+        .otherwise(F.lit(0))
+        .alias("has_flask_or_phial_buff"),
+        _joined_name_column("flask_or_phial_names_array").alias("flask_or_phial_names"),
+        F.when(F.size(F.col("weapon_enhancement_names_array")) > 0, F.lit(1))
+        .otherwise(F.lit(0))
+        .alias("has_weapon_enhancement_aura"),
+        _joined_name_column("weapon_enhancement_names_array").alias(
+            "weapon_enhancement_aura_names"
+        ),
+        "_ingested_at",
     )
 
 

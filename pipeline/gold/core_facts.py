@@ -41,7 +41,11 @@ def _ensure_repo_root_on_syspath() -> None:
     for candidate in candidates:
         current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
         while current and current != os.path.dirname(current):
-            pipeline_dir = current if os.path.basename(current) == "pipeline" else os.path.join(current, "pipeline")
+            pipeline_dir = (
+                current
+                if os.path.basename(current) == "pipeline"
+                else os.path.join(current, "pipeline")
+            )
             if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
                 repo_root = os.path.dirname(pipeline_dir)
                 if repo_root not in sys.path:
@@ -61,24 +65,30 @@ from pipeline.consumables import (  # noqa: E402
     MIDNIGHT_COMBAT_POTION_NAMES as COMBAT_POTION_NAMES,
 )
 
-_BUFF_ABILITY_STRUCT = StructType([
-    StructField("name", StringType(), True),
-    StructField("guid", LongType(), True),
-])
+_BUFF_ABILITY_STRUCT = StructType(
+    [
+        StructField("name", StringType(), True),
+        StructField("guid", LongType(), True),
+    ]
+)
 
-_BUFF_EVENT_STRUCT = StructType([
-    StructField("timestamp", LongType(), True),
-    StructField("type", StringType(), True),
-    StructField("sourceID", LongType(), True),
-    StructField("targetID", LongType(), True),
-    StructField("fight", LongType(), True),
-    StructField("ability", _BUFF_ABILITY_STRUCT, True),
-    StructField("abilityGameID", LongType(), True),
-])
+_BUFF_EVENT_STRUCT = StructType(
+    [
+        StructField("timestamp", LongType(), True),
+        StructField("type", StringType(), True),
+        StructField("sourceID", LongType(), True),
+        StructField("targetID", LongType(), True),
+        StructField("fight", LongType(), True),
+        StructField("ability", _BUFF_ABILITY_STRUCT, True),
+        StructField("abilityGameID", LongType(), True),
+    ]
+)
 
-_BUFF_EVENTS_SCHEMA = StructType([
-    StructField("data", ArrayType(_BUFF_EVENT_STRUCT), True),
-])
+_BUFF_EVENTS_SCHEMA = StructType(
+    [
+        StructField("data", ArrayType(_BUFF_EVENT_STRUCT), True),
+    ]
+)
 
 _COMBAT_POTION_NAME_VALUES = tuple(sorted(COMBAT_POTION_NAMES))
 _COMBAT_POTION_ID_VALUES = tuple(COMBAT_POTION_IDS)
@@ -99,7 +109,9 @@ def _merge_name_columns(left_col: str, right_col: str) -> F.Column:
             lambda value: value != "",
         )
     )
-    return F.when(F.size(merged) > 0, F.array_join(merged, " | ")).otherwise(F.lit(None).cast("string"))
+    return F.when(F.size(merged) > 0, F.array_join(merged, " | ")).otherwise(
+        F.lit(None).cast("string")
+    )
 
 
 # ── Player Fight Performance Fact ──────────────────────────────────────────────
@@ -110,6 +122,7 @@ def _merge_name_columns(left_col: str, right_col: str) -> F.Column:
 # Only kill fights are included (is_kill = true) — this table is intended for
 # performance assessment rather than wipe analysis (use silver_fight_events for
 # the latter).
+
 
 @dlt.table(
     name="03_gold.sc_analytics.fact_player_fight_performance",
@@ -133,37 +146,30 @@ def fact_player_fight_performance():
     actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
 
     # Kill fights only with full context
-    kill_context = (
-        fights
-        .filter(F.col("is_kill") == True)  # noqa: E712
-        .select(
-            "report_code",
-            "fight_id",
-            "encounter_id",
-            "boss_name",
-            "zone_name",
-            "difficulty",
-            "difficulty_label",
-            "raid_night_date",
-            "is_kill",
-            "duration_seconds",
-        )
+    kill_context = fights.filter(F.col("is_kill") == True).select(  # noqa: E712
+        "report_code",
+        "fight_id",
+        "encounter_id",
+        "boss_name",
+        "zone_name",
+        "difficulty",
+        "difficulty_label",
+        "raid_night_date",
+        "is_kill",
+        "duration_seconds",
     )
 
     # Rankings keyed on (report_code, fight_id, player_name).
     # amount = WCL role-appropriate metric (DPS for dps/tank, HPS for healer)
     # per-second throughput, already fight-normalised.
-    rankings_slim = (
-        rankings
-        .select(
-            F.col("report_code").alias("_r_report_code"),
-            F.col("fight_id").alias("_r_fight_id"),
-            F.col("player_name").alias("_r_player_name"),
-            "rank_percent",
-            "bracket_percent",
-            "rank_string",   # "~1265" approximate rank position
-            F.col("amount").cast("long").alias("throughput_per_second"),
-        )
+    rankings_slim = rankings.select(
+        F.col("report_code").alias("_r_report_code"),
+        F.col("fight_id").alias("_r_fight_id"),
+        F.col("player_name").alias("_r_player_name"),
+        "rank_percent",
+        "bracket_percent",
+        "rank_string",  # "~1265" approximate rank position
+        F.col("amount").cast("long").alias("throughput_per_second"),
     )
 
     # Slim perf to player-specific columns only — fight-context cols come from kill_context.
@@ -198,8 +204,7 @@ def fact_player_fight_performance():
     )
 
     combat_potions_slim = (
-        raw_casts
-        .withColumn("parsed_buffs", F.from_json(F.col("buffs_json"), _BUFF_EVENTS_SCHEMA))
+        raw_casts.withColumn("parsed_buffs", F.from_json(F.col("buffs_json"), _BUFF_EVENTS_SCHEMA))
         .filter(F.col("parsed_buffs").isNotNull())
         .withColumn("event", F.explode("parsed_buffs.data"))
         .withColumn("fight_id", F.col("event.fight"))
@@ -287,7 +292,9 @@ def fact_player_fight_performance():
         .drop("_p_report_code", "_p_fight_id", "_p_player_name")
         .withColumn("potion_use", F.coalesce(F.col("cast_potion_use"), F.lit(0)))
         .withColumn("has_food_buff", F.coalesce(F.col("has_food_buff"), F.lit(0)))
-        .withColumn("has_flask_or_phial_buff", F.coalesce(F.col("has_flask_or_phial_buff"), F.lit(0)))
+        .withColumn(
+            "has_flask_or_phial_buff", F.coalesce(F.col("has_flask_or_phial_buff"), F.lit(0))
+        )
         .withColumn(
             "has_weapon_enhancement",
             F.greatest(
@@ -329,12 +336,17 @@ def fact_player_fight_performance():
             "haste_rating",
             "mastery_rating",
             "versatility_rating",
-            "throughput_per_second",   # from rankings.amount (DPS for dps/tank, HPS for healer; nullable)
+            "throughput_per_second",  # from rankings.amount (DPS for dps/tank, HPS for healer; nullable)
             "rank_percent",
             "bracket_percent",
             "rank_string",
         )
-        .orderBy("raid_night_date", "encounter_id", "role", F.col("throughput_per_second").desc_nulls_last())
+        .orderBy(
+            "raid_night_date",
+            "encounter_id",
+            "role",
+            F.col("throughput_per_second").desc_nulls_last(),
+        )
     )
 
 
@@ -343,6 +355,7 @@ def fact_player_fight_performance():
 # fight_id is available directly from silver_player_deaths (each WCL death entry
 # carries the fight it occurred in).  Zone context is joined from
 # silver_guild_reports via report_code.
+
 
 @dlt.table(
     name="03_gold.sc_analytics.fact_player_events",
@@ -360,19 +373,15 @@ def fact_player_events():
     reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
     # Zone context from reports
-    report_context = (
-        reports
-        .select(
-            F.col("code").alias("_r_code"),
-            F.col("zone_name"),
-            F.col("zone_id"),
-            F.to_date("start_time_utc").alias("raid_night_date"),
-        )
+    report_context = reports.select(
+        F.col("code").alias("_r_code"),
+        F.col("zone_name"),
+        F.col("zone_id"),
+        F.to_date("start_time_utc").alias("raid_night_date"),
     )
 
     return (
-        deaths
-        .join(
+        deaths.join(
             report_context,
             deaths.report_code == report_context._r_code,
             "left",

@@ -44,5 +44,10 @@ def test_rule_data_order_is_stable_across_python_and_sql_exports() -> None:
     sql = defensive_cooldown_rules_sql()
     ordered_ability_ids = [int(match) for match in re.findall(r"\('[^']+', (\d+),", sql)]
 
-    assert tuple(rule for rule in COOLDOWN_RULE_RECORDS if rule.category in {"personal", "personal_spec"}) == PERSONAL_DEFENSIVE_RULE_RECORDS
+    assert (
+        tuple(
+            rule for rule in COOLDOWN_RULE_RECORDS if rule.category in {"personal", "personal_spec"}
+        )
+        == PERSONAL_DEFENSIVE_RULE_RECORDS
+    )
     assert ordered_ability_ids == [rule.ability_id for rule in PERSONAL_DEFENSIVE_RULE_RECORDS]

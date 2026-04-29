@@ -28,7 +28,6 @@ from pyspark.sql import functions as F
     comment="Throwaway probe for @dlt.table fully-qualified name override support.",
 )
 def spike_override_probe():
-    return (
-        spark.range(3)  # noqa: F821
-        .withColumn("note", F.lit("override works if this row is in 01_bronze.spike_check"))
+    return spark.range(3).withColumn(  # noqa: F821
+        "note", F.lit("override works if this row is in 01_bronze.spike_check")
     )

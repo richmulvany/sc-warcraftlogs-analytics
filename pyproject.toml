@@ -38,6 +38,10 @@ target-version = "py311"
 line-length = 100
 # dbutils, spark, display are injected globals in every Databricks notebook/job
 builtins = ["dbutils", "spark", "display"]
+extend-exclude = [
+    # Databricks notebook magic is valid in the deployed notebook but not Python syntax.
+    "ingestion/jobs/ingest_primary.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM"]

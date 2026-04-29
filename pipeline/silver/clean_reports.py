@@ -34,7 +34,11 @@ def _ensure_repo_root_on_syspath() -> None:
     for candidate in candidates:
         current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
         while current and current != os.path.dirname(current):
-            pipeline_dir = current if os.path.basename(current) == "pipeline" else os.path.join(current, "pipeline")
+            pipeline_dir = (
+                current
+                if os.path.basename(current) == "pipeline"
+                else os.path.join(current, "pipeline")
+            )
             if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
                 repo_root = os.path.dirname(pipeline_dir)
                 if repo_root not in sys.path:
@@ -136,9 +140,9 @@ def silver_fight_events():
         .withColumn(
             "difficulty_label",
             F.when(F.col("difficulty") == 3, "Normal")
-             .when(F.col("difficulty") == 4, "Heroic")
-             .when(F.col("difficulty") == 5, "Mythic")
-             .otherwise("Unknown"),
+            .when(F.col("difficulty") == 4, "Heroic")
+            .when(F.col("difficulty") == 5, "Mythic")
+            .otherwise("Unknown"),
         )
         .withColumn("outcome", F.when(F.col("is_kill"), "kill").otherwise("wipe"))
         # ── Join zone + date from silver_guild_reports (batch dimension) ──

@@ -11,11 +11,12 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import LongType, StructField, StructType
 from pyspark.sql.window import Window
 
-
-_ACHIEVEMENTS_HEADER_SCHEMA = StructType([
-    StructField("total_quantity", LongType(), True),
-    StructField("total_points", LongType(), True),
-])
+_ACHIEVEMENTS_HEADER_SCHEMA = StructType(
+    [
+        StructField("total_quantity", LongType(), True),
+        StructField("total_points", LongType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -27,13 +28,10 @@ _ACHIEVEMENTS_HEADER_SCHEMA = StructType([
 def silver_character_achievements():
     raw = spark.read.table("01_bronze.blizzard.bronze_character_achievements")  # noqa: F821
     w = Window.partitionBy("player_name", "realm_slug").orderBy(F.col("_ingested_at").desc())
-    deduped = (
-        raw
-        .withColumn("_rn", F.row_number().over(w))
-        .filter(F.col("_rn") == 1)
-        .drop("_rn")
+    deduped = raw.withColumn("_rn", F.row_number().over(w)).filter(F.col("_rn") == 1).drop("_rn")
+    parsed = deduped.withColumn(
+        "hdr", F.from_json("achievements_json", _ACHIEVEMENTS_HEADER_SCHEMA)
     )
-    parsed = deduped.withColumn("hdr", F.from_json("achievements_json", _ACHIEVEMENTS_HEADER_SCHEMA))
 
     return parsed.select(
         "player_name",

@@ -14,8 +14,7 @@ from pyspark.sql.window import Window
 def gold_player_mplus_score_history():
     scores = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_scores")  # noqa: F821
     return (
-        scores
-        .select(
+        scores.select(
             "player_name",
             "realm_slug",
             "region",
@@ -45,8 +44,7 @@ def gold_player_mplus_score_history():
 def gold_player_mplus_run_history():
     runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
     return (
-        runs
-        .select(
+        runs.select(
             "player_name",
             "realm_slug",
             "region",
@@ -80,37 +78,31 @@ def gold_player_mplus_summary():
     runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
 
     latest_scores = (
-        scores
-        .withColumn(
+        scores.withColumn(
             "_rn",
             F.row_number().over(
-                Window.partitionBy("player_name", "realm_slug", "region", "season")
-                .orderBy(F.col("snapshot_at").desc_nulls_last())
+                Window.partitionBy("player_name", "realm_slug", "region", "season").orderBy(
+                    F.col("snapshot_at").desc_nulls_last()
+                )
             ),
         )
         .filter(F.col("_rn") == 1)
         .drop("_rn")
     )
 
-    run_counts = (
-        runs
-        .groupBy("player_name", "realm_slug", "region", "season")
-        .agg(
-            F.count("*").alias("total_runs"),
-            F.sum(F.when(F.col("timed") == True, F.lit(1)).otherwise(F.lit(0))).alias("timed_runs"),  # noqa: E712
-            F.sum(F.when(F.col("timed") == False, F.lit(1)).otherwise(F.lit(0))).alias("untimed_runs"),  # noqa: E712
-            F.max(F.when(F.col("timed") == True, F.col("mythic_level"))).alias("highest_timed_level"),  # noqa: E712
-            F.max(F.when(F.col("timed") == False, F.col("mythic_level"))).alias("highest_untimed_level"),  # noqa: E712
-        )
+    run_counts = runs.groupBy("player_name", "realm_slug", "region", "season").agg(
+        F.count("*").alias("total_runs"),
+        F.sum(F.when(F.col("timed") == True, F.lit(1)).otherwise(F.lit(0))).alias("timed_runs"),  # noqa: E712
+        F.sum(F.when(~F.col("timed"), F.lit(1)).otherwise(F.lit(0))).alias("untimed_runs"),
+        F.max(F.when(F.col("timed") == True, F.col("mythic_level"))).alias("highest_timed_level"),  # noqa: E712
+        F.max(F.when(~F.col("timed"), F.col("mythic_level"))).alias("highest_untimed_level"),
     )
 
     best_run = (
-        runs
-        .withColumn(
+        runs.withColumn(
             "_rn",
             F.row_number().over(
-                Window.partitionBy("player_name", "realm_slug", "region", "season")
-                .orderBy(
+                Window.partitionBy("player_name", "realm_slug", "region", "season").orderBy(
                     F.col("timed").desc(),
                     F.col("mythic_level").desc_nulls_last(),
                     F.col("score").desc_nulls_last(),
@@ -134,18 +126,16 @@ def gold_player_mplus_summary():
         )
     )
 
-    key_counts = (
-        runs
-        .groupBy("player_name", "realm_slug", "region", "season", "mythic_level")
-        .agg(F.count("*").alias("_key_count"))
+    key_counts = runs.groupBy("player_name", "realm_slug", "region", "season", "mythic_level").agg(
+        F.count("*").alias("_key_count")
     )
     most_common_key = (
-        key_counts
-        .withColumn(
+        key_counts.withColumn(
             "_rn",
             F.row_number().over(
-                Window.partitionBy("player_name", "realm_slug", "region", "season")
-                .orderBy(F.col("_key_count").desc(), F.col("mythic_level").desc_nulls_last())
+                Window.partitionBy("player_name", "realm_slug", "region", "season").orderBy(
+                    F.col("_key_count").desc(), F.col("mythic_level").desc_nulls_last()
+                )
             ),
         )
         .filter(F.col("_rn") == 1)
@@ -160,8 +150,7 @@ def gold_player_mplus_summary():
     )
 
     return (
-        latest_scores
-        .join(run_counts, ["player_name", "realm_slug", "region", "season"], "left")
+        latest_scores.join(run_counts, ["player_name", "realm_slug", "region", "season"], "left")
         .join(best_run, ["player_name", "realm_slug", "region", "season"], "left")
         .join(most_common_key, ["player_name", "realm_slug", "region", "season"], "left")
         .select(
@@ -205,18 +194,17 @@ def gold_player_mplus_summary():
 def gold_player_mplus_weekly_activity():
     runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
     key_counts = (
-        runs
-        .withColumn("week_start", F.to_date(F.date_trunc("week", F.col("completed_at"))))
+        runs.withColumn("week_start", F.to_date(F.date_trunc("week", F.col("completed_at"))))
         .groupBy("player_name", "realm_slug", "region", "season", "week_start", "mythic_level")
         .agg(F.count("*").alias("_key_count"))
     )
     most_common_key = (
-        key_counts
-        .withColumn(
+        key_counts.withColumn(
             "_rn",
             F.row_number().over(
-                Window.partitionBy("player_name", "realm_slug", "region", "season", "week_start")
-                .orderBy(F.col("_key_count").desc(), F.col("mythic_level").desc_nulls_last())
+                Window.partitionBy(
+                    "player_name", "realm_slug", "region", "season", "week_start"
+                ).orderBy(F.col("_key_count").desc(), F.col("mythic_level").desc_nulls_last())
             ),
         )
         .filter(F.col("_rn") == 1)
@@ -231,23 +219,20 @@ def gold_player_mplus_weekly_activity():
     )
 
     weekly = (
-        runs
-        .withColumn("week_start", F.to_date(F.date_trunc("week", F.col("completed_at"))))
+        runs.withColumn("week_start", F.to_date(F.date_trunc("week", F.col("completed_at"))))
         .groupBy("player_name", "realm_slug", "region", "season", "week_start")
         .agg(
             F.count("*").alias("total_runs"),
             F.sum(F.when(F.col("timed") == True, F.lit(1)).otherwise(F.lit(0))).alias("timed_runs"),  # noqa: E712
-            F.sum(F.when(F.col("timed") == False, F.lit(1)).otherwise(F.lit(0))).alias("untimed_runs"),  # noqa: E712
+            F.sum(F.when(~F.col("timed"), F.lit(1)).otherwise(F.lit(0))).alias("untimed_runs"),
             F.max("mythic_level").alias("highest_key_level"),
             F.countDistinct("dungeon").alias("unique_dungeons"),
         )
     )
 
-    return (
-        weekly
-        .join(most_common_key, ["player_name", "realm_slug", "region", "season", "week_start"], "left")
-        .orderBy("player_name", "week_start")
-    )
+    return weekly.join(
+        most_common_key, ["player_name", "realm_slug", "region", "season", "week_start"], "left"
+    ).orderBy("player_name", "week_start")
 
 
 @dlt.table(
@@ -259,12 +244,12 @@ def gold_player_mplus_dungeon_breakdown():
     runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
 
     best_runs = (
-        runs
-        .withColumn(
+        runs.withColumn(
             "_rn",
             F.row_number().over(
-                Window.partitionBy("player_name", "realm_slug", "region", "season", "dungeon")
-                .orderBy(
+                Window.partitionBy(
+                    "player_name", "realm_slug", "region", "season", "dungeon"
+                ).orderBy(
                     F.col("timed").desc(),
                     F.col("mythic_level").desc_nulls_last(),
                     F.col("score").desc_nulls_last(),
@@ -290,22 +275,17 @@ def gold_player_mplus_dungeon_breakdown():
         )
     )
 
-    agg = (
-        runs
-        .groupBy("player_name", "realm_slug", "region", "season", "dungeon")
-        .agg(
-            F.max("mythic_level").alias("highest_key_level"),
-            F.max(F.when(F.col("timed") == True, F.col("mythic_level"))).alias("highest_timed_level"),  # noqa: E712
-            F.count("*").alias("total_runs"),
-            F.sum(F.when(F.col("timed") == True, F.lit(1)).otherwise(F.lit(0))).alias("timed_runs"),  # noqa: E712
-            F.sum(F.when(F.col("timed") == False, F.lit(1)).otherwise(F.lit(0))).alias("untimed_runs"),  # noqa: E712
-            F.max("completed_at").alias("latest_completed_at"),
-        )
+    agg = runs.groupBy("player_name", "realm_slug", "region", "season", "dungeon").agg(
+        F.max("mythic_level").alias("highest_key_level"),
+        F.max(F.when(F.col("timed") == True, F.col("mythic_level"))).alias("highest_timed_level"),  # noqa: E712
+        F.count("*").alias("total_runs"),
+        F.sum(F.when(F.col("timed") == True, F.lit(1)).otherwise(F.lit(0))).alias("timed_runs"),  # noqa: E712
+        F.sum(F.when(F.col("timed") == False, F.lit(1)).otherwise(F.lit(0))).alias("untimed_runs"),  # noqa: E712
+        F.max("completed_at").alias("latest_completed_at"),
     )
 
     return (
-        agg
-        .join(best_runs, ["player_name", "realm_slug", "region", "season", "dungeon"], "left")
+        agg.join(best_runs, ["player_name", "realm_slug", "region", "season", "dungeon"], "left")
         .select(
             "player_name",
             "realm_slug",

@@ -40,72 +40,84 @@ def _autoload(subdir: str, schema: StructType, allow_overwrites: bool = False):
     )
     if allow_overwrites:
         reader = reader.option("cloudFiles.allowOverwrites", "true")
-    return (
-        reader
-        .load(f"{LANDING}/{subdir}/")
-        .withColumn("_file_path", F.col("_metadata.file_path"))
+    return reader.load(f"{LANDING}/{subdir}/").withColumn(
+        "_file_path", F.col("_metadata.file_path")
     )
 
 
 # ── Shared sub-schemas ─────────────────────────────────────────────────────────
 
-_ZONE_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-])
+_ZONE_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+    ]
+)
 
-_ACTOR_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-    StructField("type", StringType(), True),
-    StructField("subType", StringType(), True),
-    StructField("server", StringType(), True),
-])
+_ACTOR_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+        StructField("type", StringType(), True),
+        StructField("subType", StringType(), True),
+        StructField("server", StringType(), True),
+    ]
+)
 
-_FIGHT_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-    StructField("encounterID", LongType(), True),
-    StructField("kill", BooleanType(), True),
-    StructField("startTime", LongType(), True),
-    StructField("endTime", LongType(), True),
-    StructField("difficulty", LongType(), True),
-    StructField("fightPercentage", DoubleType(), True),
-    StructField("bossPercentage", DoubleType(), True),
-    StructField("lastPhase", LongType(), True),
-    StructField("size", LongType(), True),
-    StructField("friendlyPlayers", ArrayType(LongType()), True),
-])
+_FIGHT_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+        StructField("encounterID", LongType(), True),
+        StructField("kill", BooleanType(), True),
+        StructField("startTime", LongType(), True),
+        StructField("endTime", LongType(), True),
+        StructField("difficulty", LongType(), True),
+        StructField("fightPercentage", DoubleType(), True),
+        StructField("bossPercentage", DoubleType(), True),
+        StructField("lastPhase", LongType(), True),
+        StructField("size", LongType(), True),
+        StructField("friendlyPlayers", ArrayType(LongType()), True),
+    ]
+)
 
-_PLAYER_STRUCT = StructType([
-    StructField("name", StringType(), True),
-    StructField("presence", LongType(), True),
-    StructField("type", StringType(), True),
-])
+_PLAYER_STRUCT = StructType(
+    [
+        StructField("name", StringType(), True),
+        StructField("presence", LongType(), True),
+        StructField("type", StringType(), True),
+    ]
+)
 
-_ENCOUNTER_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-])
+_ENCOUNTER_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+    ]
+)
 
-_DIFFICULTY_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-    StructField("sizes", ArrayType(LongType()), True),
-])
+_DIFFICULTY_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+        StructField("sizes", ArrayType(LongType()), True),
+    ]
+)
 
 
 # ── Guild Reports ──────────────────────────────────────────────────────────────
 
-_GUILD_REPORTS_SCHEMA = StructType([
-    StructField("code", StringType(), True),
-    StructField("title", StringType(), True),
-    StructField("startTime", LongType(), True),
-    StructField("endTime", LongType(), True),
-    StructField("zone", _ZONE_STRUCT, True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_GUILD_REPORTS_SCHEMA = StructType(
+    [
+        StructField("code", StringType(), True),
+        StructField("title", StringType(), True),
+        StructField("startTime", LongType(), True),
+        StructField("endTime", LongType(), True),
+        StructField("zone", _ZONE_STRUCT, True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -121,19 +133,27 @@ def bronze_guild_reports():
 
 # ── Report Fights ──────────────────────────────────────────────────────────────
 
-_REPORT_FIGHTS_SCHEMA = StructType([
-    StructField("code", StringType(), True),
-    StructField("title", StringType(), True),
-    StructField("startTime", LongType(), True),
-    StructField("endTime", LongType(), True),
-    StructField("zone", _ZONE_STRUCT, True),
-    StructField("masterData", StructType([
-        StructField("actors", ArrayType(_ACTOR_STRUCT), True),
-    ]), True),
-    StructField("fights", ArrayType(_FIGHT_STRUCT), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_REPORT_FIGHTS_SCHEMA = StructType(
+    [
+        StructField("code", StringType(), True),
+        StructField("title", StringType(), True),
+        StructField("startTime", LongType(), True),
+        StructField("endTime", LongType(), True),
+        StructField("zone", _ZONE_STRUCT, True),
+        StructField(
+            "masterData",
+            StructType(
+                [
+                    StructField("actors", ArrayType(_ACTOR_STRUCT), True),
+                ]
+            ),
+            True,
+        ),
+        StructField("fights", ArrayType(_FIGHT_STRUCT), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -149,14 +169,16 @@ def bronze_report_fights():
 
 # ── Raid Attendance ────────────────────────────────────────────────────────────
 
-_RAID_ATTENDANCE_SCHEMA = StructType([
-    StructField("code", StringType(), True),
-    StructField("startTime", LongType(), True),
-    StructField("zone", _ZONE_STRUCT, True),
-    StructField("players", ArrayType(_PLAYER_STRUCT), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_RAID_ATTENDANCE_SCHEMA = StructType(
+    [
+        StructField("code", StringType(), True),
+        StructField("startTime", LongType(), True),
+        StructField("zone", _ZONE_STRUCT, True),
+        StructField("players", ArrayType(_PLAYER_STRUCT), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -172,12 +194,14 @@ def bronze_raid_attendance():
 
 # ── Actor Roster ───────────────────────────────────────────────────────────────
 
-_ACTOR_ROSTER_SCHEMA = StructType([
-    StructField("report_code", StringType(), True),
-    StructField("actors", ArrayType(_ACTOR_STRUCT), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_ACTOR_ROSTER_SCHEMA = StructType(
+    [
+        StructField("report_code", StringType(), True),
+        StructField("actors", ArrayType(_ACTOR_STRUCT), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -193,20 +217,22 @@ def bronze_actor_roster():
 
 # ── Player Details ─────────────────────────────────────────────────────────────
 
-_PLAYER_DETAILS_SCHEMA = StructType([
-    StructField("report_code", StringType(), True),
-    StructField("fight_id", LongType(), True),
-    StructField("boss_name", StringType(), True),
-    StructField("encounter_id", LongType(), True),
-    StructField("difficulty", LongType(), True),
-    StructField("is_kill", BooleanType(), True),
-    StructField("duration_ms", LongType(), True),
-    StructField("zone_id", LongType(), True),
-    StructField("zone_name", StringType(), True),
-    StructField("player_details_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_PLAYER_DETAILS_SCHEMA = StructType(
+    [
+        StructField("report_code", StringType(), True),
+        StructField("fight_id", LongType(), True),
+        StructField("boss_name", StringType(), True),
+        StructField("encounter_id", LongType(), True),
+        StructField("difficulty", LongType(), True),
+        StructField("is_kill", BooleanType(), True),
+        StructField("duration_ms", LongType(), True),
+        StructField("zone_id", LongType(), True),
+        StructField("zone_name", StringType(), True),
+        StructField("player_details_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -223,15 +249,17 @@ def bronze_player_details():
 
 # ── Zone Catalog ───────────────────────────────────────────────────────────────
 
-_ZONE_CATALOG_SCHEMA = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-    StructField("frozen", BooleanType(), True),
-    StructField("encounters", ArrayType(_ENCOUNTER_STRUCT), True),
-    StructField("difficulties", ArrayType(_DIFFICULTY_STRUCT), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_ZONE_CATALOG_SCHEMA = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+        StructField("frozen", BooleanType(), True),
+        StructField("encounters", ArrayType(_ENCOUNTER_STRUCT), True),
+        StructField("difficulties", ArrayType(_DIFFICULTY_STRUCT), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -246,18 +274,20 @@ def bronze_zone_catalog():
 
 # ── Fight Rankings ─────────────────────────────────────────────────────────────
 
-_FIGHT_RANKINGS_SCHEMA = StructType([
-    StructField("report_code", StringType(), True),
-    # rankings_json: WCL rankings(playerMetric: dps) — used for dps/tank rows.
-    StructField("rankings_json", StringType(), True),
-    # rankings_hps_json: WCL rankings(playerMetric: hps) — used for healer rows.
-    # Nullable so old bronze landings (which only carry rankings_json) still load;
-    # silver gracefully nulls healer parses for those legacy reports until
-    # re-ingested.
-    StructField("rankings_hps_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_FIGHT_RANKINGS_SCHEMA = StructType(
+    [
+        StructField("report_code", StringType(), True),
+        # rankings_json: WCL rankings(playerMetric: dps) — used for dps/tank rows.
+        StructField("rankings_json", StringType(), True),
+        # rankings_hps_json: WCL rankings(playerMetric: hps) — used for healer rows.
+        # Nullable so old bronze landings (which only carry rankings_json) still load;
+        # silver gracefully nulls healer parses for those legacy reports until
+        # re-ingested.
+        StructField("rankings_hps_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -276,13 +306,15 @@ def bronze_fight_rankings():
 
 # ── Fight Deaths ───────────────────────────────────────────────────────────────
 
-_FIGHT_DEATHS_SCHEMA = StructType([
-    StructField("report_code", StringType(), True),
-    StructField("fight_ids", ArrayType(LongType()), True),
-    StructField("table_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_FIGHT_DEATHS_SCHEMA = StructType(
+    [
+        StructField("report_code", StringType(), True),
+        StructField("fight_ids", ArrayType(LongType()), True),
+        StructField("table_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -298,15 +330,17 @@ def bronze_fight_deaths():
 
 # ── Fight Casts ────────────────────────────────────────────────────────────────
 
-_FIGHT_CASTS_SCHEMA = StructType([
-    StructField("report_code", StringType(), True),
-    StructField("fight_ids", ArrayType(LongType()), True),
-    StructField("events_json", StringType(), True),
-    StructField("buffs_json", StringType(), True),
-    StructField("combatant_info_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_FIGHT_CASTS_SCHEMA = StructType(
+    [
+        StructField("report_code", StringType(), True),
+        StructField("fight_ids", ArrayType(LongType()), True),
+        StructField("events_json", StringType(), True),
+        StructField("buffs_json", StringType(), True),
+        StructField("combatant_info_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(
@@ -322,13 +356,15 @@ def bronze_fight_casts():
 
 # ── Guild Zone Ranks (NEW — migrated from export script) ──────────────────────
 
-_GUILD_ZONE_RANKS_SCHEMA = StructType([
-    StructField("zone_id", LongType(), True),
-    StructField("zone_name", StringType(), True),
-    StructField("progress_json", StringType(), True),
-    StructField("_source", StringType(), True),
-    StructField("_ingested_at", StringType(), True),
-])
+_GUILD_ZONE_RANKS_SCHEMA = StructType(
+    [
+        StructField("zone_id", LongType(), True),
+        StructField("zone_name", StringType(), True),
+        StructField("progress_json", StringType(), True),
+        StructField("_source", StringType(), True),
+        StructField("_ingested_at", StringType(), True),
+    ]
+)
 
 
 @dlt.table(

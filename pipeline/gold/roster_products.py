@@ -16,6 +16,7 @@ from pyspark.sql import functions as F
 # be empty.  Configure blizzard_client_id and blizzard_client_secret in the
 # "warcraftlogs" Databricks Secret Scope to populate this table.
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_guild_roster",
     comment=(
@@ -29,25 +30,21 @@ from pyspark.sql import functions as F
 )
 def gold_guild_roster():
     members = spark.read.table("03_gold.sc_analytics.dim_guild_member")  # noqa: F821
-    return (
-        members
-        .select(
-            F.col("name"),
-            F.col("class_name").alias("player_class"),
-            F.col("realm_slug").alias("realm"),
-            "rank",
-            "rank_label",
-            "rank_category",
-            "is_raid_team",
-            "is_active",
-            "total_raids_tracked",
-            "raids_present",
-            "attendance_rate_pct",
-            "last_raid_date",
-            "first_raid_date",
-        )
-        .orderBy("rank", "name")
-    )
+    return members.select(
+        F.col("name"),
+        F.col("class_name").alias("player_class"),
+        F.col("realm_slug").alias("realm"),
+        "rank",
+        "rank_label",
+        "rank_category",
+        "is_raid_team",
+        "is_active",
+        "total_raids_tracked",
+        "raids_present",
+        "attendance_rate_pct",
+        "last_raid_date",
+        "first_raid_date",
+    ).orderBy("rank", "name")
 
 
 # ── Raid Team ──────────────────────────────────────────────────────────────────
@@ -61,6 +58,7 @@ def gold_guild_roster():
 # starts with the first 5 characters of a raid team member's lowercase name,
 # AND the raid team member name is at least 5 characters long.
 # This catches common alt naming patterns (e.g. "Rahmiel" → "Rahmieldk").
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_raid_team",
@@ -81,20 +79,15 @@ def gold_raid_team():
     raid_team = members.filter(F.col("is_raid_team") == True)  # noqa: E712
 
     # Non-guild players who appeared in WCL logs
-    non_members = (
-        players
-        .filter(F.col("is_guild_member") == False)  # noqa: E712
-        .select(
-            F.col("player_name"),
-            F.lower(F.col("player_name")).alias("_name_lower"),
-        )
+    non_members = players.filter(F.col("is_guild_member") == False).select(  # noqa: E712
+        F.col("player_name"),
+        F.lower(F.col("player_name")).alias("_name_lower"),
     )
 
     # Build a list of raid team name prefixes (first 5 chars of lowercase name,
     # only for members whose name is at least 5 characters long)
     raid_team_prefixes = (
-        raid_team
-        .filter(F.length("name") >= 5)
+        raid_team.filter(F.length("name") >= 5)
         .select(
             F.lower(F.col("name")).substr(1, 5).alias("_prefix"),
         )
@@ -109,22 +102,17 @@ def gold_raid_team():
     # match the prefix of a raid team member.  Column.startswith() only accepts
     # string literals in PySpark, so we compare substr(1,5) directly instead.
     possible_alts = (
-        non_members
-        .crossJoin(raid_team_prefixes)
+        non_members.crossJoin(raid_team_prefixes)
         .filter(F.col("_name_lower").substr(1, 5) == F.col("_prefix"))
         .select(F.col("_prefix").alias("_matched_prefix"))
         .distinct()
     )
 
     # Re-join to raid team to mark members whose name prefix matched a non-member
-    raid_team_with_prefix = (
-        raid_team
-        .withColumn("_rt_prefix", F.lower(F.col("name")).substr(1, 5))
-    )
+    raid_team_with_prefix = raid_team.withColumn("_rt_prefix", F.lower(F.col("name")).substr(1, 5))
 
     raid_team_flagged = (
-        raid_team_with_prefix
-        .join(
+        raid_team_with_prefix.join(
             possible_alts.withColumnRenamed("_matched_prefix", "_alt_prefix"),
             raid_team_with_prefix._rt_prefix == F.col("_alt_prefix"),
             "left",
@@ -133,23 +121,19 @@ def gold_raid_team():
         .drop("_rt_prefix", "_alt_prefix")
     )
 
-    return (
-        raid_team_flagged
-        .select(
-            "name",
-            F.col("class_name").alias("player_class"),
-            F.col("realm_slug").alias("realm"),
-            "rank",
-            "rank_label",
-            "rank_category",
-            "is_active",
-            "total_raids_tracked",
-            "raids_present",
-            "attendance_rate_pct",
-            "last_raid_date",
-            "first_raid_date",
-            "possible_main",
-            "has_possible_alt_in_logs",
-        )
-        .orderBy("rank", "name")
-    )
+    return raid_team_flagged.select(
+        "name",
+        F.col("class_name").alias("player_class"),
+        F.col("realm_slug").alias("realm"),
+        "rank",
+        "rank_label",
+        "rank_category",
+        "is_active",
+        "total_raids_tracked",
+        "raids_present",
+        "attendance_rate_pct",
+        "last_raid_date",
+        "first_raid_date",
+        "possible_main",
+        "has_possible_alt_in_logs",
+    ).orderBy("rank", "name")

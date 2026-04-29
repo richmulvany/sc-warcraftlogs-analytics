@@ -14,15 +14,18 @@ from pyspark.sql.types import (
 )
 from pyspark.sql.window import Window
 
+_ASSET_STRUCT = StructType(
+    [
+        StructField("key", StringType(), True),
+        StructField("value", StringType(), True),
+    ]
+)
 
-_ASSET_STRUCT = StructType([
-    StructField("key", StringType(), True),
-    StructField("value", StringType(), True),
-])
-
-_MEDIA_SCHEMA = StructType([
-    StructField("assets", ArrayType(_ASSET_STRUCT), True),
-])
+_MEDIA_SCHEMA = StructType(
+    [
+        StructField("assets", ArrayType(_ASSET_STRUCT), True),
+    ]
+)
 
 
 @dlt.table(
@@ -34,12 +37,7 @@ _MEDIA_SCHEMA = StructType([
 def silver_item_media():
     raw = spark.read.table("01_bronze.blizzard.bronze_item_media")  # noqa: F821
     w = Window.partitionBy("item_id").orderBy(F.col("_ingested_at").desc())
-    deduped = (
-        raw
-        .withColumn("_rn", F.row_number().over(w))
-        .filter(F.col("_rn") == 1)
-        .drop("_rn")
-    )
+    deduped = raw.withColumn("_rn", F.row_number().over(w)).filter(F.col("_rn") == 1).drop("_rn")
     parsed = deduped.withColumn("media", F.from_json("media_json", _MEDIA_SCHEMA))
 
     return parsed.select(

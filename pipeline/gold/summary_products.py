@@ -12,11 +12,11 @@ import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-
 # ── Boss Progression ───────────────────────────────────────────────────────────
 # "Which bosses have we killed and how many attempts did it take?"
 # Grouped by encounter_id (stable across patches) + difficulty.
 # zone_name and boss_name carried through for display.
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_boss_progression",
@@ -29,8 +29,9 @@ from pyspark.sql.window import Window
 def gold_boss_progression():
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
     return (
-        fights
-        .groupBy("encounter_id", "boss_name", "zone_id", "zone_name", "difficulty", "difficulty_label")
+        fights.groupBy(
+            "encounter_id", "boss_name", "zone_id", "zone_name", "difficulty", "difficulty_label"
+        )
         .agg(
             F.count("*").alias("total_pulls"),
             F.sum(F.col("is_kill").cast("integer")).alias("total_kills"),
@@ -52,6 +53,7 @@ def gold_boss_progression():
 # ── Raid Summary ───────────────────────────────────────────────────────────────
 # "How did each raid night go?"
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_raid_summary",
     comment="One row per raid night with aggregate boss kill, wipe, and time stats.",
@@ -67,9 +69,9 @@ def gold_raid_summary():
         F.sum((~F.col("is_kill")).cast("integer")).alias("total_wipes"),
         F.sum("duration_seconds").alias("total_fight_seconds"),
         F.countDistinct("encounter_id").alias("unique_bosses_engaged"),
-        F.countDistinct(
-            F.when(F.col("is_kill"), F.col("encounter_id"))
-        ).alias("unique_bosses_killed"),
+        F.countDistinct(F.when(F.col("is_kill"), F.col("encounter_id"))).alias(
+            "unique_bosses_killed"
+        ),
         F.first("zone_name").alias("zone_name"),
         F.first("zone_id").alias("zone_id"),
         F.first("difficulty_label").alias("primary_difficulty"),
@@ -77,8 +79,7 @@ def gold_raid_summary():
     )
 
     return (
-        reports
-        .join(fight_stats, reports.code == fight_stats.report_code, "left")
+        reports.join(fight_stats, reports.code == fight_stats.report_code, "left")
         .select(
             reports.code.alias("report_code"),
             reports.title.alias("report_title"),
@@ -102,6 +103,7 @@ def gold_raid_summary():
 # ── Progression Timeline ───────────────────────────────────────────────────────
 # "How has our progression developed over time?"
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_progression_timeline",
     comment="Cumulative boss first-kills over time, per difficulty.",
@@ -111,21 +113,30 @@ def gold_progression_timeline():
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     first_kills = (
-        fights
-        .filter(F.col("is_kill"))
-        .select("encounter_id", "boss_name", "zone_name", "difficulty", "difficulty_label", "raid_night_date")
+        fights.filter(F.col("is_kill"))
+        .select(
+            "encounter_id",
+            "boss_name",
+            "zone_name",
+            "difficulty",
+            "difficulty_label",
+            "raid_night_date",
+        )
         .dropDuplicates(["encounter_id", "difficulty"])  # one row = first ever kill
         .orderBy("raid_night_date")
     )
 
-    window = Window.partitionBy("difficulty").orderBy("raid_night_date").rowsBetween(
-        Window.unboundedPreceding, Window.currentRow
+    window = (
+        Window.partitionBy("difficulty")
+        .orderBy("raid_night_date")
+        .rowsBetween(Window.unboundedPreceding, Window.currentRow)
     )
     return first_kills.withColumn("cumulative_kills", F.count("encounter_id").over(window))
 
 
 # ── Best Kill Times ────────────────────────────────────────────────────────────
 # "What is our fastest recorded kill for each boss?"
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_best_kills",
@@ -139,8 +150,7 @@ def gold_best_kills():
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
     return (
-        fights
-        .filter(F.col("is_kill"))
+        fights.filter(F.col("is_kill"))
         .groupBy("encounter_id", "boss_name", "zone_name", "difficulty", "difficulty_label")
         .agg(
             F.min("duration_seconds").alias("best_kill_seconds"),
@@ -149,13 +159,14 @@ def gold_best_kills():
             F.min("raid_night_date").alias("first_kill_date"),
             F.max("raid_night_date").alias("latest_kill_date"),
         )
-        .withColumn("best_kill_mm_ss",
+        .withColumn(
+            "best_kill_mm_ss",
             F.concat(
                 F.floor(F.col("best_kill_seconds") / 60).cast("string"),
                 F.lit("m "),
                 F.lpad((F.col("best_kill_seconds") % 60).cast("string"), 2, "0"),
                 F.lit("s"),
-            )
+            ),
         )
         .orderBy("zone_name", "difficulty", "boss_name")
     )
@@ -165,6 +176,7 @@ def gold_best_kills():
 # "On which bosses are we wiping most, at what phase, and are we improving?"
 # The most actionable table for a raid leader — shows where the guild is
 # struggling and whether each raid night is making progress.
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_boss_wipe_analysis",
@@ -182,8 +194,7 @@ def gold_boss_wipe_analysis():
     wipes = fights.filter(~F.col("is_kill"))
 
     return (
-        wipes
-        .groupBy("encounter_id", "boss_name", "zone_name", "difficulty", "difficulty_label")
+        wipes.groupBy("encounter_id", "boss_name", "zone_name", "difficulty", "difficulty_label")
         .agg(
             F.count("*").alias("total_wipes"),
             # Best wipe = lowest boss HP% reached on a wipe (closest to kill)
@@ -213,6 +224,7 @@ def gold_boss_wipe_analysis():
 # One row per report / boss / difficulty, keeping the best boss HP remaining
 # reached on that night (or 0 if the boss died in that report).
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_boss_progress_history",
     comment=(
@@ -228,19 +240,15 @@ def gold_boss_progress_history():
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
     reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
-    report_context = (
-        reports
-        .select(
-            F.col("code").alias("_report_code"),
-            F.col("title").alias("_report_title"),
-            F.col("start_time_utc").alias("_report_start_time_utc"),
-            F.col("end_time_utc").alias("_report_end_time_utc"),
-        )
+    report_context = reports.select(
+        F.col("code").alias("_report_code"),
+        F.col("title").alias("_report_title"),
+        F.col("start_time_utc").alias("_report_start_time_utc"),
+        F.col("end_time_utc").alias("_report_end_time_utc"),
     )
 
     return (
-        fights
-        .groupBy(
+        fights.groupBy(
             "encounter_id",
             "boss_name",
             "zone_name",
@@ -253,16 +261,25 @@ def gold_boss_progress_history():
             F.count("*").alias("pulls_on_night"),
             F.sum(F.col("is_kill").cast("integer")).alias("kills_on_night"),
             F.sum((~F.col("is_kill")).cast("integer")).alias("wipes_on_night"),
-            F.min(F.when(~F.col("is_kill"), F.col("boss_percentage"))).alias("best_wipe_pct_on_night"),
-            F.avg(F.when(~F.col("is_kill"), F.col("boss_percentage"))).alias("avg_wipe_pct_on_night"),
-            F.max(F.when(F.col("is_kill"), F.lit(True)).otherwise(F.lit(False))).alias("is_kill_on_night"),
+            F.min(F.when(~F.col("is_kill"), F.col("boss_percentage"))).alias(
+                "best_wipe_pct_on_night"
+            ),
+            F.avg(F.when(~F.col("is_kill"), F.col("boss_percentage"))).alias(
+                "avg_wipe_pct_on_night"
+            ),
+            F.max(F.when(F.col("is_kill"), F.lit(True)).otherwise(F.lit(False))).alias(
+                "is_kill_on_night"
+            ),
             F.max("duration_seconds").alias("longest_pull_seconds"),
-            F.max(F.when(F.col("is_kill"), F.col("duration_seconds"))).alias("kill_duration_seconds"),
+            F.max(F.when(F.col("is_kill"), F.col("duration_seconds"))).alias(
+                "kill_duration_seconds"
+            ),
         )
         .withColumn(
             "best_boss_hp_remaining",
-            F.when(F.col("is_kill_on_night"), F.lit(0.0))
-            .otherwise(F.round(F.col("best_wipe_pct_on_night"), 2)),
+            F.when(F.col("is_kill_on_night"), F.lit(0.0)).otherwise(
+                F.round(F.col("best_wipe_pct_on_night"), 2)
+            ),
         )
         .withColumn(
             "avg_wipe_pct_on_night",
@@ -310,19 +327,15 @@ def gold_boss_pull_history():
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
     reports = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_guild_reports")  # noqa: F821
 
-    report_context = (
-        reports
-        .select(
-            F.col("code").alias("_report_code"),
-            F.col("title").alias("_report_title"),
-            F.col("start_time_utc").alias("_report_start_time_utc"),
-            F.col("end_time_utc").alias("_report_end_time_utc"),
-        )
+    report_context = reports.select(
+        F.col("code").alias("_report_code"),
+        F.col("title").alias("_report_title"),
+        F.col("start_time_utc").alias("_report_start_time_utc"),
+        F.col("end_time_utc").alias("_report_end_time_utc"),
     )
 
     return (
-        fights
-        .withColumn(
+        fights.withColumn(
             "boss_hp_remaining",
             F.when(F.col("is_kill"), F.lit(0.0)).otherwise(F.col("boss_percentage").cast("double")),
         )
@@ -352,6 +365,7 @@ def gold_boss_pull_history():
 
 # ── Encounter Catalog ──────────────────────────────────────────────────────────
 # "What encounters and zones exist?" (reference table for frontend filters)
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_encounter_catalog",

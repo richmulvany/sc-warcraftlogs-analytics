@@ -11,7 +11,6 @@
 
 # COMMAND ----------
 import os
-import sys
 
 # Resolve repo root from this notebook's workspace path.
 # Notebook is at: pipeline/debug/export_table_samples
@@ -26,10 +25,10 @@ SAMPLE_ROWS = 50
 # pipelines.catalog / pipelines.schema are only available inside a DLT pipeline
 # execution context.  Use widgets with defaults so this notebook can be run
 # standalone.  Override the widget values in the Databricks UI if needed.
-dbutils.widgets.text("catalog", "04_sdp")       # noqa: F821
-dbutils.widgets.text("schema",  "warcraftlogs") # noqa: F821
-catalog = dbutils.widgets.get("catalog")         # noqa: F821
-schema  = dbutils.widgets.get("schema")          # noqa: F821
+dbutils.widgets.text("catalog", "04_sdp")  # noqa: F821
+dbutils.widgets.text("schema", "warcraftlogs")  # noqa: F821
+catalog = dbutils.widgets.get("catalog")  # noqa: F821
+schema = dbutils.widgets.get("schema")  # noqa: F821
 
 print(f"Repo root  : {_repo_root}")
 print(f"Export dir : {EXPORT_DIR}")
@@ -98,7 +97,7 @@ summary_rows = []
 
 for layer, table in TABLES:
     full_name = f"`{catalog}`.`{schema}`.`{table}`"
-    out_path   = f"{EXPORT_DIR}/{layer}/{table}.csv"
+    out_path = f"{EXPORT_DIR}/{layer}/{table}.csv"
 
     try:
         df = spark.table(full_name)  # noqa: F821
@@ -106,10 +105,7 @@ for layer, table in TABLES:
 
         # Write a pandas CSV sample directly to the workspace filesystem.
         # toPandas() on a 50-row limit is safe even for wide schemas.
-        sample_pd = (
-            df.limit(SAMPLE_ROWS)
-            .toPandas()
-        )
+        sample_pd = df.limit(SAMPLE_ROWS).toPandas()
         sample_pd.to_csv(out_path, index=False)
 
         status = "ok"
@@ -123,13 +119,15 @@ for layer, table in TABLES:
         with open(out_path, "w") as fh:
             fh.write(f"error,message\n{status},{note}\n")
 
-    summary_rows.append({
-        "layer":      layer,
-        "table":      table,
-        "row_count":  row_count,
-        "status":     status,
-        "note":       note,
-    })
+    summary_rows.append(
+        {
+            "layer": layer,
+            "table": table,
+            "row_count": row_count,
+            "status": status,
+            "note": note,
+        }
+    )
     print(f"  [{status:5s}] {table:<45s} {note}")
 
 # COMMAND ----------

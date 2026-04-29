@@ -197,9 +197,7 @@ def classify_combat_potion_names(names: Iterable[str] | None) -> list[str]:
 
 def join_consumable_names(names: Iterable[str] | None) -> str | None:
     cleaned = _unique_preserve(
-        (name or "").strip()
-        for name in (names or [])
-        if (name or "").strip()
+        (name or "").strip() for name in (names or []) if (name or "").strip()
     )
     return " | ".join(cleaned) if cleaned else None
 

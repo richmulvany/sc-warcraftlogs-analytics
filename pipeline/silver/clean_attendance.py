@@ -33,7 +33,11 @@ def _ensure_repo_root_on_syspath() -> None:
     for candidate in candidates:
         current = candidate if os.path.isdir(candidate) else os.path.dirname(candidate)
         while current and current != os.path.dirname(current):
-            pipeline_dir = current if os.path.basename(current) == "pipeline" else os.path.join(current, "pipeline")
+            pipeline_dir = (
+                current
+                if os.path.basename(current) == "pipeline"
+                else os.path.join(current, "pipeline")
+            )
             if os.path.isfile(os.path.join(pipeline_dir, "__init__.py")):
                 repo_root = os.path.dirname(pipeline_dir)
                 if repo_root not in sys.path:
@@ -82,8 +86,8 @@ def silver_raid_attendance():
         .withColumn(
             "presence_status",
             F.when(F.col("presence") == 1, "present")
-             .when(F.col("presence") == 2, "benched")
-             .otherwise("absent"),
+            .when(F.col("presence") == 2, "benched")
+            .otherwise("absent"),
         )
         .join(
             reports.select(

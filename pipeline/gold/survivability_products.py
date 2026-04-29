@@ -17,6 +17,7 @@ from pyspark.sql.window import Window
 # report level (not per-fight) by the WCL table API.  A player who died on a
 # wipe in the same report will inflate this metric relative to kills.
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_player_survivability",
     comment=(
@@ -35,8 +36,7 @@ def gold_player_survivability():
 
     # Total deaths per player
     death_counts = (
-        deaths
-        .filter(F.col("player_name").isNotNull())
+        deaths.filter(F.col("player_name").isNotNull())
         .groupBy("player_name", "player_class")
         .agg(
             F.count("*").alias("total_deaths"),
@@ -48,14 +48,12 @@ def gold_player_survivability():
     # Most common killing blow per player (mode)
     w_blow = Window.partitionBy("player_name").orderBy(F.col("blow_count").desc())
     killing_blow_counts = (
-        deaths
-        .filter(F.col("killing_blow_name").isNotNull())
+        deaths.filter(F.col("killing_blow_name").isNotNull())
         .groupBy("player_name", "killing_blow_name")
         .agg(F.count("*").alias("blow_count"))
     )
     top_killing_blow = (
-        killing_blow_counts
-        .withColumn("_rn", F.row_number().over(w_blow))
+        killing_blow_counts.withColumn("_rn", F.row_number().over(w_blow))
         .filter(F.col("_rn") == 1)
         .select(
             "player_name",
@@ -64,8 +62,7 @@ def gold_player_survivability():
         )
     )
     top_killing_blows = (
-        killing_blow_counts
-        .withColumn("_rn", F.row_number().over(w_blow))
+        killing_blow_counts.withColumn("_rn", F.row_number().over(w_blow))
         .filter(F.col("_rn") <= 3)
         .groupBy("player_name")
         .agg(
@@ -87,22 +84,15 @@ def gold_player_survivability():
     )
 
     # Last death date (max zone-level date proxy using report join in fact_player_events)
-    last_death = (
-        deaths
-        .groupBy("player_name")
-        .agg(F.max("death_timestamp_ms").alias("last_death_timestamp_ms"))
+    last_death = deaths.groupBy("player_name").agg(
+        F.max("death_timestamp_ms").alias("last_death_timestamp_ms")
     )
 
     # Kill count per player from performance facts
-    kill_counts = (
-        perf
-        .groupBy("player_name")
-        .agg(F.count("*").alias("kills_tracked"))
-    )
+    kill_counts = perf.groupBy("player_name").agg(F.count("*").alias("kills_tracked"))
 
     return (
-        death_counts
-        .join(top_killing_blow, "player_name", "left")
+        death_counts.join(top_killing_blow, "player_name", "left")
         .join(top_killing_blows, "player_name", "left")
         .join(last_death, "player_name", "left")
         .join(kill_counts, "player_name", "left")
@@ -135,6 +125,7 @@ def gold_player_survivability():
 # gold_player_survivability table is intentionally all-time; this table keeps the
 # boss, difficulty, and zone dimensions needed for page filters.
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_player_death_events",
     comment=(
@@ -150,30 +141,26 @@ def gold_player_death_events():
     deaths = spark.read.table("03_gold.sc_analytics.fact_player_events")  # noqa: F821
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
 
-    fight_context = (
-        fights
-        .select(
-            F.col("report_code").alias("_report_code"),
-            F.col("fight_id").alias("_fight_id"),
-            "encounter_id",
-            "boss_name",
-            F.col("zone_name").alias("_zone_name"),
-            F.col("zone_id").alias("_zone_id"),
-            "difficulty",
-            "difficulty_label",
-            F.col("raid_night_date").alias("_raid_night_date"),
-            "is_kill",
-            F.col("fight_start_ms").alias("_fight_start_ms"),
-        )
-        .dropDuplicates(["_report_code", "_fight_id"])
-    )
+    fight_context = fights.select(
+        F.col("report_code").alias("_report_code"),
+        F.col("fight_id").alias("_fight_id"),
+        "encounter_id",
+        "boss_name",
+        F.col("zone_name").alias("_zone_name"),
+        F.col("zone_id").alias("_zone_id"),
+        "difficulty",
+        "difficulty_label",
+        F.col("raid_night_date").alias("_raid_night_date"),
+        "is_kill",
+        F.col("fight_start_ms").alias("_fight_start_ms"),
+    ).dropDuplicates(["_report_code", "_fight_id"])
 
     return (
-        deaths
-        .drop("zone_name", "zone_id", "raid_night_date")
+        deaths.drop("zone_name", "zone_id", "raid_night_date")
         .join(
             fight_context,
-            (F.col("report_code") == F.col("_report_code")) & (F.col("fight_id") == F.col("_fight_id")),
+            (F.col("report_code") == F.col("_report_code"))
+            & (F.col("fight_id") == F.col("_fight_id")),
             "left",
         )
         .drop("_report_code", "_fight_id")
@@ -213,6 +200,7 @@ def gold_player_death_events():
 #   - progress_trend: last week's avg boss_percentage vs overall avg
 #     (positive = improving, negative = regressing)
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_boss_mechanics",
     comment=(
@@ -229,58 +217,63 @@ def gold_boss_mechanics():
 
     # Boss wipes only (raid difficulties, valid encounter, not a kill)
     wipes = (
-        fights
-        .filter(F.col("is_kill") == False)  # noqa: E712
+        fights.filter(F.col("is_kill") == False)  # noqa: E712
         .filter(F.col("encounter_id").isNotNull() & (F.col("encounter_id") > 0))
         .filter(F.col("difficulty").isin(3, 4, 5))
     )
 
     # ISO week for weekly trend calculation
-    wipes_with_week = (
-        wipes
-        .withColumn("iso_week", F.date_trunc("week", F.col("raid_night_date")))
-    )
+    wipes_with_week = wipes.withColumn("iso_week", F.date_trunc("week", F.col("raid_night_date")))
 
     # Phase breakdown — classify wipes by last_phase into buckets
-    wipes_with_phase = (
-        wipes_with_week
-        .withColumn(
-            "phase_bucket",
-            F.when(F.col("last_phase") <= 1, "Phase 1")
-             .when(F.col("last_phase") == 2, "Phase 2")
-             .when(F.col("last_phase") >= 3, "Phase 3+")
-             .otherwise("Unknown"),
-        )
+    wipes_with_phase = wipes_with_week.withColumn(
+        "phase_bucket",
+        F.when(F.col("last_phase") <= 1, "Phase 1")
+        .when(F.col("last_phase") == 2, "Phase 2")
+        .when(F.col("last_phase") >= 3, "Phase 3+")
+        .otherwise("Unknown"),
     )
 
     # Duration buckets
-    wipes_with_duration_bucket = (
-        wipes_with_phase
-        .withColumn(
-            "duration_bucket",
-            F.when(F.col("duration_seconds") < 60, "< 1 min")
-             .when(F.col("duration_seconds") < 180, "1-3 min")
-             .when(F.col("duration_seconds") < 300, "3-5 min")
-             .otherwise("5+ min"),
-        )
+    wipes_with_duration_bucket = wipes_with_phase.withColumn(
+        "duration_bucket",
+        F.when(F.col("duration_seconds") < 60, "< 1 min")
+        .when(F.col("duration_seconds") < 180, "1-3 min")
+        .when(F.col("duration_seconds") < 300, "3-5 min")
+        .otherwise("5+ min"),
     )
 
     # Overall aggregation per encounter + difficulty
     overall = (
-        wipes_with_duration_bucket
-        .groupBy("encounter_id", "boss_name", "zone_name", "difficulty", "difficulty_label")
+        wipes_with_duration_bucket.groupBy(
+            "encounter_id", "boss_name", "zone_name", "difficulty", "difficulty_label"
+        )
         .agg(
             F.count("*").alias("total_wipes"),
             F.avg("boss_percentage").alias("avg_boss_pct"),
             # Phase breakdown counts
-            F.sum(F.when(F.col("phase_bucket") == "Phase 1", 1).otherwise(0)).alias("wipes_phase_1"),
-            F.sum(F.when(F.col("phase_bucket") == "Phase 2", 1).otherwise(0)).alias("wipes_phase_2"),
-            F.sum(F.when(F.col("phase_bucket") == "Phase 3+", 1).otherwise(0)).alias("wipes_phase_3_plus"),
+            F.sum(F.when(F.col("phase_bucket") == "Phase 1", 1).otherwise(0)).alias(
+                "wipes_phase_1"
+            ),
+            F.sum(F.when(F.col("phase_bucket") == "Phase 2", 1).otherwise(0)).alias(
+                "wipes_phase_2"
+            ),
+            F.sum(F.when(F.col("phase_bucket") == "Phase 3+", 1).otherwise(0)).alias(
+                "wipes_phase_3_plus"
+            ),
             # Duration breakdown counts
-            F.sum(F.when(F.col("duration_bucket") == "< 1 min", 1).otherwise(0)).alias("wipes_lt_1min"),
-            F.sum(F.when(F.col("duration_bucket") == "1-3 min", 1).otherwise(0)).alias("wipes_1_3min"),
-            F.sum(F.when(F.col("duration_bucket") == "3-5 min", 1).otherwise(0)).alias("wipes_3_5min"),
-            F.sum(F.when(F.col("duration_bucket") == "5+ min", 1).otherwise(0)).alias("wipes_5plus_min"),
+            F.sum(F.when(F.col("duration_bucket") == "< 1 min", 1).otherwise(0)).alias(
+                "wipes_lt_1min"
+            ),
+            F.sum(F.when(F.col("duration_bucket") == "1-3 min", 1).otherwise(0)).alias(
+                "wipes_1_3min"
+            ),
+            F.sum(F.when(F.col("duration_bucket") == "3-5 min", 1).otherwise(0)).alias(
+                "wipes_3_5min"
+            ),
+            F.sum(F.when(F.col("duration_bucket") == "5+ min", 1).otherwise(0)).alias(
+                "wipes_5plus_min"
+            ),
         )
         .withColumn(
             "pct_wipes_phase_1",
@@ -292,7 +285,9 @@ def gold_boss_mechanics():
         )
         .withColumn(
             "pct_wipes_phase_3_plus",
-            F.round(F.col("wipes_phase_3_plus") / F.greatest(F.col("total_wipes"), F.lit(1)) * 100, 1),
+            F.round(
+                F.col("wipes_phase_3_plus") / F.greatest(F.col("total_wipes"), F.lit(1)) * 100, 1
+            ),
         )
     )
 
@@ -301,8 +296,7 @@ def gold_boss_mechanics():
     w_week = Window.partitionBy("encounter_id", "difficulty").orderBy(F.col("iso_week").desc())
 
     last_week_wipes = (
-        wipes_with_week
-        .withColumn("_week_rn", F.dense_rank().over(w_week))
+        wipes_with_week.withColumn("_week_rn", F.dense_rank().over(w_week))
         .filter(F.col("_week_rn") == 1)
         .groupBy("encounter_id", "difficulty")
         .agg(F.avg("boss_percentage").alias("last_week_avg_boss_pct"))
@@ -310,8 +304,7 @@ def gold_boss_mechanics():
 
     # progress_trend = last_week_avg - overall_avg (positive means boss % going up = improving)
     return (
-        overall
-        .join(last_week_wipes, ["encounter_id", "difficulty"], "left")
+        overall.join(last_week_wipes, ["encounter_id", "difficulty"], "left")
         .withColumn(
             "progress_trend",
             F.round(

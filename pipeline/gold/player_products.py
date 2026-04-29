@@ -13,6 +13,7 @@ from pyspark.sql.window import Window
 # ── Player Attendance Summary ──────────────────────────────────────────────────
 # "Who is turning up to raids and how often?"
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_player_attendance",
     comment="Per-player attendance rates and raid counts, enriched with zone and date context.",
@@ -25,8 +26,7 @@ from pyspark.sql.window import Window
 def gold_player_attendance():
     attendance = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_raid_attendance")  # noqa: F821
     return (
-        attendance
-        .groupBy("player_name", "player_class")
+        attendance.groupBy("player_name", "player_class")
         .agg(
             F.count("*").alias("total_raids_tracked"),
             F.sum(F.when(F.col("presence") == 1, 1).otherwise(0)).alias("raids_present"),
@@ -52,6 +52,7 @@ def gold_player_attendance():
 # Reads from fact_player_fight_performance which already contains throughput
 # (from WCL rankings.amount) and fight context.
 
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_player_performance_summary",
     comment=(
@@ -71,45 +72,37 @@ def gold_player_performance_summary():
     # Most-recent realm per player
     w = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
     realm_lookup = (
-        actors
-        .withColumn("_rn", F.row_number().over(w))
+        actors.withColumn("_rn", F.row_number().over(w))
         .filter(F.col("_rn") == 1)
         .select("player_name", "realm")
     )
 
     # Most common spec per player-role
     spec_counts = (
-        perf
-        .filter(F.col("spec").isNotNull())
+        perf.filter(F.col("spec").isNotNull())
         .groupBy("player_name", "role", "spec")
         .agg(F.count("*").alias("spec_count"))
     )
     w2 = Window.partitionBy("player_name", "role").orderBy(F.col("spec_count").desc())
     primary_specs = (
-        spec_counts
-        .withColumn("_rn", F.row_number().over(w2))
+        spec_counts.withColumn("_rn", F.row_number().over(w2))
         .filter(F.col("_rn") == 1)
         .select("player_name", "role", F.col("spec").alias("primary_spec"))
     )
 
-    agg = (
-        perf
-        .groupBy("player_name", "player_class", "role")
-        .agg(
-            F.count("*").alias("kills_tracked"),
-            # throughput_per_second = WCL role-aware (DPS dps/tank, HPS healer); null when no ranking available
-            F.avg("throughput_per_second").cast("long").alias("avg_throughput_per_second"),
-            F.max("throughput_per_second").cast("long").alias("best_throughput_per_second"),
-            F.avg("rank_percent").alias("avg_rank_percent"),
-            F.max("rank_percent").alias("best_rank_percent"),
-            F.avg("avg_item_level").alias("avg_item_level"),
-            F.max("raid_night_date").alias("last_seen_date"),
-        )
+    agg = perf.groupBy("player_name", "player_class", "role").agg(
+        F.count("*").alias("kills_tracked"),
+        # throughput_per_second = WCL role-aware (DPS dps/tank, HPS healer); null when no ranking available
+        F.avg("throughput_per_second").cast("long").alias("avg_throughput_per_second"),
+        F.max("throughput_per_second").cast("long").alias("best_throughput_per_second"),
+        F.avg("rank_percent").alias("avg_rank_percent"),
+        F.max("rank_percent").alias("best_rank_percent"),
+        F.avg("avg_item_level").alias("avg_item_level"),
+        F.max("raid_night_date").alias("last_seen_date"),
     )
 
     return (
-        agg
-        .join(primary_specs, ["player_name", "role"], "left")
+        agg.join(primary_specs, ["player_name", "role"], "left")
         .join(realm_lookup, "player_name", "left")
         .select(
             "player_name",
@@ -132,6 +125,7 @@ def gold_player_performance_summary():
 # ── Boss Kill Roster ───────────────────────────────────────────────────────────
 # "Who was present on each boss kill and how did they perform?"
 # Reads directly from fact_player_fight_performance — fight context already joined.
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_boss_kill_roster",
@@ -178,12 +172,15 @@ def gold_boss_kill_roster():
             "bracket_percent",
             "rank_string",
         )
-        .orderBy("raid_night_date", "boss_name", "role", F.col("throughput_per_second").desc_nulls_last())
+        .orderBy(
+            "raid_night_date", "boss_name", "role", F.col("throughput_per_second").desc_nulls_last()
+        )
     )
 
 
 # ── Player Boss Performance ────────────────────────────────────────────────────
 # "How does each player perform on a specific boss, and are they improving?"
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_player_boss_performance",
@@ -201,34 +198,35 @@ def gold_player_boss_performance():
     perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
 
     # Aggregate across all kills of the same boss per player
-    agg = (
-        perf
-        .groupBy(
-            "player_name", "player_class", "role",
-            "encounter_id", "boss_name", "zone_name", "difficulty", "difficulty_label",
-        )
-        .agg(
-            F.count("*").alias("kills_on_boss"),
-            F.avg("throughput_per_second").cast("long").alias("avg_throughput_per_second"),
-            F.max("throughput_per_second").cast("long").alias("best_throughput_per_second"),
-            F.avg("rank_percent").alias("avg_rank_percent"),
-            F.max("rank_percent").alias("best_rank_percent"),
-            F.avg("avg_item_level").alias("avg_item_level"),
-            F.min("raid_night_date").alias("first_kill_date"),
-            F.max("raid_night_date").alias("latest_kill_date"),
-            # Most played spec on this boss
-            F.first("spec", ignorenulls=True).alias("primary_spec"),
-        )
+    agg = perf.groupBy(
+        "player_name",
+        "player_class",
+        "role",
+        "encounter_id",
+        "boss_name",
+        "zone_name",
+        "difficulty",
+        "difficulty_label",
+    ).agg(
+        F.count("*").alias("kills_on_boss"),
+        F.avg("throughput_per_second").cast("long").alias("avg_throughput_per_second"),
+        F.max("throughput_per_second").cast("long").alias("best_throughput_per_second"),
+        F.avg("rank_percent").alias("avg_rank_percent"),
+        F.max("rank_percent").alias("best_rank_percent"),
+        F.avg("avg_item_level").alias("avg_item_level"),
+        F.min("raid_night_date").alias("first_kill_date"),
+        F.max("raid_night_date").alias("latest_kill_date"),
+        # Most played spec on this boss
+        F.first("spec", ignorenulls=True).alias("primary_spec"),
     )
 
     # Latest-kill throughput using a window so we can get the ordered last value.
-    w_latest = Window.partitionBy(
-        "player_name", "encounter_id", "difficulty"
-    ).orderBy("raid_night_date")
+    w_latest = Window.partitionBy("player_name", "encounter_id", "difficulty").orderBy(
+        "raid_night_date"
+    )
 
     latest_kill = (
-        perf
-        .withColumn(
+        perf.withColumn(
             "_latest_throughput",
             F.last("throughput_per_second", ignorenulls=True).over(
                 w_latest.rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
@@ -239,15 +237,15 @@ def gold_player_boss_performance():
     )
 
     return (
-        agg
-        .join(latest_kill, ["player_name", "encounter_id", "difficulty"], "left")
+        agg.join(latest_kill, ["player_name", "encounter_id", "difficulty"], "left")
         .withColumn(
             "throughput_trend",
             F.when(
                 F.col("kills_on_boss") > 1,
                 F.round(
                     (F.col("latest_throughput_per_second") - F.col("avg_throughput_per_second"))
-                    / F.greatest(F.col("avg_throughput_per_second").cast("double"), F.lit(1)) * 100,
+                    / F.greatest(F.col("avg_throughput_per_second").cast("double"), F.lit(1))
+                    * 100,
                     1,
                 ),
             ).otherwise(F.lit(None).cast("double")),
@@ -273,5 +271,10 @@ def gold_player_boss_performance():
             "first_kill_date",
             "latest_kill_date",
         )
-        .orderBy("encounter_id", "difficulty", "role", F.col("avg_throughput_per_second").desc_nulls_last())
+        .orderBy(
+            "encounter_id",
+            "difficulty",
+            "role",
+            F.col("avg_throughput_per_second").desc_nulls_last(),
+        )
     )

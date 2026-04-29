@@ -26,8 +26,8 @@ from pyspark.sql.types import (
     StructType,
 )
 
-
 # ── gold_live_raid_roster ──────────────────────────────────────────────────────
+
 
 @dlt.table(
     name="03_gold.sc_analytics.gold_live_raid_roster",
@@ -35,16 +35,13 @@ from pyspark.sql.types import (
     table_properties={"quality": "gold"},
 )
 def gold_live_raid_roster():
-    return (
-        spark.read.table("02_silver.sc_analytics_google_sheets.silver_live_raid_roster")  # noqa: F821
-        .select(
-            "name",
-            "roster_rank",
-            "player_class",
-            "race",
-            "note",
-            "source_refreshed_at",
-        )
+    return spark.read.table("02_silver.sc_analytics_google_sheets.silver_live_raid_roster").select(  # noqa: F821
+        "name",
+        "roster_rank",
+        "player_class",
+        "race",
+        "note",
+        "source_refreshed_at",
     )
 
 
@@ -52,11 +49,13 @@ def gold_live_raid_roster():
 
 _RANK_STRUCT = StructType([StructField("number", LongType(), True)])
 
-_PROGRESS_SCHEMA = StructType([
-    StructField("worldRank", _RANK_STRUCT, True),
-    StructField("regionRank", _RANK_STRUCT, True),
-    StructField("serverRank", _RANK_STRUCT, True),
-])
+_PROGRESS_SCHEMA = StructType(
+    [
+        StructField("worldRank", _RANK_STRUCT, True),
+        StructField("regionRank", _RANK_STRUCT, True),
+        StructField("serverRank", _RANK_STRUCT, True),
+    ]
+)
 
 
 @dlt.table(
@@ -85,116 +84,145 @@ def gold_guild_zone_ranks():
     table_properties={"quality": "gold"},
 )
 def gold_player_character_media():
-    return (
-        spark.read.table("02_silver.sc_analytics_blizzard.silver_character_media")  # noqa: F821
-        .select(
+    return spark.read.table("02_silver.sc_analytics_blizzard.silver_character_media").select(  # noqa: F821
         "player_name",
         "realm_slug",
         "avatar_url",
         "inset_url",
         "main_url",
         "main_raw_url",
-        )
     )
 
 
 # ── gold_player_character_equipment ────────────────────────────────────────────
 
-_NAMED_STRUCT = StructType([
-    StructField("type", StringType(), True),
-    StructField("name", StringType(), True),
-])
+_NAMED_STRUCT = StructType(
+    [
+        StructField("type", StringType(), True),
+        StructField("name", StringType(), True),
+    ]
+)
 
-_ITEM_REF_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-])
+_ITEM_REF_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+    ]
+)
 
 _LEVEL_STRUCT = StructType([StructField("value", LongType(), True)])
 
-_QUALITY_STRUCT = StructType([
-    StructField("type", StringType(), True),
-    StructField("name", StringType(), True),
-])
+_QUALITY_STRUCT = StructType(
+    [
+        StructField("type", StringType(), True),
+        StructField("name", StringType(), True),
+    ]
+)
 
-_TRANSMOG_STRUCT = StructType([
-    StructField("item", _ITEM_REF_STRUCT, True),
-])
+_TRANSMOG_STRUCT = StructType(
+    [
+        StructField("item", _ITEM_REF_STRUCT, True),
+    ]
+)
 
-_ENCHANT_STRUCT = StructType([
-    StructField("display_string", StringType(), True),
-    StructField("source_item", _ITEM_REF_STRUCT, True),
-    StructField("enchantment_id", LongType(), True),
-    StructField("id", LongType(), True),
-])
+_ENCHANT_STRUCT = StructType(
+    [
+        StructField("display_string", StringType(), True),
+        StructField("source_item", _ITEM_REF_STRUCT, True),
+        StructField("enchantment_id", LongType(), True),
+        StructField("id", LongType(), True),
+    ]
+)
 
-_SOCKET_STRUCT = StructType([
-    StructField("socket_type", _NAMED_STRUCT, True),
-    StructField("item", _ITEM_REF_STRUCT, True),
-    StructField("display_string", StringType(), True),
-])
+_SOCKET_STRUCT = StructType(
+    [
+        StructField("socket_type", _NAMED_STRUCT, True),
+        StructField("item", _ITEM_REF_STRUCT, True),
+        StructField("display_string", StringType(), True),
+    ]
+)
 
-_STAT_DISPLAY_STRUCT = StructType([
-    StructField("display_string", StringType(), True),
-])
+_STAT_DISPLAY_STRUCT = StructType(
+    [
+        StructField("display_string", StringType(), True),
+    ]
+)
 
-_STAT_STRUCT = StructType([
-    StructField("type", _NAMED_STRUCT, True),
-    StructField("value", LongType(), True),
-    StructField("display", _STAT_DISPLAY_STRUCT, True),
-    StructField("is_negated", BooleanType(), True),
-])
+_STAT_STRUCT = StructType(
+    [
+        StructField("type", _NAMED_STRUCT, True),
+        StructField("value", LongType(), True),
+        StructField("display", _STAT_DISPLAY_STRUCT, True),
+        StructField("is_negated", BooleanType(), True),
+    ]
+)
 
-_SPELL_REF_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-])
+_SPELL_REF_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+    ]
+)
 
-_SPELL_STRUCT = StructType([
-    StructField("spell", _SPELL_REF_STRUCT, True),
-    StructField("description", StringType(), True),
-])
+_SPELL_STRUCT = StructType(
+    [
+        StructField("spell", _SPELL_REF_STRUCT, True),
+        StructField("description", StringType(), True),
+    ]
+)
 
-_NAME_DESC_STRUCT = StructType([
-    StructField("display_string", StringType(), True),
-])
+_NAME_DESC_STRUCT = StructType(
+    [
+        StructField("display_string", StringType(), True),
+    ]
+)
 
-_REQUIREMENTS_STRUCT = StructType([
-    StructField("level", StructType([StructField("display_string", StringType(), True)]), True),
-])
+_REQUIREMENTS_STRUCT = StructType(
+    [
+        StructField("level", StructType([StructField("display_string", StringType(), True)]), True),
+    ]
+)
 
-_DURABILITY_STRUCT = StructType([
-    StructField("display_string", StringType(), True),
-    StructField("value", LongType(), True),
-])
+_DURABILITY_STRUCT = StructType(
+    [
+        StructField("display_string", StringType(), True),
+        StructField("value", LongType(), True),
+    ]
+)
 
-_LIMIT_CATEGORY_STRUCT = StructType([
-    StructField("name", StringType(), True),
-])
+_LIMIT_CATEGORY_STRUCT = StructType(
+    [
+        StructField("name", StringType(), True),
+    ]
+)
 
-_EQUIPPED_ITEM_STRUCT = StructType([
-    StructField("slot", _NAMED_STRUCT, True),
-    StructField("item", _ITEM_REF_STRUCT, True),
-    StructField("name", StringType(), True),
-    StructField("level", _LEVEL_STRUCT, True),
-    StructField("quality", _QUALITY_STRUCT, True),
-    StructField("inventory_type", _NAMED_STRUCT, True),
-    StructField("item_subclass", _NAMED_STRUCT, True),
-    StructField("binding", _NAMED_STRUCT, True),
-    StructField("transmog", _TRANSMOG_STRUCT, True),
-    StructField("enchantments", ArrayType(_ENCHANT_STRUCT), True),
-    StructField("sockets", ArrayType(_SOCKET_STRUCT), True),
-    StructField("stats", ArrayType(_STAT_STRUCT), True),
-    StructField("spells", ArrayType(_SPELL_STRUCT), True),
-    StructField("name_description", _NAME_DESC_STRUCT, True),
-    StructField("requirements", _REQUIREMENTS_STRUCT, True),
-    StructField("durability", _DURABILITY_STRUCT, True),
-    StructField("limit_category", _LIMIT_CATEGORY_STRUCT, True),
-])
+_EQUIPPED_ITEM_STRUCT = StructType(
+    [
+        StructField("slot", _NAMED_STRUCT, True),
+        StructField("item", _ITEM_REF_STRUCT, True),
+        StructField("name", StringType(), True),
+        StructField("level", _LEVEL_STRUCT, True),
+        StructField("quality", _QUALITY_STRUCT, True),
+        StructField("inventory_type", _NAMED_STRUCT, True),
+        StructField("item_subclass", _NAMED_STRUCT, True),
+        StructField("binding", _NAMED_STRUCT, True),
+        StructField("transmog", _TRANSMOG_STRUCT, True),
+        StructField("enchantments", ArrayType(_ENCHANT_STRUCT), True),
+        StructField("sockets", ArrayType(_SOCKET_STRUCT), True),
+        StructField("stats", ArrayType(_STAT_STRUCT), True),
+        StructField("spells", ArrayType(_SPELL_STRUCT), True),
+        StructField("name_description", _NAME_DESC_STRUCT, True),
+        StructField("requirements", _REQUIREMENTS_STRUCT, True),
+        StructField("durability", _DURABILITY_STRUCT, True),
+        StructField("limit_category", _LIMIT_CATEGORY_STRUCT, True),
+    ]
+)
 
-_EQUIPMENT_FULL_SCHEMA = StructType([
-    StructField("equipped_items", ArrayType(_EQUIPPED_ITEM_STRUCT), True),
-])
+_EQUIPMENT_FULL_SCHEMA = StructType(
+    [
+        StructField("equipped_items", ArrayType(_EQUIPPED_ITEM_STRUCT), True),
+    ]
+)
 
 
 @dlt.table(
@@ -208,9 +236,8 @@ _EQUIPMENT_FULL_SCHEMA = StructType([
 )
 def gold_player_character_equipment():
     raw = spark.read.table("02_silver.sc_analytics_blizzard.silver_character_equipment")  # noqa: F821
-    item_media = (
-        spark.read.table("02_silver.sc_analytics_blizzard.silver_item_media")  # noqa: F821
-        .select("item_id", "icon_url")
+    item_media = spark.read.table("02_silver.sc_analytics_blizzard.silver_item_media").select(  # noqa: F821
+        "item_id", "icon_url"
     )
 
     parsed = raw.withColumn("eq", F.from_json("equipment_json", _EQUIPMENT_FULL_SCHEMA))
@@ -312,25 +339,33 @@ def gold_player_character_equipment():
 
 # ── gold_player_raid_achievements ──────────────────────────────────────────────
 
-_ACHIEVEMENT_INFO_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("name", StringType(), True),
-])
+_ACHIEVEMENT_INFO_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+    ]
+)
 
-_CRITERIA_STRUCT = StructType([
-    StructField("is_completed", BooleanType(), True),
-])
+_CRITERIA_STRUCT = StructType(
+    [
+        StructField("is_completed", BooleanType(), True),
+    ]
+)
 
-_ACHIEVEMENT_ROW_STRUCT = StructType([
-    StructField("id", LongType(), True),
-    StructField("achievement", _ACHIEVEMENT_INFO_STRUCT, True),
-    StructField("criteria", _CRITERIA_STRUCT, True),
-    StructField("completed_timestamp", LongType(), True),
-])
+_ACHIEVEMENT_ROW_STRUCT = StructType(
+    [
+        StructField("id", LongType(), True),
+        StructField("achievement", _ACHIEVEMENT_INFO_STRUCT, True),
+        StructField("criteria", _CRITERIA_STRUCT, True),
+        StructField("completed_timestamp", LongType(), True),
+    ]
+)
 
-_ACHIEVEMENTS_SCHEMA = StructType([
-    StructField("achievements", ArrayType(_ACHIEVEMENT_ROW_STRUCT), True),
-])
+_ACHIEVEMENTS_SCHEMA = StructType(
+    [
+        StructField("achievements", ArrayType(_ACHIEVEMENT_ROW_STRUCT), True),
+    ]
+)
 
 
 @dlt.table(
@@ -350,23 +385,15 @@ def gold_player_raid_achievements():
         F.explode("a.achievements").alias("row"),
     )
     return (
-        exploded
-        .withColumn(
+        exploded.withColumn(
             "achievement_id",
             F.coalesce(F.col("row.achievement.id"), F.col("row.id")),
         )
         .withColumn("achievement_name", F.col("row.achievement.name"))
         .withColumn("completed_timestamp", F.col("row.completed_timestamp"))
         .withColumn("is_completed", F.col("row.criteria.is_completed"))
-        .filter(
-            (F.col("is_completed") == F.lit(True))
-            | F.col("completed_timestamp").isNotNull()
-        )
-        .filter(
-            F.lower(F.col("achievement_name")).rlike(
-                r"cutting edge:|famed slayer|famed bane"
-            )
-        )
+        .filter((F.col("is_completed") == F.lit(True)) | F.col("completed_timestamp").isNotNull())
+        .filter(F.lower(F.col("achievement_name")).rlike(r"cutting edge:|famed slayer|famed bane"))
         .select(
             "player_name",
             "realm_slug",
