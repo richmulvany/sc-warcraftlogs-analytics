@@ -229,7 +229,16 @@ export function PlayerDetail() {
       }
     }
 
-    return [...grouped.values()].map(({ _rankSum: _r, _rankCount: _rc, _throughputSum: _t, _throughputCount: _tc, _ilvlSum: _i, _ilvlCount: _ic, ...rest }) => rest)
+    return [...grouped.values()].map((row) => {
+      const result: Partial<Acc> = { ...row }
+      delete result._rankSum
+      delete result._rankCount
+      delete result._throughputSum
+      delete result._throughputCount
+      delete result._ilvlSum
+      delete result._ilvlCount
+      return result as PlayerBossPerformance
+    })
   }, [scopedRosterRows])
 
   const heatmapData = scopedBossPerformance.length > 0 ? scopedBossPerformance : fallbackBossPerformance

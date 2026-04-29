@@ -3,8 +3,8 @@
 ## Development setup
 
 ```bash
-git clone https://github.com/richmulvany/databricks-pipeline-template
-cd databricks-pipeline-template
+git clone https://github.com/richmulvany/sc-warcraftlogs-analytics
+cd sc-warcraftlogs-analytics
 make init
 ```
 

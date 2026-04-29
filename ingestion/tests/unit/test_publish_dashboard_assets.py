@@ -25,7 +25,7 @@ from scripts.publish_dashboard_assets import (
 
 
 class _ExpiredSparkSession:
-    def sql(self, _statement: str):
+    def sql(self, _statement: str) -> None:
         raise RuntimeError("[NO_ACTIVE_SESSION] No active Spark session found.")
 
 

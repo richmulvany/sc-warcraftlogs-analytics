@@ -8,7 +8,7 @@ NPM    := npm
 # Default target
 help:
 	@echo ""
-	@echo "  Databricks Medallion Pipeline Template"
+	@echo "  sc-analytics"
 	@echo ""
 	@echo "  Setup"
 	@echo "    make init              First-time project setup"
@@ -24,7 +24,7 @@ help:
 	@echo "  Deployment"
 	@echo "    make deploy-pipeline   Deploy DLT pipeline via Databricks Asset Bundles"
 	@echo "    make deploy-frontend   Build and deploy the React frontend"
-	@echo "    make export-data       Run gold table export to static JSON"
+	@echo "    make export-data       Run legacy/local gold table export to static CSV"
 	@echo ""
 	@echo "  Maintenance"
 	@echo "    make clean             Remove build artefacts"
@@ -84,7 +84,7 @@ deploy-frontend:
 	cd frontend && vercel --prod
 
 export-data:
-	@echo ">> Exporting gold tables to static JSON..."
+	@echo ">> Exporting gold tables to static CSV..."
 	$(PYTHON) scripts/dev/export_gold_tables.py
 
 clean:

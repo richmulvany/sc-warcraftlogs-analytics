@@ -1,4 +1,4 @@
-# WarcraftLogs Guild Analytics
+# sc-analytics
 
 [![CI](https://github.com/richmulvany/sc-warcraftlogs-analytics/actions/workflows/ci.yml/badge.svg)](https://github.com/richmulvany/sc-warcraftlogs-analytics/actions/workflows/ci.yml)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
@@ -79,7 +79,7 @@ WarcraftLogs API          Blizzard Profile API          Raider.IO API
 ## Repository Structure
 
 ```
-sc-warcraftlogs-analytics/
+sc-analytics/
 ├── ingestion/
 │   ├── jobs/
 │   │   └── ingest_primary.py     # ingestion orchestrator (Databricks job)

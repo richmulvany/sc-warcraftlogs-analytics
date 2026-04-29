@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sc-analytics"
 version = "0.1.0"
-description = "Databricks medallion pipeline template"
+description = "Databricks-backed analytics pipeline and dashboard"
 requires-python = ">=3.11"
 dependencies = [
     "databricks-sdk>=0.20.0",

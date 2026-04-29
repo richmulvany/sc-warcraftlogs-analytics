@@ -14,7 +14,7 @@ Claude should treat this project as a production-style data engineering + analyt
 
 ## Project summary
 
-WarcraftLogs Guild Analytics is a portfolio-grade analytics platform for a World of Warcraft guild.
+sc-analytics is a portfolio-grade analytics platform for a World of Warcraft guild.
 
 It includes:
 
@@ -34,7 +34,7 @@ The frontend currently consumes published dashboard assets, primarily JSON. Lega
 
 ## Repository map
 
-    sc-warcraftlogs-analytics/
+    sc-analytics/
     ├── ingestion/                     # Python API ingestion jobs/adapters
     │   ├── jobs/
     │   │   └── ingest_primary.py

@@ -23,6 +23,7 @@ frontend/.netlify/
 
 # Databricks
 .databricks/
+.bundle/
 bundle.lock
 
 # Exports (generated — not committed unless using GitHub Pages static export)
