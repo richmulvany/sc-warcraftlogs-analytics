@@ -27,8 +27,7 @@ variables:
     description: DLT pipeline display name
     default: WarcraftLogs Analytics
   developer_user:
-    description: Email of the developer deploying in development mode
-    default: ricard.mulvany@gmail.com
+    description: Databricks user name used for Free Edition run_as and workspace permissions. Set via BUNDLE_VAR_developer_user.
   guild_name:
     description: WoW guild name to ingest data for
     default: Student Council
@@ -68,10 +67,6 @@ variables:
   github_repo:
     description: GitHub repo (owner/repo) containing the publish workflow for dashboard assets (empty defaults to value of secret 'github_repo')
     default: "richmulvany/sc-warcraftlogs-analytics"
-  service_principal_application_id:
-    description: Databricks service principal application ID used for production deployments
-    default: "00000000-0000-0000-0000-000000000000"
-
 targets:
   development:
     mode: development
@@ -92,7 +87,7 @@ targets:
     mode: production
     default: false
     run_as:
-      service_principal_name: ${var.service_principal_application_id}
+      user_name: ${var.developer_user}
     workspace:
       root_path: /Workspace/sc-analytics/${bundle.target}
     variables:
@@ -111,7 +106,7 @@ targets:
         warcraftlogs_pipeline:
           development: false
           run_as:
-            service_principal_name: ${var.service_principal_application_id}
+            user_name: ${var.developer_user}
 
 resources:
   pipelines:
