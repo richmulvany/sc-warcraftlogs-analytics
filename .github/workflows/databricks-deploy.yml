@@ -29,7 +29,6 @@ jobs:
         env:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
-          BUNDLE_VAR_service_principal_application_id: ${{ secrets.DATABRICKS_SP_APP_ID }}
         run: |
           databricks bundle validate --target development
           databricks bundle validate --target production

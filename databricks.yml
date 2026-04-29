@@ -8,13 +8,9 @@ sync:
   exclude:
     - frontend/**
     - .github/**
-    - node_modules/**
     - "*.md"
     - LICENSE
     - .git/**
-    - .venv/**
-    - __pycache__/**
-    - "*.pyc"
   paths:
     - pipeline
     - ingestion
