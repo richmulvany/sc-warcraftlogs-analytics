@@ -1,5 +1,5 @@
 .PHONY: help init verify test test-unit test-lint deploy-pipeline deploy-frontend \
-        setup-secrets export-data clean format
+        export-data clean format
 
 PYTHON := python3
 PIP    := pip3
@@ -8,12 +8,11 @@ NPM    := npm
 # Default target
 help:
 	@echo ""
-	@echo "  Databricks Medallion Pipeline Template"
+	@echo "  sc-analytics"
 	@echo ""
 	@echo "  Setup"
 	@echo "    make init              First-time project setup"
 	@echo "    make verify            Health check — confirms everything is configured"
-	@echo "    make setup-secrets     Upload secrets to Databricks Secret Scope"
 	@echo ""
 	@echo "  Development"
 	@echo "    make test              Run all tests"
@@ -24,7 +23,7 @@ help:
 	@echo "  Deployment"
 	@echo "    make deploy-pipeline   Deploy DLT pipeline via Databricks Asset Bundles"
 	@echo "    make deploy-frontend   Build and deploy the React frontend"
-	@echo "    make export-data       Run gold table export to static JSON"
+	@echo "    make export-data       Run legacy/local gold table export to static CSV"
 	@echo ""
 	@echo "  Maintenance"
 	@echo "    make clean             Remove build artefacts"
@@ -50,10 +49,6 @@ init:
 verify:
 	@echo ">> Running health checks..."
 	$(PYTHON) scripts/verify_setup.py
-
-setup-secrets:
-	@echo ">> Uploading secrets to Databricks Secret Scope..."
-	bash scripts/bootstrap_secrets.sh
 
 test:
 	@echo ">> Running all tests..."
@@ -84,7 +79,7 @@ deploy-frontend:
 	cd frontend && vercel --prod
 
 export-data:
-	@echo ">> Exporting gold tables to static JSON..."
+	@echo ">> Exporting gold tables to static CSV..."
 	$(PYTHON) scripts/dev/export_gold_tables.py
 
 clean:

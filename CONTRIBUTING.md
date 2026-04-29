@@ -3,8 +3,8 @@
 ## Development setup
 
 ```bash
-git clone https://github.com/richmulvany/databricks-pipeline-template
-cd databricks-pipeline-template
+git clone https://github.com/richmulvany/sc-warcraftlogs-analytics
+cd sc-warcraftlogs-analytics
 make init
 ```
 
@@ -46,7 +46,6 @@ All CI checks must pass. PRs require at least one approving review.
 
 ## Adding a new API endpoint
 
-1. Create `ingestion/src/endpoints/your_endpoint.py`
-2. Add a corresponding ingestion job in `ingestion/jobs/`
-3. Add mock data to `data/samples/`
-4. Write tests in `ingestion/tests/`
+1. Add the source-specific client or helper under `ingestion/src/adapters/`
+2. Wire it into the relevant job in `ingestion/jobs/`
+3. Write focused tests in `ingestion/tests/`

@@ -13,7 +13,6 @@ class TestWarcraftLogsAdapter:
     def adapter(self) -> WarcraftLogsAdapter:
         return WarcraftLogsAdapter(
             WarcraftLogsConfig(
-                name="wcl",
                 client_id="test_id",
                 client_secret="test_secret",
             )

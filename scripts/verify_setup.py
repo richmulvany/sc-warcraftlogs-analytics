@@ -39,14 +39,6 @@ def main() -> None:
 
     results.append(
         check(
-            "Sample data present",
-            Path("data/samples").exists() and any(Path("data/samples").iterdir()),
-            "Add mock API response JSON files to data/samples/",
-        )
-    )
-
-    results.append(
-        check(
             "Frontend dependencies installed",
             Path("frontend/node_modules").exists(),
             "Run: cd frontend && npm install",

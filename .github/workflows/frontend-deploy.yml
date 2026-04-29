@@ -11,7 +11,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    if: github.repository != 'richmulvany/databricks-pipeline-template'
+    if: github.repository == 'richmulvany/sc-warcraftlogs-analytics'
     permissions:
       contents: read
       pages: write
