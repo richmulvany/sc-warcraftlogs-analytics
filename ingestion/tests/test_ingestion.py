@@ -2,7 +2,7 @@
 
 import pytest
 
-from ingestion.src.adapters.wcl.client import WarcraftLogsAdapter
+from ingestion.src.adapters.wcl.client import WarcraftLogsAdapter, WarcraftLogsConfig
 from ingestion.src.utils.helpers import RateLimiter, add_ingestion_metadata
 
 
@@ -10,10 +10,14 @@ class TestWarcraftLogsAdapter:
     """Tests for WarcraftLogs adapter using mock HTTP responses."""
 
     @pytest.fixture
-    def adapter(self, monkeypatch: pytest.MonkeyPatch) -> WarcraftLogsAdapter:
-        monkeypatch.setenv("SOURCE_API_CLIENT_ID", "test_id")
-        monkeypatch.setenv("SOURCE_API_CLIENT_SECRET", "test_secret")
-        return WarcraftLogsAdapter()
+    def adapter(self) -> WarcraftLogsAdapter:
+        return WarcraftLogsAdapter(
+            WarcraftLogsConfig(
+                name="wcl",
+                client_id="test_id",
+                client_secret="test_secret",
+            )
+        )
 
     def test_get_source_name(self, adapter: WarcraftLogsAdapter) -> None:
         assert adapter.get_source_name() == "wcl"
