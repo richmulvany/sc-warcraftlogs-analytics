@@ -18,7 +18,7 @@ The frontend fetches these files directly with no backend server.
 
 - **No backend to maintain** — eliminates a server, a deployment, and ongoing costs
 - **Fast frontend** — static CSV served from a CDN is faster than a live database query
-- **Free hosting** — Vercel, Netlify, and GitHub Pages serve static files for free, with no spin-down
+- **Free hosting** — static frontend hosts and CDN-backed object storage can serve files with no app server
 - **Data is not real-time** — guild raid data updates at most once per day, so nightly export is sufficient
 - **Simplicity** — the export script is a batch export utility; a backend API would add deployment and auth complexity
 

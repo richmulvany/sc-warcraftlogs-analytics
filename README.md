@@ -70,7 +70,7 @@ WarcraftLogs API          Blizzard Profile API          Raider.IO API
                    ▼
         ┌──────────────────────┐
         │   React Frontend     │  Static dashboard (Vite + TypeScript)
-        │                      │  Served via GitHub Pages / Vercel / Pages
+        │                      │  Fetches published JSON assets at runtime
         └──────────────────────┘
 ```
 
@@ -395,6 +395,7 @@ The recommended production flow is:
 Databricks gold tables -> UC Volume JSON assets -> GitHub Actions -> Cloudflare R2 -> frontend runtime fetch
 
 The frontend reads the public data base URL from `VITE_DASHBOARD_DATA_BASE_URL`.
+Frontend hosting is handled outside the active GitHub Actions deployment workflows.
 
 See [docs/architecture/dashboard_data_publishing.md](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/docs/architecture/dashboard_data_publishing.md).
 

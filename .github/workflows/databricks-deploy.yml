@@ -1,4 +1,4 @@
-name: Deploy Pipeline
+name: sc-analytics-databricks-deploy
 
 on:
   push:
@@ -10,9 +10,16 @@ on:
       - "databricks.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: sc-analytics-databricks-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   deploy:
-    name: Deploy DLT Pipeline
+    name: sc-analytics-databricks-deploy
     runs-on: ubuntu-latest
     environment: production
     if: github.repository == 'richmulvany/sc-warcraftlogs-analytics'
@@ -23,7 +30,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Set up Databricks CLI
-        uses: databricks/setup-cli@main
+        uses: databricks/setup-cli@v0.277.0
       - name: Validate Asset Bundle on feature branches
         if: github.ref != 'refs/heads/main'
         env:

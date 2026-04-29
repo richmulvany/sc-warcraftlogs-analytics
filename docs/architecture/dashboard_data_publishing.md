@@ -12,7 +12,8 @@ The project now uses a static data publishing flow instead:
 Databricks gold tables -> UC Volume JSON assets -> GitHub Actions -> Cloudflare R2 -> static frontend
 
 This keeps the frontend statically hostable while removing generated dashboard
-data from the repo.
+data from the repo. The active GitHub Actions deployment path publishes data to
+Cloudflare R2.
 
 ## Why GitHub Actions sits in the middle
 
@@ -68,7 +69,8 @@ The publisher writes:
 
 Workflow:
 
-- [.github/workflows/publish-dashboard-data.yml](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/.github/workflows/publish-dashboard-data.yml)
+- `sc-analytics-publish-dashboard-data`
+  ([.github/workflows/publish-dashboard-data.yml](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/.github/workflows/publish-dashboard-data.yml))
 
 It:
 
@@ -94,8 +96,6 @@ Cloudflare R2:
 - `R2_SECRET_ACCESS_KEY`
 - `R2_BUCKET`
 - optional `R2_PREFIX`
-- optional `PUBLIC_DATA_BASE_URL`
-
 `R2_PREFIX` is optional and should be a parent folder only. For a public URL like
 `https://data.sc-analytics.org/latest`, leave `R2_PREFIX` empty. Do not set it
 to `latest`, or you will end up publishing to `latest/latest/...`.
