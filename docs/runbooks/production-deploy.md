@@ -15,7 +15,8 @@ Deploy the Databricks bundle to the production target and keep the daily orchest
 
 Workflow:
 
-- [.github/workflows/databricks-deploy.yml](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/.github/workflows/databricks-deploy.yml)
+- `sc-analytics-databricks-deploy`
+  ([.github/workflows/databricks-deploy.yml](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/.github/workflows/databricks-deploy.yml))
 
 ## Target behavior
 

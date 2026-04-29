@@ -1,4 +1,4 @@
-.PHONY: help init verify test test-unit test-lint deploy-pipeline deploy-frontend \
+.PHONY: help init verify test test-unit test-lint deploy-pipeline \
         export-data clean format
 
 PYTHON := python3
@@ -22,7 +22,6 @@ help:
 	@echo ""
 	@echo "  Deployment"
 	@echo "    make deploy-pipeline   Deploy DLT pipeline via Databricks Asset Bundles"
-	@echo "    make deploy-frontend   Build and deploy the React frontend"
 	@echo "    make export-data       Run legacy/local gold table export to static CSV"
 	@echo ""
 	@echo "  Maintenance"
@@ -72,12 +71,6 @@ deploy-pipeline:
 	databricks bundle deploy
 	@echo "Pipeline deployed. Start it in the Databricks UI under Workflows -> Delta Live Tables."
 
-deploy-frontend:
-	@echo ">> Building frontend..."
-	cd frontend && $(NPM) run build
-	@echo ">> Deploying to Vercel..."
-	cd frontend && vercel --prod
-
 export-data:
 	@echo ">> Exporting gold tables to static CSV..."
 	$(PYTHON) scripts/dev/export_gold_tables.py
@@ -87,5 +80,5 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".mypy_cache"   -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".ruff_cache"   -exec rm -rf {} + 2>/dev/null || true
-	rm -rf frontend/dist frontend/.vercel 2>/dev/null || true
+	rm -rf frontend/dist 2>/dev/null || true
 	@echo "Cleaned."

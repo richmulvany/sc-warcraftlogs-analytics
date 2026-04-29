@@ -1,4 +1,4 @@
-name: Publish Dashboard Data
+name: sc-analytics-publish-dashboard-data
 
 on:
   # Triggered exclusively by the Databricks parent orchestrator
@@ -6,16 +6,23 @@ on:
   # Manual UI runs are also supported.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: sc-analytics-publish-dashboard-data
+  cancel-in-progress: false
+
 jobs:
   publish:
-    name: Databricks -> R2
+    name: sc-analytics-publish-dashboard-data
     runs-on: ubuntu-latest
     if: github.repository == 'richmulvany/sc-warcraftlogs-analytics'
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Databricks CLI
-        uses: databricks/setup-cli@main
+        uses: databricks/setup-cli@v0.277.0
 
       - name: Download latest dashboard assets
         env:

@@ -1,4 +1,4 @@
-name: CI
+name: sc-analytics-ci
 
 on:
   push:
@@ -6,9 +6,12 @@ on:
   pull_request:
     branches: [main, develop]
 
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
-    name: Lint & Test (Python)
+    name: sc-analytics-python-checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +37,7 @@ jobs:
           file: coverage.xml
 
   build-frontend:
-    name: Build Frontend
+    name: sc-analytics-frontend-build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
