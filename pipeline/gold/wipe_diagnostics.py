@@ -299,10 +299,14 @@ def gold_wipe_cooldown_utilization():
             ability_name,
             cooldown_seconds,
             active_seconds,
+            capacity_model,
+            max_charges,
             possible_casts,
+            observed_casts,
+            over_capacity_casts,
             actual_casts
           FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cooldown_capacity
-          WHERE has_tracked_capacity = true
+          WHERE has_scored_capacity = true
             AND COALESCE(is_kill, false) = false
             AND COALESCE(duration_seconds, 0) > 0
         )
@@ -324,9 +328,13 @@ def gold_wipe_cooldown_utilization():
           ability_name,
           cooldown_seconds,
           active_seconds,
+          capacity_model,
+          max_charges,
           possible_casts,
+          observed_casts,
+          over_capacity_casts,
           actual_casts,
-          GREATEST(possible_casts - actual_casts, 0) AS missed_casts,
+          possible_casts - actual_casts AS missed_casts,
           CASE
             WHEN possible_casts > 0
             THEN ROUND((actual_casts / possible_casts) * 100, 1)

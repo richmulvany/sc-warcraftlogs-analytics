@@ -584,7 +584,7 @@ def silver_player_cooldown_capacity():
           SELECT *
           FROM VALUES
             {_COOLDOWN_RULES_SQL}
-          AS cooldown_rules(cooldown_category, player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids)
+          AS cooldown_rules(cooldown_category, player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids, capacity_model, max_charges, capacity_score_eligible)
         ),
         instrumented_pulls AS (
           SELECT DISTINCT report_code, fight_id
@@ -659,8 +659,9 @@ def silver_player_cooldown_capacity():
             ON p.report_code = b.report_code
            AND p.fight_id = b.fight_id
            AND p.player_name = b.player_name
-        )
-        SELECT
+        ),
+        cooldown_capacity_base AS (
+          SELECT
           p.report_code,
           p.fight_id,
           p.encounter_id,
@@ -681,6 +682,9 @@ def silver_player_cooldown_capacity():
           r.ability_name,
           r.cooldown_seconds,
           r.active_seconds,
+          r.capacity_model,
+          r.max_charges,
+          r.capacity_score_eligible,
           r.allowed_spec_ids,
           r.required_talent_spell_ids,
           p.talent_spell_ids,
@@ -699,11 +703,15 @@ def silver_player_cooldown_capacity():
             )
           END AS talent_present,
           CASE WHEN rpc.ability_id IS NOT NULL THEN true ELSE false END AS cast_seen_in_report,
-          COALESCE(pc.actual_casts, 0) AS actual_casts,
+          COALESCE(pc.actual_casts, 0) AS observed_casts,
           pc.last_cast_on_pull_ms,
           CASE
-            WHEN COALESCE(p.duration_seconds, 0) > 0
-            THEN CAST(FLOOR(COALESCE(p.duration_seconds, 0) / r.cooldown_seconds) + 1 AS BIGINT)
+            WHEN COALESCE(p.duration_seconds, 0) > 0 AND r.capacity_score_eligible = 1
+            THEN CAST(
+              FLOOR(COALESCE(p.duration_seconds, 0) / r.cooldown_seconds)
+              + GREATEST(r.max_charges, 1)
+              AS BIGINT
+            )
             ELSE CAST(0 AS BIGINT)
           END AS possible_casts,
           CASE
@@ -733,18 +741,39 @@ def silver_player_cooldown_capacity():
              AND rpc.ability_id IS NULL
             THEN false
             ELSE true
-          END AS has_tracked_capacity
-        FROM player_pull_state p
-        INNER JOIN cooldown_rules r
-          ON p.player_class = r.player_class
-        LEFT JOIN report_player_casts rpc
-          ON p.report_code = rpc.report_code
-         AND p.player_name = rpc.player_name
-         AND r.ability_id = rpc.ability_id
-        LEFT JOIN player_casts pc
-          ON p.report_code = pc.report_code
-         AND p.fight_id = pc.fight_id
-         AND p.player_name = pc.player_name
-         AND r.ability_id = pc.ability_id
+          END AS has_tracked_capacity,
+          CASE
+            WHEN r.capacity_score_eligible = 0 THEN false
+            WHEN p.has_combatant_info = false OR p.spec_id IS NULL THEN false
+            WHEN r.allowed_spec_ids <> ''
+             AND NOT ARRAY_CONTAINS(SPLIT(r.allowed_spec_ids, '\\\\|'), CAST(p.spec_id AS STRING))
+            THEN false
+            WHEN r.required_talent_spell_ids <> ''
+             AND NOT EXISTS(
+               SPLIT(r.required_talent_spell_ids, '\\\\|'),
+               talent_id -> p.talent_spell_ids IS NOT NULL AND ARRAY_CONTAINS(p.talent_spell_ids, talent_id)
+            )
+             AND rpc.ability_id IS NULL
+            THEN false
+            ELSE true
+          END AS has_scored_capacity
+          FROM player_pull_state p
+          INNER JOIN cooldown_rules r
+            ON p.player_class = r.player_class
+          LEFT JOIN report_player_casts rpc
+            ON p.report_code = rpc.report_code
+           AND p.player_name = rpc.player_name
+           AND r.ability_id = rpc.ability_id
+          LEFT JOIN player_casts pc
+            ON p.report_code = pc.report_code
+           AND p.fight_id = pc.fight_id
+           AND p.player_name = pc.player_name
+           AND r.ability_id = pc.ability_id
+        )
+        SELECT
+          *,
+          LEAST(observed_casts, possible_casts) AS actual_casts,
+          GREATEST(observed_casts - possible_casts, 0) AS over_capacity_casts
+        FROM cooldown_capacity_base
         """
     )

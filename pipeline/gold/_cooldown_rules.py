@@ -19,6 +19,9 @@ class CooldownRuleRecord:
     active_seconds: int
     allowed_spec_ids: tuple[int, ...] = ()
     required_talent_spell_ids: tuple[int, ...] = ()
+    capacity_model: str = "standard"
+    max_charges: int = 1
+    capacity_score_eligible: bool = True
 
     @property
     def allowed_spec_ids_sql(self) -> str:
@@ -27,6 +30,10 @@ class CooldownRuleRecord:
     @property
     def required_talent_spell_ids_sql(self) -> str:
         return "|".join(str(spell_id) for spell_id in self.required_talent_spell_ids)
+
+    @property
+    def capacity_score_eligible_sql(self) -> int:
+        return 1 if self.capacity_score_eligible else 0
 
 
 EXCLUDED_ZONES = ["Blackrock Depths"]
@@ -97,22 +104,55 @@ COOLDOWN_RULE_RECORDS: tuple[CooldownRuleRecord, ...] = (
         required_talent_spell_ids=(196555,),
     ),
     CooldownRuleRecord(
-        "personal_spec", "DemonHunter", 203720, "Demon Spikes", 15, 6, allowed_spec_ids=(581,)
+        "personal_spec",
+        "DemonHunter",
+        203720,
+        "Demon Spikes",
+        15,
+        6,
+        allowed_spec_ids=(581,),
+        capacity_model="charge_based",
+        max_charges=2,
     ),
     CooldownRuleRecord(
-        "personal_spec", "DemonHunter", 187827, "Metamorphosis", 240, 15, allowed_spec_ids=(581,)
+        "personal_spec",
+        "DemonHunter",
+        187827,
+        "Metamorphosis",
+        240,
+        15,
+        allowed_spec_ids=(581,),
+        capacity_model="form_state",
+        capacity_score_eligible=False,
     ),
     CooldownRuleRecord(
         "personal_spec", "DemonHunter", 204021, "Fiery Brand", 60, 8, allowed_spec_ids=(581,)
     ),
     CooldownRuleRecord("personal", "Druid", 22812, "Barkskin", 60, 12),
     CooldownRuleRecord(
-        "personal", "Druid", 61336, "Survival Instincts", 180, 6, required_talent_spell_ids=(61336,)
+        "personal",
+        "Druid",
+        61336,
+        "Survival Instincts",
+        180,
+        6,
+        required_talent_spell_ids=(61336,),
+        capacity_model="charge_based",
+        max_charges=2,
     ),
     CooldownRuleRecord(
         "personal", "Druid", 108238, "Renewal", 90, 1, required_talent_spell_ids=(108238,)
     ),
-    CooldownRuleRecord("personal", "Evoker", 363916, "Obsidian Scales", 90, 12),
+    CooldownRuleRecord(
+        "personal",
+        "Evoker",
+        363916,
+        "Obsidian Scales",
+        90,
+        12,
+        capacity_model="charge_based",
+        max_charges=2,
+    ),
     CooldownRuleRecord(
         "personal", "Evoker", 374348, "Renewing Blaze", 90, 8, required_talent_spell_ids=(374348,)
     ),
@@ -211,7 +251,15 @@ COOLDOWN_RULE_RECORDS: tuple[CooldownRuleRecord, ...] = (
         "personal_spec", "DeathKnight", 55233, "Vampiric Blood", 90, 10, allowed_spec_ids=(250,)
     ),
     CooldownRuleRecord(
-        "personal_spec", "Druid", 22842, "Frenzied Regeneration", 36, 3, allowed_spec_ids=(104,)
+        "personal_spec",
+        "Druid",
+        22842,
+        "Frenzied Regeneration",
+        36,
+        3,
+        allowed_spec_ids=(104,),
+        capacity_model="charge_based",
+        max_charges=2,
     ),
     CooldownRuleRecord(
         "personal_spec", "Paladin", 31850, "Ardent Defender", 120, 8, allowed_spec_ids=(66,)
@@ -403,6 +451,9 @@ def _cooldown_rule_sql_rows(
                 rule.active_seconds,
                 rule.allowed_spec_ids_sql,
                 rule.required_talent_spell_ids_sql,
+                rule.capacity_model,
+                rule.max_charges,
+                rule.capacity_score_eligible_sql,
             ]
         )
         rows.append("(" + ", ".join(_sql_repr(value) for value in row_values) + ")")
