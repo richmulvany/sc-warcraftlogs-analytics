@@ -16,9 +16,12 @@ servers:
 models:
   boss_progression:
     type: table
-    description: Kill and wipe counts per encounter and difficulty.
+    description: Kill and wipe counts per encounter, boss, zone, and difficulty.
     primaryKey:
       - encounter_id
+      - boss_name
+      - zone_id
+      - zone_name
       - difficulty
     fields:
       encounter_id:
@@ -29,14 +32,17 @@ models:
       boss_name:
         type: string
         required: true
+        primary: true
         description: Boss display name.
       zone_id:
         type: integer
         required: true
+        primary: true
         description: WarcraftLogs zone identifier.
       zone_name:
         type: string
         required: true
+        primary: true
         description: Raid zone display name.
       difficulty:
         type: integer
@@ -87,7 +93,7 @@ quality:
   type: custom
   specification:
     checks for boss_progression:
-      - duplicate_count(encounter_id, difficulty) = 0
+      - duplicate_count(encounter_id, boss_name, zone_id, zone_name, difficulty) = 0
       - total_pulls = total_kills + total_wipes
       - total_pulls > 0
 x-sc-analytics:
@@ -95,7 +101,7 @@ x-sc-analytics:
     dataset: boss_progression
     sourceTable: 03_gold.sc_analytics.gold_boss_progression
     publishedPath: boss_progression.json
-    grain: One row per encounter and difficulty across all tracked raid pulls.
+    grain: One row per encounter, boss, zone, and difficulty across all tracked raid pulls.
     consumers:
       - frontend/src/hooks/useGoldData.ts:useBossProgression
       - frontend/src/pages/BossDetail.tsx
@@ -117,5 +123,5 @@ x-sc-analytics:
         expression: wipe_to_kill_ratio >= 0
     breakingChanges:
       - Removing or renaming any listed field.
-      - Changing the grain away from encounter plus difficulty.
+      - Changing the grain away from encounter plus boss plus zone plus difficulty.
       - Changing duration units from seconds.
