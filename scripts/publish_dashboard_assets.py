@@ -53,6 +53,16 @@ MAX_TOTAL_EXPORT_BYTES = int(
 POLL_INTERVAL_SECONDS = float(os.environ.get("EXPORT_POLL_INTERVAL_SECONDS", "2"))
 POLL_TIMEOUT_SECONDS = int(os.environ.get("EXPORT_POLL_TIMEOUT_SECONDS", "300"))
 
+QUERY_SOURCE_REQUIRED_COLUMNS: dict[str, set[str]] = {
+    "wipe_cooldown_utilization": {
+        "observed_casts",
+        "over_capacity_casts",
+        "actual_casts",
+        "possible_casts",
+        "missed_casts",
+    },
+}
+
 
 def _gold(name: str) -> str:
     return f"{GOLD_CATALOG}.{GOLD_SCHEMA}.{name}"
@@ -871,6 +881,47 @@ def _query_rows(
     return _statement_rows_to_dicts(response)
 
 
+def _table_columns(
+    spark_session: Any | None,
+    client: WorkspaceClient | None,
+    warehouse_id: str | None,
+    table_name: str,
+) -> set[str]:
+    if spark_session is not None:
+        return set(spark_session.table(table_name).columns)
+
+    rows = _query_rows(
+        spark_session,
+        client,
+        warehouse_id,
+        sql_text=f"DESCRIBE TABLE {table_name}",
+    )
+    return {str(row.get("col_name")) for row in rows if row.get("col_name")}
+
+
+def _validate_query_source_schema(
+    spark_session: Any | None,
+    client: WorkspaceClient | None,
+    warehouse_id: str | None,
+    dataset_name: str,
+    source_table: str,
+) -> None:
+    required_columns = QUERY_SOURCE_REQUIRED_COLUMNS.get(dataset_name)
+    if not required_columns:
+        return
+
+    columns = _table_columns(spark_session, client, warehouse_id, source_table)
+    missing = sorted(required_columns - columns)
+    if missing:
+        raise RuntimeError(
+            f'Dataset "{dataset_name}" cannot be published from {source_table}; '
+            f"missing columns: {', '.join(missing)}. "
+            "Rerun the SDP/DLT pipeline so the gold table is rebuilt before rerunning "
+            "the dashboard asset publisher. A repair run of only the publish task will "
+            "reuse the old table schema."
+        )
+
+
 def export_dataset(
     spark_session: Any | None,
     client: WorkspaceClient | None,
@@ -910,6 +961,13 @@ def export_query_dataset(
     sql_text: str,
     output_dir: Path,
 ) -> DatasetResult:
+    _validate_query_source_schema(
+        spark_session,
+        client,
+        warehouse_id,
+        dataset_name,
+        source_table,
+    )
     rows = _query_rows(
         spark_session,
         client,
