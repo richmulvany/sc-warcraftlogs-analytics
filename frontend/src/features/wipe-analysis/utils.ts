@@ -51,14 +51,24 @@ export function pct(numerator: number, denominator: number) {
   return denominator > 0 ? (numerator / denominator) * 100 : 0
 }
 
-export function gradeForPercentile(percentile: number): WipeSurvivalFailureRow['survival_grade'] {
-  if (percentile <= 0.1) return 'S'
-  if (percentile <= 0.25) return 'A'
-  if (percentile <= 0.4) return 'B'
-  if (percentile <= 0.55) return 'C'
-  if (percentile <= 0.7) return 'D'
-  if (percentile <= 0.85) return 'E'
-  return 'F'
+export function gradeForRelativeDisciplineScore(
+  score: number,
+  distinctScoresAscending: number[]
+): WipeSurvivalFailureRow['survival_grade'] {
+  if (distinctScoresAscending.length <= 1) return 'S'
+
+  const index = distinctScoresAscending.findIndex(candidate => candidate === score)
+  if (index === distinctScoresAscending.length - 1) return 'S'
+  if (index === 0) return 'F'
+
+  if (distinctScoresAscending.length <= 3) return 'A'
+
+  const middleRelative = (index - 1) / (distinctScoresAscending.length - 3)
+  if (middleRelative >= 0.8) return 'A'
+  if (middleRelative >= 0.6) return 'B'
+  if (middleRelative >= 0.4) return 'C'
+  if (middleRelative >= 0.2) return 'D'
+  return 'E'
 }
 
 export function gradeClassName(grade: WipeSurvivalFailureRow['survival_grade']) {

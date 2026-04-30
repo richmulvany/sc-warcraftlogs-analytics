@@ -31,6 +31,8 @@ export interface WipeSurvivalFailureRow {
   defensive_actual_casts: number
   defensive_missed_casts: number
   defensive_capacity_used_pct: number
+  defensive_class_baseline_pct: number | null
+  defensive_class_delta_pct: number | null
   has_defensive_capacity_tracked: boolean
   no_healthstone_pct: number
   no_health_potion_pct: number

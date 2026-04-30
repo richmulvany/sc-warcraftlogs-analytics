@@ -38,7 +38,7 @@ import { CHART_TICK_STYLE, CHART_TICK_STYLE_LIGHT } from '../../utils/chartStyle
 import { DIFFS, WA_SECTIONS, toWipeRoleKey, CLASS_ROLE_FALLBACK } from './constants'
 import {
   quantile, isKillRow, isPositiveFlag, sectionTotal,
-  pct as calcPct, gradeForPercentile, gradeClassName,
+  pct as calcPct, gradeForRelativeDisciplineScore, gradeClassName,
   clampPct, shortDateLabel,
 } from './utils'
 import type { SortDirection, WipeSurvivalSortKey, WipeSurvivalFailureRow, CooldownCapacityRow, ScopedSurvivabilityRow, DeathTimingSummary, ProgressSnapshotDatum } from './types'
@@ -547,6 +547,8 @@ export function WipeAnalysis() {
         defensive_actual_casts: 0,
         defensive_missed_casts: 0,
         defensive_capacity_used_pct: 0,
+        defensive_class_baseline_pct: null,
+        defensive_class_delta_pct: null,
         has_defensive_capacity_tracked: false,
         no_healthstone_pct: 0,
         no_health_potion_pct: 0,
@@ -612,13 +614,8 @@ export function WipeAnalysis() {
       }
     })
 
-    const scoredRows = [...rows.values()]
+    const baseRows = [...rows.values()]
       .map(row => {
-        const missing = [
-          { label: 'Defensive capacity', count: row.defensive_missed_casts },
-          { label: 'Healthstone', count: row.no_healthstone_deaths },
-          { label: 'Health potion', count: row.no_health_potion_deaths },
-        ].sort((a, b) => b.count - a.count)
         const wipePulls = Math.max(row.wipe_pulls_tracked, row.wipe_deaths)
         const weightedFailurePoints =
           row.defensive_missed_casts * 0.5 +
@@ -635,33 +632,86 @@ export function WipeAnalysis() {
           no_healthstone_pct: calcPct(row.no_healthstone_deaths, row.wipe_deaths),
           no_health_potion_pct: calcPct(row.no_health_potion_deaths, row.wipe_deaths),
           weighted_failure_points: weightedFailurePoints,
-          // Presence-normalised score: weighted missing-tool deaths per wipe pull, scaled to 100.
-          // This keeps low-pull and high-pull boss scopes comparable.
           survival_failure_score: wipePulls > 0 ? (weightedFailurePoints / wipePulls) * 100 : 0,
-          top_missing_category: missing[0]?.count > 0 ? missing[0].label : '—',
         }
       })
 
-    const sortedForGrade = [...scoredRows].sort(
-      (a, b) => a.survival_failure_score - b.survival_failure_score || a.wipe_deaths - b.wipe_deaths
-    )
-    const distinctScores = new Set(sortedForGrade.map(row => row.survival_failure_score))
-    const gradeByPlayer = new Map<string, WipeSurvivalFailureRow['survival_grade']>()
-
-    for (const row of sortedForGrade) {
-      if (distinctScores.size <= 1) {
-        gradeByPlayer.set(row.player_name.toLowerCase(), 'S')
-        continue
-      }
-
-      const rank = sortedForGrade.findIndex(candidate => candidate === row)
-      const percentile = sortedForGrade.length <= 1 ? 0 : rank / (sortedForGrade.length - 1)
-      gradeByPlayer.set(row.player_name.toLowerCase(), gradeForPercentile(percentile))
+    const defensiveRatesByClass = new Map<string, number[]>()
+    for (const row of baseRows) {
+      if (!row.has_defensive_capacity_tracked) continue
+      const classKey = row.player_class || 'Unknown'
+      const rates = defensiveRatesByClass.get(classKey) ?? []
+      rates.push(row.defensive_capacity_used_pct)
+      defensiveRatesByClass.set(classKey, rates)
     }
 
+    const defensiveBaselineByClass = new Map<string, number>()
+    defensiveRatesByClass.forEach((rates, classKey) => {
+      defensiveBaselineByClass.set(classKey, quantile([...rates].sort((a, b) => a - b), 0.5))
+    })
+
+    const scoredRows = baseRows
+      .map(row => {
+        const defensiveClassBaseline = row.has_defensive_capacity_tracked
+          ? defensiveBaselineByClass.get(row.player_class || 'Unknown') ?? row.defensive_capacity_used_pct
+          : null
+        const defensiveClassDelta = defensiveClassBaseline == null
+          ? null
+          : row.defensive_capacity_used_pct - defensiveClassBaseline
+        const defensiveRelativeScore = defensiveClassDelta == null
+          ? 50
+          : clampPct(50 + defensiveClassDelta * 1.5)
+        const defensiveScore = row.has_defensive_capacity_tracked
+          ? clampPct(row.defensive_capacity_used_pct * 0.7 + defensiveRelativeScore * 0.3)
+          : 50
+        const deathAvoidanceScore = clampPct(100 - row.deaths_per_wipe_pull * 250)
+        const healthstoneScore = row.wipe_deaths > 0
+          ? clampPct(100 - row.no_healthstone_pct)
+          : 100
+        const healthPotionScore = row.wipe_deaths > 0
+          ? clampPct(100 - row.no_health_potion_pct)
+          : 100
+        const disciplineScore = clampPct(
+          defensiveScore * 0.3 +
+          healthstoneScore * 0.3 +
+          healthPotionScore * 0.3 +
+          deathAvoidanceScore * 0.1
+        )
+
+        const missing = [
+          { label: 'Defensive usage', score: defensiveScore },
+          { label: 'Wipe survival', score: deathAvoidanceScore },
+          { label: 'Healthstone', score: healthstoneScore },
+          { label: 'Health potion', score: healthPotionScore },
+        ].sort((a, b) => a.score - b.score)
+
+        return {
+          ...row,
+          defensive_class_baseline_pct: defensiveClassBaseline,
+          defensive_class_delta_pct: defensiveClassDelta,
+          survival_failure_score: disciplineScore,
+          top_missing_category: missing[0].score < 95 ? missing[0].label : '—',
+        }
+      })
+
+    const distinctScoresAscending = [...new Set(scoredRows.map(row => row.survival_failure_score))]
+      .sort((a, b) => a - b)
+
     return scoredRows
-      .map(row => ({ ...row, survival_grade: gradeByPlayer.get(row.player_name.toLowerCase()) ?? 'S' }))
-      .sort((a, b) => b.survival_failure_score - a.survival_failure_score || b.wipe_deaths - a.wipe_deaths)
+      .map(row => ({
+        ...row,
+        survival_grade: gradeForRelativeDisciplineScore(
+          row.survival_failure_score,
+          distinctScoresAscending
+        ),
+      }))
+      .sort((a, b) => {
+        return (
+          b.survival_failure_score - a.survival_failure_score ||
+          a.deaths_per_wipe_pull - b.deaths_per_wipe_pull ||
+          b.defensive_capacity_used_pct - a.defensive_capacity_used_pct
+        )
+      })
   }, [personalDefensiveCapacityByPlayer, scopedWipeUtilityRows, scopedWipeSurvivalEventRows, scopedSurvivability])
 
   const historicalClosestPull = useMemo(
@@ -2409,7 +2459,7 @@ export function WipeAnalysis() {
                 <div>
                   <CardTitle>Survival Discipline on Wipes</CardTitle>
                   <p className="mt-0.5 text-xs text-ctp-overlay1">
-                    Wipe pulls only. Score blends missed personal defensive capacity with deaths lacking healthstones or health potions; grade is relative to this scope.
+                    Wipe pulls only. Consistency weights defensive usage, healthstone use, and potion use equally; wipe death rate is a minor tie-breaker.
                   </p>
                 </div>
                 <StatusPill label={`${formatNumber(wipeSurvivalFailures.length)} players`} active />
@@ -2504,7 +2554,7 @@ export function WipeAnalysis() {
                         <WipeSurvivalSortButton k="noHealthPotionPct">No HPot Rate</WipeSurvivalSortButton>
                       </Th>
                       <Th right>
-                        <WipeSurvivalSortButton k="survivalFailureScore">Score</WipeSurvivalSortButton>
+                        <WipeSurvivalSortButton k="survivalFailureScore">Consistency</WipeSurvivalSortButton>
                       </Th>
                       <Th>
                         <WipeSurvivalSortButton k="topMissing">Top Missing</WipeSurvivalSortButton>
@@ -2517,11 +2567,13 @@ export function WipeAnalysis() {
                   <TBody>
                     {wipeSurvivalRows.map(row => {
                       const scoreColor =
-                        row.survival_failure_score >= 30
-                          ? wipeColor
-                          : row.survival_failure_score >= 15
-                            ? getParseColor(95)
-                            : '#a6adc8'
+                        row.survival_failure_score >= 85
+                          ? getParseColor(99)
+                          : row.survival_failure_score >= 70
+                            ? getParseColor(85)
+                            : row.survival_failure_score >= 55
+                              ? getParseColor(60)
+                              : wipeColor
 
                       return (
                         <Tr key={row.player_name}>
@@ -2564,7 +2616,17 @@ export function WipeAnalysis() {
                               mono
                               style={{ color: getDeathRateColor(Math.max(0, 1 - row.defensive_capacity_used_pct / 100)) }}
                             >
-                              <span title={`${formatNumber(row.defensive_actual_casts)} cast / ${formatNumber(row.defensive_possible_casts)} possible`}>
+                              <span
+                                title={[
+                                  `${formatNumber(row.defensive_actual_casts)} cast / ${formatNumber(row.defensive_possible_casts)} possible`,
+                                  row.defensive_class_baseline_pct == null
+                                    ? null
+                                    : `class median ${row.defensive_class_baseline_pct.toFixed(0)}%`,
+                                  row.defensive_class_delta_pct == null
+                                    ? null
+                                    : `${row.defensive_class_delta_pct >= 0 ? '+' : ''}${row.defensive_class_delta_pct.toFixed(0)} pts vs class`,
+                                ].filter(Boolean).join(' · ')}
+                              >
                                 {`${row.defensive_capacity_used_pct.toFixed(0)}%`}
                               </span>
                             </Td>
@@ -2614,8 +2676,8 @@ export function WipeAnalysis() {
                 </Table>
 
                 <p className="mt-3 font-mono text-[10px] text-ctp-overlay0">
-                  Score = ((missed personal defensive capacity × 0.5 + no healthstone before death × 0.3 + no health potion before death × 0.2) / player wipe pulls) × 100.
-                  Wipe Deaths and Deaths/Kill count logged death events on wipe pulls and tracked kills respectively; stone and potion rates use player wipe deaths as the denominator; Def Cap Used is limited to tracked abilities for the spec seen on the pull. Players whose spec has no tracked defensive rules show <span className="text-ctp-overlay1">n/a</span> and contribute zero defensive penalty — review <span className="font-mono">_cooldown_rules.py</span> if a spec is consistently missing.
+                  Consistency = 30% class-baselined Def Cap Used + 30% healthstone discipline + 30% potion discipline + 10% wipe death avoidance.
+                  Letter grades are relative within the current table scope: top score is S, bottom score is F, and ties share the same grade. Stone and potion rates use player wipe deaths as the denominator; Def Cap Used is limited to tracked abilities for the spec seen on the pull. Players whose spec has no tracked defensive rules show <span className="text-ctp-overlay1">n/a</span> and use a neutral defensive component — review <span className="font-mono">_cooldown_rules.py</span> if a spec is consistently missing.
                 </p>
               </CardBody>
             )}
