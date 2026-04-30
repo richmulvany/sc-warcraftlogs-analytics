@@ -178,7 +178,7 @@ def _validate_rules(contract: DashboardAssetContract, rows: list[dict[str, Any]]
                 if not _safe_eval_bool(expression, context):
                     raise ContractValidationError(
                         f'Dataset "{contract.dataset}" row {index} failed rule "{name}": '
-                        f"{expression}"
+                        f"{expression} (contract: {contract.path})"
                     )
 
 
