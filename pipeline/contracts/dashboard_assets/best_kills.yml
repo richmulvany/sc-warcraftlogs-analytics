@@ -16,9 +16,11 @@ servers:
 models:
   best_kills:
     type: table
-    description: Fastest kill duration per boss and difficulty.
+    description: Fastest kill duration per encounter, boss, zone, and difficulty.
     primaryKey:
       - encounter_id
+      - boss_name
+      - zone_name
       - difficulty
     fields:
       encounter_id:
@@ -29,10 +31,12 @@ models:
       boss_name:
         type: string
         required: true
+        primary: true
         description: Boss display name.
       zone_name:
         type: string
         required: true
+        primary: true
         description: Raid zone display name.
       difficulty:
         type: integer
@@ -71,7 +75,7 @@ quality:
   type: custom
   specification:
     checks for best_kills:
-      - duplicate_count(encounter_id, difficulty) = 0
+      - duplicate_count(encounter_id, boss_name, zone_name, difficulty) = 0
       - total_kills > 0
       - best_kill_seconds <= avg_kill_seconds
 x-sc-analytics:
@@ -79,7 +83,7 @@ x-sc-analytics:
     dataset: best_kills
     sourceTable: 03_gold.sc_analytics.gold_best_kills
     publishedPath: best_kills.json
-    grain: One row per encounter and difficulty with at least one recorded kill.
+    grain: One row per encounter, boss, zone, and difficulty with at least one recorded kill.
     consumers:
       - frontend/src/hooks/useGoldData.ts:useBestKills
     freshness:
@@ -95,5 +99,5 @@ x-sc-analytics:
         expression: best_kill_seconds <= avg_kill_seconds
     breakingChanges:
       - Removing or renaming any listed field.
-      - Changing the grain away from encounter plus difficulty.
+      - Changing the grain away from encounter plus boss plus zone plus difficulty.
       - Changing duration units from seconds.
