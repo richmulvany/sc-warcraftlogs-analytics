@@ -25,7 +25,8 @@ def test_defensive_rules_sql_emits_expected_shape_for_every_rule() -> None:
         expected_row = (
             f"('{rule.player_class}', {rule.ability_id}, '{rule.ability_name}', "
             f"{rule.cooldown_seconds}, {rule.active_seconds}, "
-            f"'{rule.allowed_spec_ids_sql}', '{rule.required_talent_spell_ids_sql}')"
+            f"'{rule.allowed_spec_ids_sql}', '{rule.required_talent_spell_ids_sql}', "
+            f"'{rule.capacity_model}', {rule.max_charges}, {rule.capacity_score_eligible_sql})"
         )
         assert expected_row in sql
 
@@ -51,3 +52,29 @@ def test_rule_data_order_is_stable_across_python_and_sql_exports() -> None:
         == PERSONAL_DEFENSIVE_RULE_RECORDS
     )
     assert ordered_ability_ids == [rule.ability_id for rule in PERSONAL_DEFENSIVE_RULE_RECORDS]
+
+
+def test_capacity_model_marks_form_state_cooldowns_unscored() -> None:
+    metamorphosis = next(rule for rule in COOLDOWN_RULE_RECORDS if rule.ability_id == 187827)
+
+    assert metamorphosis.ability_name == "Metamorphosis"
+    assert metamorphosis.capacity_model == "form_state"
+    assert metamorphosis.capacity_score_eligible is False
+    assert metamorphosis.capacity_score_eligible_sql == 0
+
+
+def test_capacity_model_marks_charge_based_defensives() -> None:
+    charge_based_rules = {
+        rule.ability_id: rule
+        for rule in COOLDOWN_RULE_RECORDS
+        if rule.capacity_model == "charge_based"
+    }
+
+    assert charge_based_rules[203720].ability_name == "Demon Spikes"
+    assert charge_based_rules[203720].max_charges == 2
+    assert charge_based_rules[22842].ability_name == "Frenzied Regeneration"
+    assert charge_based_rules[22842].max_charges == 2
+    assert charge_based_rules[61336].ability_name == "Survival Instincts"
+    assert charge_based_rules[61336].max_charges == 2
+    assert charge_based_rules[363916].ability_name == "Obsidian Scales"
+    assert charge_based_rules[363916].max_charges == 2

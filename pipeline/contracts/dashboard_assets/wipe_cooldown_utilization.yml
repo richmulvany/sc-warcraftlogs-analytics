@@ -68,23 +68,44 @@ models:
       possible_casts:
         type: integer
         required: true
-        description: Capacity from pull duration and tracked cooldown rules, not observed opportunity.
+        description: >
+          Scored capacity from pull duration, cooldown duration, charge model,
+          and tracked cooldown rules. Excludes unscored form/proc-state rules.
+      observed_casts:
+        type: integer
+        required: true
+        description: Raw matching cast events observed in WarcraftLogs before scoring.
       actual_casts:
         type: integer
         required: true
-        description: Number of matching casts observed in the scoped wipe pulls.
+        description: >
+          Scored casts used for capacity efficiency. This is capped at
+          possible_casts so repeated form/proc events do not create impossible
+          defensive usage.
+      over_capacity_casts:
+        type: integer
+        required: true
+        description: Raw observed casts above scored capacity, retained as a diagnostic signal.
       missed_casts:
         type: integer
         required: true
-        description: max(possible_casts - actual_casts, 0).
+        description: >
+          Sum of scored capacity not used. Equal to possible_casts minus
+          actual_casts in the published aggregation.
 quality:
   type: custom
   specification:
     checks for wipe_cooldown_utilization:
       - duplicate_count(boss_name, zone_name, difficulty_label, cooldown_category, player_name, player_class, ability_id) = 0
       - possible_casts >= 0
+      - observed_casts >= 0
       - actual_casts >= 0
-      - missed_casts = max(possible_casts - actual_casts, 0)
+      - over_capacity_casts >= 0
+      - missed_casts >= 0
+      - actual_casts <= possible_casts
+      - observed_casts >= actual_casts
+      - over_capacity_casts = observed_casts - actual_casts
+      - missed_casts = possible_casts - actual_casts
 x-sc-analytics:
   dashboardAsset:
     dataset: wipe_cooldown_utilization
@@ -107,10 +128,16 @@ x-sc-analytics:
         field: cooldown_category
         enum: [personal, personal_spec, raid, external]
       - name: non_negative_counts
-        expression: possible_casts >= 0 and actual_casts >= 0 and missed_casts >= 0
+        expression: possible_casts >= 0 and observed_casts >= 0 and actual_casts >= 0 and over_capacity_casts >= 0 and missed_casts >= 0
+      - name: scored_actual_not_over_capacity
+        expression: actual_casts <= possible_casts
+      - name: observed_not_below_scored
+        expression: observed_casts >= actual_casts
+      - name: over_capacity_formula
+        expression: over_capacity_casts == observed_casts - actual_casts
       - name: missed_casts_formula
-        expression: missed_casts == max(possible_casts - actual_casts, 0)
+        expression: missed_casts == possible_casts - actual_casts
     breakingChanges:
       - Removing or renaming any listed field.
       - Changing the grain of the published aggregation.
-      - Changing possible_casts from capacity semantics to observed-use semantics.
+      - Changing possible_casts or actual_casts from scored capacity semantics to raw observed-use semantics.

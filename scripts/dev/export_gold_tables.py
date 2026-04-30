@@ -521,7 +521,7 @@ TABLE_EXPORT_STATEMENTS: dict[str, str] = {
           SELECT *
           FROM VALUES
             {DEFENSIVE_COOLDOWN_RULES_SQL}
-          AS defensive_rules(player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids)
+          AS defensive_rules(player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids, capacity_model, max_charges, capacity_score_eligible)
         ),
         casts AS (
           SELECT
@@ -848,7 +848,7 @@ TABLE_EXPORT_STATEMENTS: dict[str, str] = {
           SELECT *
           FROM VALUES
             {COOLDOWN_RULES_SQL}
-          AS cooldown_rules(cooldown_category, player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids)
+          AS cooldown_rules(cooldown_category, player_class, ability_id, ability_name, cooldown_seconds, active_seconds, allowed_spec_ids, required_talent_spell_ids, capacity_model, max_charges, capacity_score_eligible)
         ),
         instrumented_pulls AS (
           SELECT DISTINCT
@@ -1002,7 +1002,17 @@ TABLE_EXPORT_STATEMENTS: dict[str, str] = {
             r.ability_name,
             r.cooldown_seconds,
             r.active_seconds,
-            CAST(FLOOR(COALESCE(p.duration_seconds, 0) / r.cooldown_seconds) + 1 AS BIGINT) AS possible_casts
+            r.capacity_model,
+            r.max_charges,
+            CASE
+              WHEN r.capacity_score_eligible = 1
+              THEN CAST(
+                FLOOR(COALESCE(p.duration_seconds, 0) / r.cooldown_seconds)
+                + GREATEST(r.max_charges, 1)
+                AS BIGINT
+              )
+              ELSE CAST(0 AS BIGINT)
+            END AS possible_casts
           FROM player_pulls p
           INNER JOIN cooldown_rules r
             ON p.player_class = r.player_class
@@ -1030,6 +1040,7 @@ TABLE_EXPORT_STATEMENTS: dict[str, str] = {
               )
               OR rpc.ability_id IS NOT NULL
             )
+            AND r.capacity_score_eligible = 1
         )
         SELECT
           t.report_code,
@@ -1049,12 +1060,16 @@ TABLE_EXPORT_STATEMENTS: dict[str, str] = {
           t.ability_name,
           t.cooldown_seconds,
           t.active_seconds,
+          t.capacity_model,
+          t.max_charges,
           t.possible_casts,
-          COALESCE(c.actual_casts, 0) AS actual_casts,
-          GREATEST(t.possible_casts - COALESCE(c.actual_casts, 0), 0) AS missed_casts,
+          COALESCE(c.actual_casts, 0) AS observed_casts,
+          GREATEST(COALESCE(c.actual_casts, 0) - t.possible_casts, 0) AS over_capacity_casts,
+          LEAST(COALESCE(c.actual_casts, 0), t.possible_casts) AS actual_casts,
+          t.possible_casts - LEAST(COALESCE(c.actual_casts, 0), t.possible_casts) AS missed_casts,
           CASE
             WHEN t.possible_casts > 0
-            THEN ROUND((COALESCE(c.actual_casts, 0) / t.possible_casts) * 100, 1)
+            THEN ROUND((LEAST(COALESCE(c.actual_casts, 0), t.possible_casts) / t.possible_casts) * 100, 1)
             ELSE 0
           END AS cast_efficiency_pct
         FROM tracked_cooldowns t

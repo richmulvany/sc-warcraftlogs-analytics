@@ -132,7 +132,7 @@ def test_validate_dashboard_asset_rows_rejects_duplicate_unique_key() -> None:
         validate_dashboard_asset_rows("best_kills", [row, dict(row)])
 
 
-def test_validate_dashboard_asset_rows_rejects_semantic_rule_failure() -> None:
+def test_validate_dashboard_asset_rows_accepts_scored_capacity_with_over_capacity_events() -> None:
     rows = [
         {
             "boss_name": "Example Boss",
@@ -144,10 +144,57 @@ def test_validate_dashboard_asset_rows_rejects_semantic_rule_failure() -> None:
             "ability_id": 110959,
             "ability_name": "Greater Invisibility",
             "possible_casts": 3,
-            "actual_casts": 1,
-            "missed_casts": 3,
+            "observed_casts": 5,
+            "actual_casts": 3,
+            "over_capacity_casts": 2,
+            "missed_casts": 0,
         }
     ]
 
-    with pytest.raises(ContractValidationError, match="missed_casts_formula"):
+    validate_dashboard_asset_rows("wipe_cooldown_utilization", rows)
+
+
+def test_validate_dashboard_asset_rows_rejects_scored_actual_over_capacity() -> None:
+    rows = [
+        {
+            "boss_name": "Example Boss",
+            "zone_name": "Example Raid",
+            "difficulty_label": "Heroic",
+            "cooldown_category": "personal",
+            "player_name": "Playerone",
+            "player_class": "Mage",
+            "ability_id": 110959,
+            "ability_name": "Greater Invisibility",
+            "possible_casts": 3,
+            "observed_casts": 4,
+            "actual_casts": 4,
+            "over_capacity_casts": 0,
+            "missed_casts": 0,
+        }
+    ]
+
+    with pytest.raises(ContractValidationError, match="scored_actual_not_over_capacity"):
+        validate_dashboard_asset_rows("wipe_cooldown_utilization", rows)
+
+
+def test_validate_dashboard_asset_rows_rejects_over_capacity_formula_mismatch() -> None:
+    rows = [
+        {
+            "boss_name": "Example Boss",
+            "zone_name": "Example Raid",
+            "difficulty_label": "Heroic",
+            "cooldown_category": "personal",
+            "player_name": "Playerone",
+            "player_class": "Mage",
+            "ability_id": 110959,
+            "ability_name": "Greater Invisibility",
+            "possible_casts": 3,
+            "observed_casts": 5,
+            "actual_casts": 3,
+            "over_capacity_casts": 1,
+            "missed_casts": 0,
+        }
+    ]
+
+    with pytest.raises(ContractValidationError, match="over_capacity_formula"):
         validate_dashboard_asset_rows("wipe_cooldown_utilization", rows)
