@@ -10,6 +10,43 @@ import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
+
+def _player_identity_key(name_col: str, class_col: str, realm_col: str) -> F.Column:
+    return F.concat_ws(
+        ":",
+        F.lower(F.trim(F.col(name_col))),
+        F.lower(F.trim(F.coalesce(F.col(class_col), F.lit("unknown")))),
+        F.lower(F.trim(F.coalesce(F.col(realm_col), F.lit("unknown")))),
+    )
+
+
+def _actor_realms(actors):
+    return (
+        actors.filter(F.col("realm").isNotNull() & (F.trim(F.col("realm")) != ""))
+        .groupBy(
+            F.col("report_code").alias("_actor_report_code"),
+            F.lower(F.col("player_name")).alias("_player_name_lower"),
+            F.lower(F.col("player_class")).alias("_player_class_lower"),
+        )
+        .agg(F.max(F.trim(F.col("realm"))).alias("realm"))
+    )
+
+
+def _with_player_identity(dataframe, actors):
+    actor_realms = _actor_realms(actors)
+    return (
+        dataframe.join(
+            actor_realms,
+            (dataframe.report_code == F.col("_actor_report_code"))
+            & (F.lower(dataframe.player_name) == F.col("_player_name_lower"))
+            & (F.lower(dataframe.player_class) == F.col("_player_class_lower")),
+            "left",
+        )
+        .drop("_actor_report_code", "_player_name_lower", "_player_class_lower")
+        .withColumn("realm", F.coalesce(F.col("realm"), F.lit("unknown")))
+        .withColumn("player_identity_key", _player_identity_key("player_name", "player_class", "realm"))
+    )
+
 # ── Player Attendance Summary ──────────────────────────────────────────────────
 # "Who is turning up to raids and how often?"
 
@@ -25,8 +62,12 @@ from pyspark.sql.window import Window
 )
 def gold_player_attendance():
     attendance = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_raid_attendance")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
+
     return (
-        attendance.groupBy("player_name", "player_class")
+        _with_player_identity(attendance, actors)
+        .withColumnRenamed("realm", "player_realm")
+        .groupBy("player_identity_key", "player_name", "player_class", "player_realm")
         .agg(
             F.count("*").alias("total_raids_tracked"),
             F.sum(F.when(F.col("presence") == 1, 1).otherwise(0)).alias("raids_present"),
@@ -43,7 +84,7 @@ def gold_player_attendance():
                 1,
             ),
         )
-        .orderBy(F.col("attendance_rate_pct").desc(), F.col("player_name"))
+        .orderBy(F.col("attendance_rate_pct").desc(), F.col("player_name"), F.col("player_realm"))
     )
 
 
@@ -69,28 +110,28 @@ def gold_player_performance_summary():
     perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
     actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
 
-    # Most-recent realm per player
-    w = Window.partitionBy("player_name").orderBy(F.col("_ingested_at").desc())
-    realm_lookup = (
-        actors.withColumn("_rn", F.row_number().over(w))
-        .filter(F.col("_rn") == 1)
-        .select("player_name", "realm")
-    )
+    perf_with_identity = _with_player_identity(perf, actors)
 
     # Most common spec per player-role
     spec_counts = (
-        perf.filter(F.col("spec").isNotNull())
-        .groupBy("player_name", "role", "spec")
+        perf_with_identity.filter(F.col("spec").isNotNull())
+        .groupBy("player_identity_key", "role", "spec")
         .agg(F.count("*").alias("spec_count"))
     )
-    w2 = Window.partitionBy("player_name", "role").orderBy(F.col("spec_count").desc())
+    w2 = Window.partitionBy("player_identity_key", "role").orderBy(F.col("spec_count").desc())
     primary_specs = (
         spec_counts.withColumn("_rn", F.row_number().over(w2))
         .filter(F.col("_rn") == 1)
-        .select("player_name", "role", F.col("spec").alias("primary_spec"))
+        .select("player_identity_key", "role", F.col("spec").alias("primary_spec"))
     )
 
-    agg = perf.groupBy("player_name", "player_class", "role").agg(
+    agg = perf_with_identity.groupBy(
+        "player_identity_key",
+        "player_name",
+        "player_class",
+        "realm",
+        "role",
+    ).agg(
         F.count("*").alias("kills_tracked"),
         # throughput_per_second = WCL role-aware (DPS dps/tank, HPS healer); null when no ranking available
         F.avg("throughput_per_second").cast("long").alias("avg_throughput_per_second"),
@@ -102,9 +143,9 @@ def gold_player_performance_summary():
     )
 
     return (
-        agg.join(primary_specs, ["player_name", "role"], "left")
-        .join(realm_lookup, "player_name", "left")
+        agg.join(primary_specs, ["player_identity_key", "role"], "left")
         .select(
+            "player_identity_key",
             "player_name",
             "player_class",
             "realm",
@@ -140,8 +181,10 @@ def gold_player_performance_summary():
     },
 )
 def gold_boss_kill_roster():
+    perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
     return (
-        spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
+        _with_player_identity(perf, actors)
         .select(
             "report_code",
             "fight_id",
@@ -152,8 +195,10 @@ def gold_boss_kill_roster():
             "zone_name",
             "raid_night_date",
             "duration_seconds",
+            "player_identity_key",
             "player_name",
             "player_class",
+            "realm",
             "role",
             "spec",
             "avg_item_level",
@@ -196,11 +241,15 @@ def gold_boss_kill_roster():
 )
 def gold_player_boss_performance():
     perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
+    perf_with_identity = _with_player_identity(perf, actors)
 
     # Aggregate across all kills of the same boss per player
-    agg = perf.groupBy(
+    agg = perf_with_identity.groupBy(
+        "player_identity_key",
         "player_name",
         "player_class",
+        "realm",
         "role",
         "encounter_id",
         "boss_name",
@@ -221,23 +270,23 @@ def gold_player_boss_performance():
     )
 
     # Latest-kill throughput using a window so we can get the ordered last value.
-    w_latest = Window.partitionBy("player_name", "encounter_id", "difficulty").orderBy(
+    w_latest = Window.partitionBy("player_identity_key", "encounter_id", "difficulty").orderBy(
         "raid_night_date"
     )
 
     latest_kill = (
-        perf.withColumn(
+        perf_with_identity.withColumn(
             "_latest_throughput",
             F.last("throughput_per_second", ignorenulls=True).over(
                 w_latest.rowsBetween(Window.unboundedPreceding, Window.unboundedFollowing)
             ),
         )
-        .groupBy("player_name", "encounter_id", "difficulty")
+        .groupBy("player_identity_key", "encounter_id", "difficulty")
         .agg(F.first("_latest_throughput").cast("long").alias("latest_throughput_per_second"))
     )
 
     return (
-        agg.join(latest_kill, ["player_name", "encounter_id", "difficulty"], "left")
+        agg.join(latest_kill, ["player_identity_key", "encounter_id", "difficulty"], "left")
         .withColumn(
             "throughput_trend",
             F.when(
@@ -251,8 +300,10 @@ def gold_player_boss_performance():
             ).otherwise(F.lit(None).cast("double")),
         )
         .select(
+            "player_identity_key",
             "player_name",
             "player_class",
+            "realm",
             "role",
             "primary_spec",
             "encounter_id",

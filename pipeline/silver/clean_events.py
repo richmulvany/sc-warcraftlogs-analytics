@@ -548,17 +548,18 @@ def silver_player_combatant_buffs():
         "player_class",
         "spec_id",
         "talent_spell_ids",
-        F.when(F.size(F.col("food_buff_names_array")) > 0, F.lit(1))
-        .otherwise(F.lit(0))
-        .alias("has_food_buff"),
+        F.coalesce(F.size(F.col("food_buff_names_array")) > 0, F.lit(False)).alias(
+            "has_food_buff"
+        ),
         _joined_name_column("food_buff_names_array").alias("food_buff_names"),
-        F.when(F.size(F.col("flask_or_phial_names_array")) > 0, F.lit(1))
-        .otherwise(F.lit(0))
-        .alias("has_flask_or_phial_buff"),
+        F.coalesce(F.size(F.col("flask_or_phial_names_array")) > 0, F.lit(False)).alias(
+            "has_flask_or_phial_buff"
+        ),
         _joined_name_column("flask_or_phial_names_array").alias("flask_or_phial_names"),
-        F.when(F.size(F.col("weapon_enhancement_names_array")) > 0, F.lit(1))
-        .otherwise(F.lit(0))
-        .alias("has_weapon_enhancement_aura"),
+        F.coalesce(
+            F.size(F.col("weapon_enhancement_names_array")) > 0,
+            F.lit(False),
+        ).alias("has_weapon_enhancement_aura"),
         _joined_name_column("weapon_enhancement_names_array").alias(
             "weapon_enhancement_aura_names"
         ),

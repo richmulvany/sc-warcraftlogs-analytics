@@ -9,6 +9,39 @@ import dlt
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
+
+def _player_identity_key(name_col: str, class_col: str, realm_col: str) -> F.Column:
+    return F.concat_ws(
+        ":",
+        F.lower(F.trim(F.col(name_col))),
+        F.lower(F.trim(F.coalesce(F.col(class_col), F.lit("unknown")))),
+        F.lower(F.trim(F.coalesce(F.col(realm_col), F.lit("unknown")))),
+    )
+
+
+def _with_player_identity(dataframe, actors):
+    actor_realms = (
+        actors.filter(F.col("realm").isNotNull() & (F.trim(F.col("realm")) != ""))
+        .groupBy(
+            F.col("report_code").alias("_actor_report_code"),
+            F.lower(F.col("player_name")).alias("_player_name_lower"),
+            F.lower(F.col("player_class")).alias("_player_class_lower"),
+        )
+        .agg(F.max(F.trim(F.col("realm"))).alias("realm"))
+    )
+    return (
+        dataframe.join(
+            actor_realms,
+            (dataframe.report_code == F.col("_actor_report_code"))
+            & (F.lower(dataframe.player_name) == F.col("_player_name_lower"))
+            & (F.lower(dataframe.player_class) == F.col("_player_class_lower")),
+            "left",
+        )
+        .drop("_actor_report_code", "_player_name_lower", "_player_class_lower")
+        .withColumn("realm", F.coalesce(F.col("realm"), F.lit("unknown")))
+        .withColumn("player_identity_key", _player_identity_key("player_name", "player_class", "realm"))
+    )
+
 # ── Player Survivability ───────────────────────────────────────────────────────
 # Per-player death statistics derived from fact_player_events (death events) and
 # fact_player_fight_performance (kill counts for the deaths_per_kill metric).
@@ -33,11 +66,14 @@ from pyspark.sql.window import Window
 def gold_player_survivability():
     deaths = spark.read.table("03_gold.sc_analytics.fact_player_events")  # noqa: F821
     perf = spark.read.table("03_gold.sc_analytics.fact_player_fight_performance")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
+    deaths = _with_player_identity(deaths, actors)
+    perf = _with_player_identity(perf, actors)
 
     # Total deaths per player
     death_counts = (
         deaths.filter(F.col("player_name").isNotNull())
-        .groupBy("player_name", "player_class")
+        .groupBy("player_identity_key", "player_name", "player_class", "realm")
         .agg(
             F.count("*").alias("total_deaths"),
             F.max("zone_name").alias("last_zone"),  # most recent zone (last ingested)
@@ -46,17 +82,17 @@ def gold_player_survivability():
     )
 
     # Most common killing blow per player (mode)
-    w_blow = Window.partitionBy("player_name").orderBy(F.col("blow_count").desc())
+    w_blow = Window.partitionBy("player_identity_key").orderBy(F.col("blow_count").desc())
     killing_blow_counts = (
         deaths.filter(F.col("killing_blow_name").isNotNull())
-        .groupBy("player_name", "killing_blow_name")
+        .groupBy("player_identity_key", "killing_blow_name")
         .agg(F.count("*").alias("blow_count"))
     )
     top_killing_blow = (
         killing_blow_counts.withColumn("_rn", F.row_number().over(w_blow))
         .filter(F.col("_rn") == 1)
         .select(
-            "player_name",
+            "player_identity_key",
             F.col("killing_blow_name").alias("most_common_killing_blow"),
             F.col("blow_count").alias("most_common_killing_blow_count"),
         )
@@ -64,7 +100,7 @@ def gold_player_survivability():
     top_killing_blows = (
         killing_blow_counts.withColumn("_rn", F.row_number().over(w_blow))
         .filter(F.col("_rn") <= 3)
-        .groupBy("player_name")
+        .groupBy("player_identity_key")
         .agg(
             F.to_json(
                 F.expr(
@@ -84,18 +120,18 @@ def gold_player_survivability():
     )
 
     # Last death date (max zone-level date proxy using report join in fact_player_events)
-    last_death = deaths.groupBy("player_name").agg(
+    last_death = deaths.groupBy("player_identity_key").agg(
         F.max("death_timestamp_ms").alias("last_death_timestamp_ms")
     )
 
     # Kill count per player from performance facts
-    kill_counts = perf.groupBy("player_name").agg(F.count("*").alias("kills_tracked"))
+    kill_counts = perf.groupBy("player_identity_key").agg(F.count("*").alias("kills_tracked"))
 
     return (
-        death_counts.join(top_killing_blow, "player_name", "left")
-        .join(top_killing_blows, "player_name", "left")
-        .join(last_death, "player_name", "left")
-        .join(kill_counts, "player_name", "left")
+        death_counts.join(top_killing_blow, "player_identity_key", "left")
+        .join(top_killing_blows, "player_identity_key", "left")
+        .join(last_death, "player_identity_key", "left")
+        .join(kill_counts, "player_identity_key", "left")
         .withColumn(
             "deaths_per_kill",
             F.round(
@@ -105,8 +141,10 @@ def gold_player_survivability():
             ),
         )
         .select(
+            "player_identity_key",
             "player_name",
             "player_class",
+            "realm",
             "total_deaths",
             F.coalesce(F.col("kills_tracked"), F.lit(0)).alias("kills_tracked"),
             "deaths_per_kill",
@@ -140,6 +178,7 @@ def gold_player_survivability():
 def gold_player_death_events():
     deaths = spark.read.table("03_gold.sc_analytics.fact_player_events")  # noqa: F821
     fights = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_fight_events")  # noqa: F821
+    actors = spark.read.table("02_silver.sc_analytics_warcraftlogs.silver_actor_roster")  # noqa: F821
 
     fight_context = fights.select(
         F.col("report_code").alias("_report_code"),
@@ -156,7 +195,7 @@ def gold_player_death_events():
     ).dropDuplicates(["_report_code", "_fight_id"])
 
     return (
-        deaths.drop("zone_name", "zone_id", "raid_night_date")
+        _with_player_identity(deaths.drop("zone_name", "zone_id", "raid_night_date"), actors)
         .join(
             fight_context,
             (F.col("report_code") == F.col("_report_code"))
@@ -176,8 +215,10 @@ def gold_player_death_events():
             "difficulty_label",
             F.col("_raid_night_date").alias("raid_night_date"),
             "is_kill",
+            "player_identity_key",
             "player_name",
             "player_class",
+            "realm",
             "death_timestamp_ms",
             F.col("_fight_start_ms").alias("fight_start_ms"),
             "overkill",
@@ -209,7 +250,8 @@ def gold_player_survivability_rankings():
         ),
         kill_base AS (
           SELECT
-            k.player_name,
+            k.player_identity_key,
+            MAX(k.player_name) AS player_name,
             MAX(k.player_class) AS player_class,
             k.zone_name,
             k.encounter_id,
@@ -225,7 +267,7 @@ def gold_player_survivability_rankings():
             AND k.zone_name != 'Blackrock Depths'
             AND (rtc.row_count = 0 OR rt.player_key IS NOT NULL)
           GROUP BY
-            k.player_name,
+            k.player_identity_key,
             k.zone_name,
             k.encounter_id,
             k.boss_name,
@@ -234,7 +276,9 @@ def gold_player_survivability_rankings():
         ),
         death_base AS (
           SELECT
-            d.player_name,
+            d.player_identity_key,
+            MAX(d.player_name) AS player_name,
+            MAX(d.player_class) AS player_class,
             d.zone_name,
             d.encounter_id,
             d.boss_name,
@@ -249,7 +293,7 @@ def gold_player_survivability_rankings():
             AND d.zone_name != 'Blackrock Depths'
             AND (rtc.row_count = 0 OR rt.player_key IS NOT NULL)
           GROUP BY
-            d.player_name,
+            d.player_identity_key,
             d.zone_name,
             d.encounter_id,
             d.boss_name,
@@ -258,7 +302,8 @@ def gold_player_survivability_rankings():
         ),
         scoped_kills AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             MAX(player_class) AS player_class,
             CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
             CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
@@ -274,19 +319,21 @@ def gold_player_survivability_rankings():
             SUM(kills) AS kills
           FROM kill_base
           GROUP BY GROUPING SETS (
-            (player_name, zone_name, boss_name, difficulty_label),
-            (player_name, zone_name, difficulty_label),
-            (player_name, boss_name, difficulty_label),
-            (player_name, difficulty_label),
-            (player_name, zone_name, boss_name),
-            (player_name, boss_name),
-            (player_name, zone_name),
-            (player_name)
+            (player_identity_key, zone_name, boss_name, difficulty_label),
+            (player_identity_key, zone_name, difficulty_label),
+            (player_identity_key, boss_name, difficulty_label),
+            (player_identity_key, difficulty_label),
+            (player_identity_key, zone_name, boss_name),
+            (player_identity_key, boss_name),
+            (player_identity_key, zone_name),
+            (player_identity_key)
           )
         ),
         scoped_deaths AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
+            MAX(player_class) AS player_class,
             CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
             CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
             CASE WHEN GROUPING(difficulty_label) = 1 THEN 'All' ELSE difficulty_label END AS difficulty_label,
@@ -301,18 +348,19 @@ def gold_player_survivability_rankings():
             SUM(deaths) AS deaths
           FROM death_base
           GROUP BY GROUPING SETS (
-            (player_name, zone_name, boss_name, difficulty_label),
-            (player_name, zone_name, difficulty_label),
-            (player_name, boss_name, difficulty_label),
-            (player_name, difficulty_label),
-            (player_name, zone_name, boss_name),
-            (player_name, boss_name),
-            (player_name, zone_name),
-            (player_name)
+            (player_identity_key, zone_name, boss_name, difficulty_label),
+            (player_identity_key, zone_name, difficulty_label),
+            (player_identity_key, boss_name, difficulty_label),
+            (player_identity_key, difficulty_label),
+            (player_identity_key, zone_name, boss_name),
+            (player_identity_key, boss_name),
+            (player_identity_key, zone_name),
+            (player_identity_key)
           )
         ),
         joined AS (
           SELECT
+            k.player_identity_key,
             k.player_name,
             k.player_class,
             k.zone_name,
@@ -325,7 +373,7 @@ def gold_player_survivability_rankings():
             COALESCE(d.deaths, 0) / GREATEST(k.kills, 1) AS deaths_per_kill
           FROM scoped_kills k
           LEFT JOIN scoped_deaths d
-            ON k.player_name = d.player_name
+            ON k.player_identity_key = d.player_identity_key
            AND k.zone_name = d.zone_name
            AND k.boss_name = d.boss_name
            AND k.difficulty_label = d.difficulty_label
@@ -336,7 +384,7 @@ def gold_player_survivability_rankings():
             *,
             RANK() OVER (
               PARTITION BY zone_name, boss_name, difficulty_label
-              ORDER BY deaths_per_kill ASC, deaths ASC, player_name ASC
+              ORDER BY deaths_per_kill ASC, deaths ASC, player_identity_key ASC
             ) AS survivability_rank,
             COUNT(*) OVER (
               PARTITION BY zone_name, boss_name, difficulty_label
@@ -344,6 +392,7 @@ def gold_player_survivability_rankings():
           FROM joined
         )
         SELECT
+          player_identity_key,
           player_name,
           player_class,
           zone_name,

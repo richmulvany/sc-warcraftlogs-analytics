@@ -1,0 +1,38 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_player_mplus_summary
+info:
+  title: Gold Player Mythic Plus Summary
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_player_mplus_summary:
+    type: table
+    primaryKey: [player_identity_key, region, season]
+    fields:
+      player_identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      realm_slug: { type: string, required: true, nullable: false, allowEmpty: false }
+      region: { type: string, required: true, nullable: false, allowEmpty: false }
+      season: { type: string, required: true, nullable: false, allowEmpty: false }
+      score_all: { type: number, required: true, nullable: false }
+      guild_mplus_rank: { type: integer, required: false, nullable: true }
+      guild_mplus_rank_total: { type: integer, required: true, nullable: false }
+      guild_mplus_rank_percentile: { type: number, required: false, nullable: true }
+      total_runs: { type: integer, required: true, nullable: false }
+      timed_runs: { type: integer, required: true, nullable: false }
+      untimed_runs: { type: integer, required: true, nullable: false }
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_player_mplus_summary
+    model: gold_player_mplus_summary
+    grain: One row per player identity, region, and Raider.IO season snapshot.
+    downstream:
+      dashboardAssets: [player_mplus_summary]
+    rules:
+      - name: non_negative_counts
+        expression: total_runs >= 0 and timed_runs >= 0 and untimed_runs >= 0
+      - name: runs_add_up
+        expression: total_runs == timed_runs + untimed_runs
+      - name: guild_rank_bounds
+        expression: guild_mplus_rank is None or (guild_mplus_rank >= 1 and guild_mplus_rank <= guild_mplus_rank_total)

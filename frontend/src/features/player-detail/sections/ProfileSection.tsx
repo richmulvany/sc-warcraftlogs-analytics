@@ -5,7 +5,7 @@ import { SkeletonCard } from '../../../components/ui/LoadingState'
 import { ClassLabel } from '../../../components/ui/ClassLabel'
 import { RoleBadge } from '../../../components/ui/Badge'
 import { useColourBlind } from '../../../context/ColourBlindContext'
-import { formatDate, formatPct } from '../../../utils/format'
+import { formatDate, formatPct, toFiniteNumber } from '../../../utils/format'
 import { formatThroughput } from '../../../constants/wow'
 import type { PlayerPerformanceSummary, PlayerCharacterMedia } from '../../../types'
 import { DIFFICULTIES } from '../lib/constants'
@@ -110,7 +110,12 @@ export function ProfileSection({
               <div className="text-center">
                 <p className="text-xs font-mono text-ctp-overlay0 mb-0.5">Best DPS/HPS</p>
                 <p className="text-lg font-semibold text-ctp-text">
-                  {formatThroughput(scopedSummary?.bestThroughput ?? summary.best_throughput_per_second)}
+                  {(() => {
+                    const throughput = toFiniteNumber(
+                      scopedSummary?.bestThroughput ?? summary.best_throughput_per_second
+                    )
+                    return throughput !== null ? formatThroughput(throughput) : '—'
+                  })()}
                 </p>
               </div>
               <div className="text-center">

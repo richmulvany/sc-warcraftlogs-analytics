@@ -18,12 +18,13 @@ models:
     type: table
     description: Scoped player survivability ranks by deaths per kill.
     primaryKey:
-      - player_name
+      - player_identity_key
       - zone_name
       - boss_name
       - difficulty_label
     fields:
-      player_name: { type: string, required: true, primary: true, description: Character name. }
+      player_identity_key: { type: string, required: true, primary: true, description: Deterministic lowercase player identity key. }
+      player_name: { type: string, required: true, description: Character name. }
       player_class: { type: string, required: true, description: WarcraftLogs class. }
       zone_name: { type: string, required: true, primary: true, description: Raid zone, or All. }
       encounter_id: { type: integer, required: false, description: Encounter id when the display boss scope maps to one encounter; null for all-boss or ambiguous all-zone scopes. }
@@ -40,7 +41,7 @@ quality:
   type: custom
   specification:
     checks for player_survivability_rankings:
-      - duplicate_count(player_name, zone_name, boss_name, difficulty_label) = 0
+      - duplicate_count(player_identity_key, zone_name, boss_name, difficulty_label) = 0
       - survivability_rank >= 1
       - survivability_rank <= survivability_rank_total
       - survivability_rank_percentile >= 0
@@ -52,7 +53,7 @@ x-sc-analytics:
     publishedPath: player_survivability_rankings.json
     grain: >
       One row per player and stable player-detail display scope:
-      player_name, zone_name, boss_name, difficulty_label. Scope columns may be All.
+      player_identity_key, zone_name, boss_name, difficulty_label. Scope columns may be All.
     consumers:
       - frontend/src/hooks/useGoldData.ts:usePlayerSurvivabilityRankings
       - frontend/src/features/player-detail/index.tsx

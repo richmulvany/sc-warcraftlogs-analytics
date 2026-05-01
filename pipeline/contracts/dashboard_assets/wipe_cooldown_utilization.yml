@@ -22,8 +22,7 @@ models:
       - zone_name
       - difficulty_label
       - cooldown_category
-      - player_name
-      - player_class
+      - player_identity_key
       - ability_id
     fields:
       boss_name:
@@ -46,16 +45,23 @@ models:
         required: true
         primary: true
         description: Cooldown rule category.
-      player_name:
+      player_identity_key:
         type: string
         required: true
         primary: true
+        description: Deterministic lowercase player identity key.
+      player_name:
+        type: string
+        required: true
         description: Character name.
       player_class:
         type: string
         required: true
-        primary: true
         description: WarcraftLogs class name.
+      realm:
+        type: string
+        required: true
+        description: Realm resolved from WCL actor roster, or unknown.
       ability_id:
         type: integer
         required: true

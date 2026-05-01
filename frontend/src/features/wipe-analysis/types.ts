@@ -17,8 +17,10 @@ export type WipeSurvivalSortKey =
   | 'deathsPerKill'
 
 export interface WipeSurvivalFailureRow {
+  player_identity_key?: string
   player_name: string
   player_class: string
+  realm?: string
   role?: string
   zone_name?: string
   encounter_id?: string | number | null

@@ -18,14 +18,15 @@ export interface RaidSummary {
 }
 
 export interface PlayerPerformanceSummary {
+  player_identity_key: string
   player_name: string
   player_class: string
   realm: string
   role: string
   primary_spec: string
   kills_tracked: number
-  avg_throughput_per_second: number
-  best_throughput_per_second: number
+  avg_throughput_per_second: number | null
+  best_throughput_per_second: number | null
   avg_rank_percent: number
   best_rank_percent: number
   avg_item_level: number
@@ -68,8 +69,10 @@ export interface BossKillRosterRow {
   zone_name: string
   raid_night_date: string
   duration_seconds: number
+  player_identity_key: string
   player_name: string
   player_class: string
+  realm: string
   role: string
   spec: string
   avg_item_level: number
@@ -77,11 +80,11 @@ export interface BossKillRosterRow {
   combat_potion_casts: number
   combat_potion_names: string
   healthstone_use: number
-  has_food_buff: number
+  has_food_buff: boolean
   food_buff_names: string
-  has_flask_or_phial_buff: number
+  has_flask_or_phial_buff: boolean
   flask_or_phial_names: string
-  has_weapon_enhancement: number
+  has_weapon_enhancement: boolean
   weapon_enhancement_names: string
   throughput_per_second: number
   rank_percent: number
@@ -103,8 +106,10 @@ export interface PreparationOverrideRow {
 }
 
 export interface PlayerAttendance {
+  player_identity_key: string
   player_name: string
   player_class: string
+  player_realm: string
   total_raids_tracked: number
   raids_present: number
   raids_benched: number
@@ -125,8 +130,10 @@ export interface PlayerUtilityByPull {
   difficulty_label: string
   raid_night_date: string
   is_kill: string | boolean
+  player_identity_key: string
   player_name: string
   player_class: string
+  realm: string
   health_potion_uses: number
   healthstone_casts: number
   defensive_casts: number
@@ -143,8 +150,10 @@ export interface WipeSurvivalEvent {
   difficulty: string
   difficulty_label: string
   raid_night_date: string
+  player_identity_key: string
   player_name: string
   player_class: string
+  realm: string
   spec_id: string | number
   death_timestamp_ms: number
   fight_start_ms: number
@@ -170,8 +179,10 @@ export interface WipeCooldownUtilization {
   difficulty_label: string
   raid_night_date: string
   duration_seconds: number
+  player_identity_key: string
   player_name: string
   player_class: string
+  realm: string
   spec_id: string | number
   cooldown_category: 'personal' | 'personal_spec' | 'raid' | 'external'
   ability_id: string
@@ -185,8 +196,10 @@ export interface WipeCooldownUtilization {
 }
 
 export interface WipeSurvivalDiscipline {
+  player_identity_key: string
   player_name: string
   player_class: string
+  realm: string
   role: string
   zone_name: string
   encounter_id: string | number | null
@@ -326,8 +339,10 @@ export interface BossPullHistoryRow {
 }
 
 export interface PlayerSurvivability {
+  player_identity_key: string
   player_name: string
   player_class: string
+  realm: string
   total_deaths: number
   kills_tracked: number
   deaths_per_kill: number
@@ -339,6 +354,7 @@ export interface PlayerSurvivability {
 }
 
 export interface PlayerSurvivabilityRanking {
+  player_identity_key: string
   player_name: string
   player_class: string
   zone_name: string
@@ -365,8 +381,10 @@ export interface PlayerDeathEvent {
   difficulty_label: string
   raid_night_date: string
   is_kill: string | boolean
+  player_identity_key: string
   player_name: string
   player_class: string
+  realm: string
   death_timestamp_ms: number
   fight_start_ms: number
   overkill: number
@@ -444,6 +462,7 @@ export interface LiveRaidRosterEntry {
 }
 
 export interface PlayerCharacterMedia {
+  player_identity_key: string
   player_name: string
   realm_slug: string
   avatar_url: string
@@ -453,6 +472,7 @@ export interface PlayerCharacterMedia {
 }
 
 export interface PlayerCharacterEquipment {
+  player_identity_key: string
   player_name: string
   realm_slug: string
   slot_type: string
@@ -474,6 +494,7 @@ export interface PlayerCharacterEquipment {
 }
 
 export interface PlayerRaidAchievement {
+  player_identity_key: string
   player_name: string
   realm_slug: string
   achievement_id: string
@@ -515,8 +536,10 @@ export interface BossMechanics {
 }
 
 export interface PlayerBossPerformance {
+  player_identity_key: string
   player_name: string
   player_class: string
+  realm: string
   role: string
   primary_spec: string
   encounter_id: string
@@ -537,6 +560,7 @@ export interface PlayerBossPerformance {
 }
 
 export interface PlayerMplusSummary {
+  player_identity_key: string
   player_name: string
   realm_slug: string
   region: string
@@ -570,6 +594,7 @@ export interface PlayerMplusSummary {
 }
 
 export interface PlayerMplusScoreHistory {
+  player_identity_key: string
   player_name: string
   realm_slug: string
   region: string
@@ -588,6 +613,7 @@ export interface PlayerMplusScoreHistory {
 }
 
 export interface PlayerMplusRunHistory {
+  player_identity_key: string
   player_name: string
   realm_slug: string
   region: string
@@ -608,6 +634,7 @@ export interface PlayerMplusRunHistory {
 }
 
 export interface PlayerMplusWeeklyActivity {
+  player_identity_key: string
   player_name: string
   realm_slug: string
   region: string
@@ -653,6 +680,7 @@ export interface PlayerCombatStats {
 }
 
 export interface PlayerMplusDungeonBreakdown {
+  player_identity_key: string
   player_name: string
   realm_slug: string
   region: string

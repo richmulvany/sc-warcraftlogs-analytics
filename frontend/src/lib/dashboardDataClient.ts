@@ -2,12 +2,18 @@ export type DashboardManifest = {
   generated_at: string
   snapshot_id: string
   format_version: number
+  contract_set_version?: string | null
   datasets: Record<
     string,
     {
       path: string
       row_count: number
+      byte_size?: number
       source_table?: string
+      contract_id?: string
+      contract_version?: string
+      source_contract_id?: string
+      source_contract_version?: string
     }
   >
 }

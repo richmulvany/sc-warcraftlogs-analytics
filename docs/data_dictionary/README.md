@@ -135,14 +135,26 @@ Authoritative guild roster from Blizzard API. One row per guild member.
 
 ## Player Products
 
+Player-keyed Gold and dashboard-facing products use `player_identity_key` as the
+relational character key. The key is deterministic and lowercase:
+`player_name:player_class:realm` when class is available, or
+`player_name:unknown:realm_slug` for Raider.IO/Blizzard profile products that do
+not carry class. Realmless legacy rows use the explicit `unknown` sentinel.
+
 ### gold_player_attendance
 
-Per-player attendance rates across all tracked raids.
+Per-player attendance rates across all tracked raids. Grain is `player_name`
+plus `player_class` plus `player_realm`. Realm is resolved from the per-report
+actor roster when available; older/incomplete rows use the explicit sentinel
+`unknown`. `player_identity_key` is a deterministic lowercase convenience key
+for this table's identity grain.
 
 | Column | Type | Description |
 |--------|------|-------------|
+| `player_identity_key` | STRING | Lowercase `player_name:player_class:player_realm` identity key |
 | `player_name` | STRING | |
 | `player_class` | STRING | |
+| `player_realm` | STRING | Realm resolved from WCL actor roster, or `unknown` |
 | `total_raids_tracked` | LONG | Total report count |
 | `raids_present` | LONG | Reports with presence = 1 |
 | `raids_benched` | LONG | Reports with presence = 2 |
@@ -176,14 +188,15 @@ Aggregated performance per player across all kill fights.
 
 | Column | Type | Description |
 |--------|------|-------------|
+| `player_identity_key` | STRING | Lowercase `player_name:player_class:realm` identity fingerprint |
 | `player_name` | STRING | |
 | `player_class` | STRING | |
-| `realm` | STRING | |
+| `realm` | STRING | Realm resolved from WCL actor roster, or `unknown` |
 | `role` | STRING | dps / healer / tank |
 | `primary_spec` | STRING | Most frequently played spec |
 | `kills_tracked` | LONG | Number of kill fights included |
-| `avg_throughput_per_second` | LONG | Average role-aware throughput (DPS for dps/tank, HPS for healer) |
-| `best_throughput_per_second` | LONG | Single-fight best role-aware throughput (DPS for dps/tank, HPS for healer) |
+| `avg_throughput_per_second` | LONG | Average role-aware throughput (DPS for dps/tank, HPS for healer); null when WCL ranking amount is unavailable |
+| `best_throughput_per_second` | LONG | Single-fight best role-aware throughput (DPS for dps/tank, HPS for healer); null when WCL ranking amount is unavailable |
 | `avg_rank_percent` | DOUBLE | Average WCL parse percentile, role-aware (DPS parse / HPS parse) |
 | `best_rank_percent` | DOUBLE | Highest single-fight parse, role-aware (DPS parse / HPS parse) |
 | `avg_item_level` | DOUBLE | Average equipped item level |

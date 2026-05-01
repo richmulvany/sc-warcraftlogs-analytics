@@ -21,14 +21,16 @@ models:
       dimensions use the literal value All for pre-aggregated tier/boss/difficulty
       dashboard views.
     primaryKey:
-      - player_name
+      - player_identity_key
       - zone_name
       - boss_name
       - difficulty_label
     fields:
-      player_name: { type: string, required: true, primary: true, description: Character name. }
+      player_identity_key: { type: string, required: true, primary: true, description: Deterministic lowercase player identity key. }
+      player_name: { type: string, required: true, description: Character name. }
       player_class: { type: string, required: true, description: WarcraftLogs class name. }
-      role: { type: string, required: false, description: Latest known kill-role for the player when available. }
+      realm: { type: string, required: true, description: Realm resolved from WCL actor roster, or unknown. }
+      role: { type: string, required: false, nullable: true, allowEmpty: true, description: Latest known kill-role for the player when available. }
       zone_name: { type: string, required: true, primary: true, description: Raid zone name, or All for an all-zone scope. }
       encounter_id: { type: integer, required: false, description: WCL encounter id; null for boss-aggregated scopes. }
       boss_name: { type: string, required: true, primary: true, description: Boss name, or All for an all-boss scope. }
@@ -68,7 +70,7 @@ models:
       top_missing_category: { type: string, required: true, description: Back-compatible alias for top_improvement_area. }
       defensive_tracking_status: { type: string, required: true, description: tracked_used, tracked_zero_usage, no_tracked_capacity, or unknown. }
       has_defensive_capacity_tracked: { type: boolean, required: true, description: True only for tracked_used and tracked_zero_usage. }
-      most_common_killing_blow: { type: string, required: false, description: Most frequent killing blow in scope, or empty string. }
+      most_common_killing_blow: { type: string, required: true, nullable: false, allowEmpty: true, description: Most frequent killing blow in scope, or empty string. }
       most_common_killing_blow_count: { type: integer, required: true, description: Count for most_common_killing_blow. }
 quality:
   type: custom

@@ -6,6 +6,15 @@ from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
 
+def _mplus_player_identity_key() -> F.Column:
+    return F.concat_ws(
+        ":",
+        F.lower(F.trim(F.col("player_name"))),
+        F.lit("unknown"),
+        F.lower(F.trim(F.coalesce(F.col("realm_slug"), F.lit("unknown")))),
+    )
+
+
 @dlt.table(
     name="03_gold.sc_analytics.gold_player_mplus_score_history",
     comment="Raider.IO Mythic+ score snapshots over time.",
@@ -15,6 +24,7 @@ def gold_player_mplus_score_history():
     scores = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_scores")  # noqa: F821
     return (
         scores.select(
+            _mplus_player_identity_key().alias("player_identity_key"),
             "player_name",
             "realm_slug",
             "region",
@@ -45,6 +55,7 @@ def gold_player_mplus_run_history():
     runs = spark.read.table("02_silver.sc_analytics_raiderio.silver_raiderio_player_runs")  # noqa: F821
     return (
         runs.select(
+            _mplus_player_identity_key().alias("player_identity_key"),
             "player_name",
             "realm_slug",
             "region",
@@ -154,6 +165,7 @@ def gold_player_mplus_summary():
         .join(best_run, ["player_name", "realm_slug", "region", "season"], "left")
         .join(most_common_key, ["player_name", "realm_slug", "region", "season"], "left")
         .select(
+            _mplus_player_identity_key().alias("player_identity_key"),
             "player_name",
             "realm_slug",
             "region",
@@ -250,6 +262,7 @@ def gold_player_mplus_weekly_activity():
         )
         .filter(F.col("_rn") == 1)
         .select(
+            _mplus_player_identity_key().alias("player_identity_key"),
             "player_name",
             "realm_slug",
             "region",
@@ -273,6 +286,19 @@ def gold_player_mplus_weekly_activity():
 
     return weekly.join(
         most_common_key, ["player_name", "realm_slug", "region", "season", "week_start"], "left"
+    ).select(
+        F.coalesce("player_identity_key", _mplus_player_identity_key()).alias("player_identity_key"),
+        "player_name",
+        "realm_slug",
+        "region",
+        "season",
+        "week_start",
+        "total_runs",
+        "timed_runs",
+        "untimed_runs",
+        "highest_key_level",
+        "unique_dungeons",
+        "most_common_key_level",
     ).orderBy("player_name", "week_start")
 
 
@@ -300,6 +326,7 @@ def gold_player_mplus_dungeon_breakdown():
         )
         .filter(F.col("_rn") == 1)
         .select(
+            _mplus_player_identity_key().alias("player_identity_key"),
             "player_name",
             "realm_slug",
             "region",
@@ -328,6 +355,7 @@ def gold_player_mplus_dungeon_breakdown():
     return (
         agg.join(best_runs, ["player_name", "realm_slug", "region", "season", "dungeon"], "left")
         .select(
+            F.coalesce("player_identity_key", _mplus_player_identity_key()).alias("player_identity_key"),
             "player_name",
             "realm_slug",
             "region",

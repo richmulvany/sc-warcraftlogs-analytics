@@ -48,13 +48,27 @@ def _wipe_deaths_sql() -> str:
           d.difficulty,
           d.difficulty_label,
           d.raid_night_date,
+          CONCAT_WS(':', LOWER(TRIM(d.player_name)), LOWER(TRIM(COALESCE(d.player_class, 'unknown'))), LOWER(TRIM(COALESCE(a.realm, 'unknown')))) AS player_identity_key,
           d.player_name,
           d.player_class,
+          COALESCE(a.realm, 'unknown') AS realm,
           d.death_timestamp_ms,
           d.fight_start_ms,
           d.killing_blow_name,
           d.killing_blow_id
         FROM 03_gold.sc_analytics.gold_player_death_events d
+        LEFT JOIN (
+          SELECT
+            report_code,
+            LOWER(player_name) AS player_name_key,
+            LOWER(player_class) AS player_class_key,
+            MAX(COALESCE(realm, 'unknown')) AS realm
+          FROM 02_silver.sc_analytics_warcraftlogs.silver_actor_roster
+          GROUP BY report_code, LOWER(player_name), LOWER(player_class)
+        ) a
+          ON d.report_code = a.report_code
+         AND LOWER(d.player_name) = a.player_name_key
+         AND LOWER(d.player_class) = a.player_class_key
         INNER JOIN ({_instrumented_pulls_sql()}) i
           ON d.report_code = i.report_code
          AND d.fight_id = i.fight_id
@@ -65,16 +79,29 @@ def _wipe_deaths_sql() -> str:
 def _tracked_defensive_capacity_sql() -> str:
     return """
         SELECT
-          report_code,
-          fight_id,
-          player_name,
-          spec_id,
-          ability_id,
-          ability_name,
-          cooldown_seconds,
-          active_seconds
-        FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cooldown_capacity
-        WHERE has_tracked_capacity = true
+          c.report_code,
+          c.fight_id,
+          CONCAT_WS(':', LOWER(TRIM(c.player_name)), LOWER(TRIM(COALESCE(c.player_class, 'unknown'))), LOWER(TRIM(COALESCE(a.realm, 'unknown')))) AS player_identity_key,
+          c.player_name,
+          c.spec_id,
+          c.ability_id,
+          c.ability_name,
+          c.cooldown_seconds,
+          c.active_seconds
+        FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cooldown_capacity c
+        LEFT JOIN (
+          SELECT
+            report_code,
+            LOWER(player_name) AS player_name_key,
+            LOWER(player_class) AS player_class_key,
+            MAX(COALESCE(realm, 'unknown')) AS realm
+          FROM 02_silver.sc_analytics_warcraftlogs.silver_actor_roster
+          GROUP BY report_code, LOWER(player_name), LOWER(player_class)
+        ) a
+          ON c.report_code = a.report_code
+         AND LOWER(c.player_name) = a.player_name_key
+         AND LOWER(c.player_class) = a.player_class_key
+        WHERE c.has_tracked_capacity = true
           AND cooldown_category IN ('personal', 'personal_spec')
     """
 
@@ -110,8 +137,10 @@ def gold_wipe_survival_events():
             d.difficulty,
             d.difficulty_label,
             d.raid_night_date,
+            d.player_identity_key,
             d.player_name,
             d.player_class,
+            d.realm,
             t.spec_id,
             d.death_timestamp_ms,
             d.fight_start_ms,
@@ -138,7 +167,7 @@ def gold_wipe_survival_events():
           LEFT JOIN tracked_defensives t
             ON d.report_code = t.report_code
            AND d.fight_id = t.fight_id
-           AND d.player_name = t.player_name
+           AND d.player_identity_key = t.player_identity_key
           LEFT JOIN 02_silver.sc_analytics_warcraftlogs.silver_player_cast_events c_any
             ON d.report_code = c_any.report_code
            AND d.player_name = c_any.player_name
@@ -160,8 +189,10 @@ def gold_wipe_survival_events():
             d.difficulty,
             d.difficulty_label,
             d.raid_night_date,
+            d.player_identity_key,
             d.player_name,
             d.player_class,
+            d.realm,
             t.spec_id,
             d.death_timestamp_ms,
             d.fight_start_ms,
@@ -180,8 +211,10 @@ def gold_wipe_survival_events():
             difficulty,
             difficulty_label,
             raid_night_date,
+            player_identity_key,
             player_name,
             player_class,
+            realm,
             spec_id,
             death_timestamp_ms,
             fight_start_ms,
@@ -203,8 +236,10 @@ def gold_wipe_survival_events():
             difficulty,
             difficulty_label,
             raid_night_date,
+            player_identity_key,
             player_name,
             player_class,
+            realm,
             spec_id,
             death_timestamp_ms,
             fight_start_ms,
@@ -215,6 +250,7 @@ def gold_wipe_survival_events():
           SELECT
             d.report_code,
             d.fight_id,
+            d.player_identity_key,
             d.player_name,
             d.death_timestamp_ms,
             SUM(CASE WHEN c.ability_id IN ({healthstone_ids}) AND c.cast_timestamp_ms <= d.death_timestamp_ms THEN 1 ELSE 0 END) AS healthstone_before_death,
@@ -224,7 +260,7 @@ def gold_wipe_survival_events():
             ON d.report_code = c.report_code
            AND d.fight_id = c.fight_id
            AND d.player_name = c.player_name
-          GROUP BY d.report_code, d.fight_id, d.player_name, d.death_timestamp_ms
+          GROUP BY d.report_code, d.fight_id, d.player_identity_key, d.player_name, d.death_timestamp_ms
         )
         SELECT
           w.report_code,
@@ -236,8 +272,10 @@ def gold_wipe_survival_events():
           w.difficulty,
           w.difficulty_label,
           w.raid_night_date,
+          w.player_identity_key,
           w.player_name,
           w.player_class,
+          w.realm,
           d.spec_id,
           w.death_timestamp_ms,
           w.fight_start_ms,
@@ -259,12 +297,12 @@ def gold_wipe_survival_events():
         LEFT JOIN defensive_summary d
           ON w.report_code = d.report_code
          AND w.fight_id = d.fight_id
-         AND w.player_name = d.player_name
+         AND w.player_identity_key = d.player_identity_key
          AND w.death_timestamp_ms = d.death_timestamp_ms
         LEFT JOIN recovery_summary r
           ON w.report_code = r.report_code
          AND w.fight_id = r.fight_id
-         AND w.player_name = r.player_name
+         AND w.player_identity_key = r.player_identity_key
          AND w.death_timestamp_ms = r.death_timestamp_ms
         """
     )
@@ -282,35 +320,50 @@ def gold_wipe_survival_events():
 def gold_wipe_cooldown_utilization():
     return spark.sql(  # noqa: F821
         """
-        WITH tracked_cooldowns AS (
+        WITH actor_realms AS (
           SELECT
             report_code,
-            fight_id,
-            encounter_id,
-            boss_name,
-            zone_name,
-            difficulty,
-            difficulty_label,
-            raid_night_date,
-            duration_seconds,
-            player_name,
-            player_class,
-            spec_id,
-            cooldown_category,
-            ability_id,
-            ability_name,
-            cooldown_seconds,
-            active_seconds,
-            capacity_model,
-            max_charges,
-            possible_casts,
-            observed_casts,
-            over_capacity_casts,
-            actual_casts
-          FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cooldown_capacity
-          WHERE has_scored_capacity = true
-            AND COALESCE(is_kill, false) = false
-            AND COALESCE(duration_seconds, 0) > 0
+            LOWER(player_name) AS player_name_key,
+            LOWER(player_class) AS player_class_key,
+            MAX(COALESCE(realm, 'unknown')) AS realm
+          FROM 02_silver.sc_analytics_warcraftlogs.silver_actor_roster
+          GROUP BY report_code, LOWER(player_name), LOWER(player_class)
+        ),
+        tracked_cooldowns AS (
+          SELECT
+            c.report_code,
+            c.fight_id,
+            c.encounter_id,
+            c.boss_name,
+            c.zone_name,
+            c.difficulty,
+            c.difficulty_label,
+            c.raid_night_date,
+            c.duration_seconds,
+            CONCAT_WS(':', LOWER(TRIM(c.player_name)), LOWER(TRIM(COALESCE(c.player_class, 'unknown'))), LOWER(TRIM(COALESCE(a.realm, 'unknown')))) AS player_identity_key,
+            c.player_name,
+            COALESCE(a.realm, 'unknown') AS realm,
+            c.player_class,
+            c.spec_id,
+            c.cooldown_category,
+            c.ability_id,
+            c.ability_name,
+            c.cooldown_seconds,
+            c.active_seconds,
+            c.capacity_model,
+            c.max_charges,
+            c.possible_casts,
+            c.observed_casts,
+            c.over_capacity_casts,
+            c.actual_casts
+          FROM 02_silver.sc_analytics_warcraftlogs.silver_player_cooldown_capacity c
+          LEFT JOIN actor_realms a
+            ON c.report_code = a.report_code
+           AND LOWER(c.player_name) = a.player_name_key
+           AND LOWER(c.player_class) = a.player_class_key
+          WHERE c.has_scored_capacity = true
+            AND COALESCE(c.is_kill, false) = false
+            AND COALESCE(c.duration_seconds, 0) > 0
         )
         SELECT
           report_code,
@@ -322,7 +375,9 @@ def gold_wipe_cooldown_utilization():
           difficulty_label,
           raid_night_date,
           duration_seconds,
+          player_identity_key,
           player_name,
+          realm,
           player_class,
           spec_id,
           cooldown_category,
@@ -361,16 +416,20 @@ def gold_wipe_survival_discipline():
         """
         WITH role_by_player AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             MAX(player_class) AS player_class,
+            MAX(realm) AS realm,
             MAX_BY(role, raid_night_date) AS role
           FROM 03_gold.sc_analytics.gold_boss_kill_roster
-          GROUP BY player_name
+          GROUP BY player_identity_key
         ),
         wipe_pull_base AS (
           SELECT
+            player_identity_key,
             player_name,
             player_class,
+            realm,
             zone_name,
             encounter_id,
             boss_name,
@@ -383,8 +442,10 @@ def gold_wipe_survival_discipline():
         ),
         wipe_pull_scopes AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             MAX(player_class) AS player_class,
+            MAX(realm) AS realm,
             CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
             CASE WHEN GROUPING(encounter_id) = 1 THEN CAST(NULL AS BIGINT) ELSE encounter_id END AS encounter_id,
             CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
@@ -393,18 +454,20 @@ def gold_wipe_survival_discipline():
             COUNT(DISTINCT CONCAT(report_code, ':', CAST(fight_id AS STRING))) AS wipe_pulls_tracked
           FROM wipe_pull_base
           GROUP BY GROUPING SETS (
-            (player_name, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
-            (player_name, zone_name, difficulty, difficulty_label),
-            (player_name, difficulty, difficulty_label),
-            (player_name, zone_name, encounter_id, boss_name),
-            (player_name, zone_name),
-            (player_name)
+            (player_identity_key, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
+            (player_identity_key, zone_name, difficulty, difficulty_label),
+            (player_identity_key, difficulty, difficulty_label),
+            (player_identity_key, zone_name, encounter_id, boss_name),
+            (player_identity_key, zone_name),
+            (player_identity_key)
           )
         ),
         death_base AS (
           SELECT
+            player_identity_key,
             player_name,
             player_class,
+            realm,
             zone_name,
             encounter_id,
             boss_name,
@@ -425,8 +488,10 @@ def gold_wipe_survival_discipline():
         ),
         death_scopes AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             MAX(player_class) AS player_class,
+            MAX(realm) AS realm,
             CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
             CASE WHEN GROUPING(encounter_id) = 1 THEN CAST(NULL AS BIGINT) ELSE encounter_id END AS encounter_id,
             CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
@@ -441,17 +506,18 @@ def gold_wipe_survival_discipline():
             SUM(CASE WHEN COALESCE(health_potion_before_death, 0) = 0 THEN 1 ELSE 0 END) AS no_health_potion_deaths
           FROM death_base
           GROUP BY GROUPING SETS (
-            (player_name, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
-            (player_name, zone_name, difficulty, difficulty_label),
-            (player_name, difficulty, difficulty_label),
-            (player_name, zone_name, encounter_id, boss_name),
-            (player_name, zone_name),
-            (player_name)
+            (player_identity_key, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
+            (player_identity_key, zone_name, difficulty, difficulty_label),
+            (player_identity_key, difficulty, difficulty_label),
+            (player_identity_key, zone_name, encounter_id, boss_name),
+            (player_identity_key, zone_name),
+            (player_identity_key)
           )
         ),
         killing_blow_counts AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
             CASE WHEN GROUPING(encounter_id) = 1 THEN CAST(NULL AS BIGINT) ELSE encounter_id END AS encounter_id,
             CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
@@ -461,17 +527,18 @@ def gold_wipe_survival_discipline():
             COUNT(*) AS killing_blow_count
           FROM death_base
           GROUP BY GROUPING SETS (
-            (player_name, zone_name, encounter_id, boss_name, difficulty, difficulty_label, killing_blow_name),
-            (player_name, zone_name, difficulty, difficulty_label, killing_blow_name),
-            (player_name, difficulty, difficulty_label, killing_blow_name),
-            (player_name, zone_name, encounter_id, boss_name, killing_blow_name),
-            (player_name, zone_name, killing_blow_name),
-            (player_name, killing_blow_name)
+            (player_identity_key, zone_name, encounter_id, boss_name, difficulty, difficulty_label, killing_blow_name),
+            (player_identity_key, zone_name, difficulty, difficulty_label, killing_blow_name),
+            (player_identity_key, difficulty, difficulty_label, killing_blow_name),
+            (player_identity_key, zone_name, encounter_id, boss_name, killing_blow_name),
+            (player_identity_key, zone_name, killing_blow_name),
+            (player_identity_key, killing_blow_name)
           )
         ),
         top_killing_blow AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             zone_name,
             encounter_id,
             boss_name,
@@ -481,12 +548,14 @@ def gold_wipe_survival_discipline():
             MAX(killing_blow_count) AS most_common_killing_blow_count
           FROM killing_blow_counts
           WHERE killing_blow_name != ''
-          GROUP BY player_name, zone_name, encounter_id, boss_name, difficulty, difficulty_label
+          GROUP BY player_identity_key, zone_name, encounter_id, boss_name, difficulty, difficulty_label
         ),
         defensive_pull_base AS (
           SELECT
+            player_identity_key,
             player_name,
             player_class,
+            realm,
             zone_name,
             encounter_id,
             boss_name,
@@ -500,8 +569,10 @@ def gold_wipe_survival_discipline():
           FROM 03_gold.sc_analytics.gold_wipe_cooldown_utilization
           WHERE cooldown_category IN ('personal', 'personal_spec')
           GROUP BY
+            player_identity_key,
             player_name,
             player_class,
+            realm,
             zone_name,
             encounter_id,
             boss_name,
@@ -512,8 +583,10 @@ def gold_wipe_survival_discipline():
         ),
         defensive_scopes AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             MAX(player_class) AS player_class,
+            MAX(realm) AS realm,
             CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
             CASE WHEN GROUPING(encounter_id) = 1 THEN CAST(NULL AS BIGINT) ELSE encounter_id END AS encounter_id,
             CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
@@ -525,18 +598,20 @@ def gold_wipe_survival_discipline():
             SUM(missed_casts) AS defensive_missed_casts
           FROM defensive_pull_base
           GROUP BY GROUPING SETS (
-            (player_name, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
-            (player_name, zone_name, difficulty, difficulty_label),
-            (player_name, difficulty, difficulty_label),
-            (player_name, zone_name, encounter_id, boss_name),
-            (player_name, zone_name),
-            (player_name)
+            (player_identity_key, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
+            (player_identity_key, zone_name, difficulty, difficulty_label),
+            (player_identity_key, difficulty, difficulty_label),
+            (player_identity_key, zone_name, encounter_id, boss_name),
+            (player_identity_key, zone_name),
+            (player_identity_key)
           )
         ),
         kill_base AS (
           SELECT
+            player_identity_key,
             player_name,
             player_class,
+            realm,
             zone_name,
             encounter_id,
             boss_name,
@@ -548,8 +623,10 @@ def gold_wipe_survival_discipline():
         ),
         kill_scopes AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             MAX(player_class) AS player_class,
+            MAX(realm) AS realm,
             CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
             CASE WHEN GROUPING(encounter_id) = 1 THEN CAST(NULL AS BIGINT) ELSE encounter_id END AS encounter_id,
             CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
@@ -558,18 +635,20 @@ def gold_wipe_survival_discipline():
             COUNT(DISTINCT CONCAT(report_code, ':', CAST(fight_id AS STRING))) AS kills_tracked
           FROM kill_base
           GROUP BY GROUPING SETS (
-            (player_name, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
-            (player_name, zone_name, difficulty, difficulty_label),
-            (player_name, difficulty, difficulty_label),
-            (player_name, zone_name, encounter_id, boss_name),
-            (player_name, zone_name),
-            (player_name)
+            (player_identity_key, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
+            (player_identity_key, zone_name, difficulty, difficulty_label),
+            (player_identity_key, difficulty, difficulty_label),
+            (player_identity_key, zone_name, encounter_id, boss_name),
+            (player_identity_key, zone_name),
+            (player_identity_key)
           )
         ),
         kill_death_base AS (
           SELECT
+            player_identity_key,
             player_name,
             player_class,
+            realm,
             zone_name,
             encounter_id,
             boss_name,
@@ -580,8 +659,10 @@ def gold_wipe_survival_discipline():
         ),
         kill_death_scopes AS (
           SELECT
-            player_name,
+            player_identity_key,
+            MAX(player_name) AS player_name,
             MAX(player_class) AS player_class,
+            MAX(realm) AS realm,
             CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
             CASE WHEN GROUPING(encounter_id) = 1 THEN CAST(NULL AS BIGINT) ELSE encounter_id END AS encounter_id,
             CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
@@ -590,18 +671,20 @@ def gold_wipe_survival_discipline():
             COUNT(*) AS kill_deaths
           FROM kill_death_base
           GROUP BY GROUPING SETS (
-            (player_name, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
-            (player_name, zone_name, difficulty, difficulty_label),
-            (player_name, difficulty, difficulty_label),
-            (player_name, zone_name, encounter_id, boss_name),
-            (player_name, zone_name),
-            (player_name)
+            (player_identity_key, zone_name, encounter_id, boss_name, difficulty, difficulty_label),
+            (player_identity_key, zone_name, difficulty, difficulty_label),
+            (player_identity_key, difficulty, difficulty_label),
+            (player_identity_key, zone_name, encounter_id, boss_name),
+            (player_identity_key, zone_name),
+            (player_identity_key)
           )
         ),
         joined AS (
           SELECT
+            COALESCE(w.player_identity_key, d.player_identity_key, c.player_identity_key, k.player_identity_key, kd.player_identity_key) AS player_identity_key,
             COALESCE(w.player_name, d.player_name, c.player_name, k.player_name, kd.player_name) AS player_name,
             COALESCE(w.player_class, d.player_class, c.player_class, k.player_class, kd.player_class, r.player_class, 'Unknown') AS player_class,
+            COALESCE(w.realm, d.realm, c.realm, k.realm, kd.realm, 'unknown') AS realm,
             r.role,
             COALESCE(w.zone_name, d.zone_name, c.zone_name, k.zone_name, kd.zone_name) AS zone_name,
             COALESCE(w.encounter_id, d.encounter_id, c.encounter_id, k.encounter_id, kd.encounter_id) AS encounter_id,
@@ -626,37 +709,37 @@ def gold_wipe_survival_discipline():
             COALESCE(t.most_common_killing_blow_count, 0) AS most_common_killing_blow_count
           FROM wipe_pull_scopes w
           FULL OUTER JOIN death_scopes d
-            ON w.player_name = d.player_name
+            ON w.player_identity_key = d.player_identity_key
            AND w.zone_name = d.zone_name
            AND COALESCE(w.encounter_id, -1) = COALESCE(d.encounter_id, -1)
            AND w.boss_name = d.boss_name
            AND COALESCE(w.difficulty, -1) = COALESCE(d.difficulty, -1)
            AND w.difficulty_label = d.difficulty_label
           FULL OUTER JOIN defensive_scopes c
-            ON COALESCE(w.player_name, d.player_name) = c.player_name
+            ON COALESCE(w.player_identity_key, d.player_identity_key) = c.player_identity_key
            AND COALESCE(w.zone_name, d.zone_name) = c.zone_name
            AND COALESCE(COALESCE(w.encounter_id, d.encounter_id), -1) = COALESCE(c.encounter_id, -1)
            AND COALESCE(w.boss_name, d.boss_name) = c.boss_name
            AND COALESCE(COALESCE(w.difficulty, d.difficulty), -1) = COALESCE(c.difficulty, -1)
            AND COALESCE(w.difficulty_label, d.difficulty_label) = c.difficulty_label
           FULL OUTER JOIN kill_scopes k
-            ON COALESCE(w.player_name, d.player_name, c.player_name) = k.player_name
+            ON COALESCE(w.player_identity_key, d.player_identity_key, c.player_identity_key) = k.player_identity_key
            AND COALESCE(w.zone_name, d.zone_name, c.zone_name) = k.zone_name
            AND COALESCE(COALESCE(w.encounter_id, d.encounter_id, c.encounter_id), -1) = COALESCE(k.encounter_id, -1)
            AND COALESCE(w.boss_name, d.boss_name, c.boss_name) = k.boss_name
            AND COALESCE(COALESCE(w.difficulty, d.difficulty, c.difficulty), -1) = COALESCE(k.difficulty, -1)
            AND COALESCE(w.difficulty_label, d.difficulty_label, c.difficulty_label) = k.difficulty_label
           FULL OUTER JOIN kill_death_scopes kd
-            ON COALESCE(w.player_name, d.player_name, c.player_name, k.player_name) = kd.player_name
+            ON COALESCE(w.player_identity_key, d.player_identity_key, c.player_identity_key, k.player_identity_key) = kd.player_identity_key
            AND COALESCE(w.zone_name, d.zone_name, c.zone_name, k.zone_name) = kd.zone_name
            AND COALESCE(COALESCE(w.encounter_id, d.encounter_id, c.encounter_id, k.encounter_id), -1) = COALESCE(kd.encounter_id, -1)
            AND COALESCE(w.boss_name, d.boss_name, c.boss_name, k.boss_name) = kd.boss_name
            AND COALESCE(COALESCE(w.difficulty, d.difficulty, c.difficulty, k.difficulty), -1) = COALESCE(kd.difficulty, -1)
            AND COALESCE(w.difficulty_label, d.difficulty_label, c.difficulty_label, k.difficulty_label) = kd.difficulty_label
           LEFT JOIN role_by_player r
-            ON COALESCE(w.player_name, d.player_name, c.player_name, k.player_name, kd.player_name) = r.player_name
+            ON COALESCE(w.player_identity_key, d.player_identity_key, c.player_identity_key, k.player_identity_key, kd.player_identity_key) = r.player_identity_key
           LEFT JOIN top_killing_blow t
-            ON COALESCE(w.player_name, d.player_name, c.player_name, k.player_name, kd.player_name) = t.player_name
+            ON COALESCE(w.player_identity_key, d.player_identity_key, c.player_identity_key, k.player_identity_key, kd.player_identity_key) = t.player_identity_key
            AND COALESCE(w.zone_name, d.zone_name, c.zone_name, k.zone_name, kd.zone_name) = t.zone_name
            AND COALESCE(COALESCE(w.encounter_id, d.encounter_id, c.encounter_id, k.encounter_id, kd.encounter_id), -1) = COALESCE(t.encounter_id, -1)
            AND COALESCE(w.boss_name, d.boss_name, c.boss_name, k.boss_name, kd.boss_name) = t.boss_name
@@ -750,8 +833,10 @@ def gold_wipe_survival_discipline():
           FROM component_scores
         )
         SELECT
+          player_identity_key,
           player_name,
           player_class,
+          realm,
           role,
           zone_name,
           encounter_id,

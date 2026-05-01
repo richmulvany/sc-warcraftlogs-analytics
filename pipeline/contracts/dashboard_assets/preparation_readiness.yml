@@ -46,17 +46,17 @@ models:
       combat_potion_rate: { type: number, required: true, description: Current-tier kill coverage for combat potion usage. }
       readiness_score: { type: number, required: true, description: Gold-owned 0-100 readiness score. }
       readiness_label: { type: string, required: true, description: watch, steady, or strong. }
-      readiness_notes: { type: string, required: false, description: Pipe-delimited Gold-owned readiness notes; empty when no notes apply. }
+      readiness_notes: { type: string, required: true, nullable: false, allowEmpty: true, description: Pipe-delimited Gold-owned readiness notes; empty when no notes apply. }
       spec: { type: string, required: true, description: Latest known spec, or —. }
       latest_avg_item_level: { type: number, required: true, description: Latest current-tier kill item level snapshot. }
-      latest_kill_date: { type: string, required: false, description: Latest current-tier kill date, or empty string when no current-tier kill is tracked. }
+      latest_kill_date: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest current-tier kill date, or empty string when no current-tier kill is tracked. }
       weakest_signal_label: { type: string, required: true, description: Lowest preparation component label. }
-      recent_food_names: { type: string, required: false, description: Latest/recent food buff names; empty when no food buff is tracked. }
-      recent_flask_names: { type: string, required: false, description: Latest/recent flask/phial names; empty when no flask/phial is tracked. }
-      recent_weapon_names: { type: string, required: false, description: Latest/recent weapon enhancement names; empty when no weapon enhancement is tracked. }
-      recent_combat_potion_names: { type: string, required: false, description: Latest/recent combat potion names when classified; Combat potion used when usage exists but the source name is unavailable; empty string when no usage is tracked. }
+      recent_food_names: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest/recent food buff names; empty when no food buff is tracked. }
+      recent_flask_names: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest/recent flask/phial names; empty when no flask/phial is tracked. }
+      recent_weapon_names: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest/recent weapon enhancement names; empty when no weapon enhancement is tracked. }
+      recent_combat_potion_names: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest/recent combat potion names when classified; Combat potion used when usage exists but the source name is unavailable; empty string when no usage is tracked. }
       character_names: { type: string, required: true, description: Pipe-delimited characters in this identity. }
-      override_label: { type: string, required: false, description: Replace, Pool, or empty string for non-overridden identities. }
+      override_label: { type: string, required: true, nullable: false, allowEmpty: true, description: Replace, Pool, or empty string for non-overridden identities. }
 quality:
   type: custom
   specification:

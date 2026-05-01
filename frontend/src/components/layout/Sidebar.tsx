@@ -4,6 +4,7 @@ import { LayoutDashboard, Users, Skull, Swords, CalendarDays, Shield, Eye, Chevr
 import clsx from 'clsx'
 import { useColourBlind } from '../../context/ColourBlindContext'
 import { type ColourBlindMode, MODE_LABELS } from '../../constants/palettes'
+import { useManifest } from '../../hooks/useManifest'
 
 const NAV = [
   { to: '/',               label: 'Dashboard',        Icon: LayoutDashboard },
@@ -22,6 +23,18 @@ const SECONDARY = [
 
 const CB_MODES: ColourBlindMode[] = ['normal', 'deuteranopia', 'protanopia', 'tritanopia']
 
+function formatManifestDate(value?: string): string {
+  if (!value) return 'local'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 type Variant = 'full' | 'rail' | 'drawer'
 
 interface Props {
@@ -31,6 +44,7 @@ interface Props {
 
 export function Sidebar({ variant = 'full', onNavClick }: Props) {
   const { mode, setMode } = useColourBlind()
+  const { manifest } = useManifest()
   const [cbOpen, setCbOpen] = useState(false)
 
   const isRail = variant === 'rail'
@@ -195,8 +209,11 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
 
       {/* Footer */}
       <div className="px-5 py-3 border-t border-ctp-surface0 flex-shrink-0">
-        <p className="text-[10px] font-mono text-ctp-overlay0 leading-relaxed">
-          WarcraftLogs Analytics
+        <p className="text-[10px] font-mono text-ctp-overlay0 leading-relaxed truncate">
+          Contracts: {manifest?.contract_set_version ?? 'local'}
+        </p>
+        <p className="text-[10px] font-mono text-ctp-overlay0 leading-relaxed truncate">
+          Data: {formatManifestDate(manifest?.generated_at)}
         </p>
       </div>
     </aside>

@@ -180,8 +180,10 @@ export function PlayerDetail() {
       const existing = grouped.get(key)
       if (!existing) {
         grouped.set(key, {
+          player_identity_key: row.player_identity_key,
           player_name: row.player_name,
           player_class: row.player_class,
+          realm: row.realm,
           role: row.role,
           primary_spec: row.spec,
           encounter_id: row.encounter_id,

@@ -356,9 +356,7 @@ def silver_player_performance():
         )
         .withColumn(
             "has_weapon_enhancement",
-            F.when(F.size(F.col("weapon_enhancement_names_array")) > 0, F.lit(1)).otherwise(
-                F.lit(0)
-            ),
+            F.coalesce(F.size(F.col("weapon_enhancement_names_array")) > 0, F.lit(False)),
         )
     )
 

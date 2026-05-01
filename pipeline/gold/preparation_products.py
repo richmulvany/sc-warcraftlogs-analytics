@@ -135,30 +135,30 @@ def gold_preparation_readiness():
               THEN CASE
                 WHEN LOWER(COALESCE(weapon_enhancement_names, '')) LIKE '%flametongue weapon%'
                   AND LOWER(COALESCE(weapon_enhancement_names, '')) LIKE '%windfury weapon%'
-                THEN 1 ELSE 0
+                THEN true ELSE false
               END
               WHEN LOWER(COALESCE(player_class, '')) = 'shaman'
                 AND LOWER(COALESCE(spec, '')) = 'restoration'
               THEN CASE
                 WHEN LOWER(COALESCE(weapon_enhancement_names, '')) LIKE '%earthliving weapon%'
-                THEN 1 ELSE 0
+                THEN true ELSE false
               END
               WHEN LOWER(COALESCE(player_class, '')) = 'shaman'
                 AND LOWER(COALESCE(spec, '')) = 'elemental'
               THEN CASE
                 WHEN LOWER(COALESCE(weapon_enhancement_names, '')) LIKE '%flametongue weapon%'
-                  OR COALESCE(has_weapon_enhancement, 0) > 0
-                THEN 1 ELSE 0
+                  OR COALESCE(has_weapon_enhancement, false)
+                THEN true ELSE false
               END
               WHEN LOWER(COALESCE(player_class, '')) = 'shaman'
               THEN CASE
                 WHEN LOWER(COALESCE(weapon_enhancement_names, '')) LIKE '%flametongue weapon%'
                   OR LOWER(COALESCE(weapon_enhancement_names, '')) LIKE '%windfury weapon%'
                   OR LOWER(COALESCE(weapon_enhancement_names, '')) LIKE '%earthliving weapon%'
-                  OR COALESCE(has_weapon_enhancement, 0) > 0
-                THEN 1 ELSE 0
+                  OR COALESCE(has_weapon_enhancement, false)
+                THEN true ELSE false
               END
-              ELSE COALESCE(has_weapon_enhancement, 0)
+              ELSE COALESCE(has_weapon_enhancement, false)
             END AS has_required_weapon_enhancement
           FROM current_tier_kills
         ),
@@ -176,9 +176,9 @@ def gold_preparation_readiness():
             MAX_BY(avg_item_level, raid_night_date) AS latest_avg_item_level,
             MAX(raid_night_date) AS latest_kill_date,
             COUNT(*) AS kills_tracked,
-            SUM(CASE WHEN COALESCE(has_food_buff, 0) > 0 THEN 1 ELSE 0 END) AS kills_with_food,
-            SUM(CASE WHEN COALESCE(has_flask_or_phial_buff, 0) > 0 THEN 1 ELSE 0 END) AS kills_with_flask,
-            SUM(CASE WHEN COALESCE(has_required_weapon_enhancement, 0) > 0 THEN 1 ELSE 0 END) AS kills_with_weapon,
+            SUM(CASE WHEN COALESCE(has_food_buff, false) THEN 1 ELSE 0 END) AS kills_with_food,
+            SUM(CASE WHEN COALESCE(has_flask_or_phial_buff, false) THEN 1 ELSE 0 END) AS kills_with_flask,
+            SUM(CASE WHEN COALESCE(has_required_weapon_enhancement, false) THEN 1 ELSE 0 END) AS kills_with_weapon,
             SUM(CASE WHEN COALESCE(potion_use, 0) > 0 THEN 1 ELSE 0 END) AS kills_with_combat_potion,
             COUNT(DISTINCT raid_night_date) AS raids_present,
             MAX_BY(NULLIF(TRIM(food_buff_names), ''), CASE WHEN NULLIF(TRIM(food_buff_names), '') IS NOT NULL THEN raid_night_date END) AS recent_food_names,

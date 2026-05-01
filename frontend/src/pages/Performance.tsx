@@ -153,8 +153,9 @@ export function Performance() {
             <TBody>
               {data.map((p, i) => {
                 const sv = survivMap[p.player_name]
+                const avgThroughput = toFiniteNumber(p.avg_throughput_per_second)
                 return (
-                  <Tr key={p.player_name}>
+                  <Tr key={`${p.player_identity_key}:${p.role}`}>
                     <Td mono className="text-ctp-surface2 text-xs">{i + 1}</Td>
                     <Td>
                       <div className="flex items-center gap-2">
@@ -191,7 +192,7 @@ export function Performance() {
                       </span>
                     </Td>
                     <Td right mono style={{ color: getThroughputColor(p.role) }}>
-                      {formatThroughput(Number(p.avg_throughput_per_second))}
+                      {avgThroughput !== null ? formatThroughput(avgThroughput) : '—'}
                     </Td>
                     <Td right mono className="text-ctp-overlay1">
                       {p.avg_item_level ? p.avg_item_level.toFixed(0) : '—'}

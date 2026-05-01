@@ -1,0 +1,45 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_preparation_readiness
+info:
+  title: Gold Preparation Readiness
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_preparation_readiness:
+    type: table
+    primaryKey: [identity_key]
+    fields:
+      identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_class: { type: string, required: true, nullable: false, allowEmpty: false }
+      role: { type: string, required: true, nullable: false, allowEmpty: false }
+      current_tier: { type: string, required: true, nullable: false, allowEmpty: false }
+      roster_source: { type: string, required: true, nullable: false, allowEmpty: false }
+      has_current_tier_data: { type: boolean, required: true, nullable: false }
+      attendance_rate_pct: { type: number, required: true, nullable: false }
+      food_rate: { type: number, required: true, nullable: false }
+      flask_rate: { type: number, required: true, nullable: false }
+      weapon_rate: { type: number, required: true, nullable: false }
+      combat_potion_rate: { type: number, required: true, nullable: false }
+      readiness_score: { type: number, required: true, nullable: false }
+      readiness_label: { type: string, required: true, nullable: false, allowEmpty: false }
+      readiness_notes: { type: string, required: true, nullable: false, allowEmpty: true }
+      weakest_signal_label: { type: string, required: true, nullable: false, allowEmpty: true }
+      recent_combat_potion_names: { type: string, required: true, nullable: false, allowEmpty: true }
+      override_label: { type: string, required: true, nullable: false, allowEmpty: true }
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_preparation_readiness
+    model: gold_preparation_readiness
+    grain: One row per current raid-team preparation identity.
+    downstream:
+      dashboardAssets: [preparation_readiness]
+    rules:
+      - name: valid_readiness_label
+        field: readiness_label
+        enum: [watch, steady, strong]
+      - name: score_range
+        expression: readiness_score >= 0 and readiness_score <= 100
+      - name: rate_ranges
+        expression: attendance_rate_pct >= 0 and attendance_rate_pct <= 100 and food_rate >= 0 and food_rate <= 100 and flask_rate >= 0 and flask_rate <= 100 and weapon_rate >= 0 and weapon_rate <= 100 and combat_potion_rate >= 0 and combat_potion_rate <= 100
