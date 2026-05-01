@@ -288,6 +288,91 @@ Zone/encounter reference for frontend dropdowns. Active tiers only.
 
 ---
 
+### gold_player_survivability_rankings
+
+Scoped player-detail survivability rank product. Grain is one row per
+`player_name`, `zone_name`, `boss_name`, and `difficulty_label`; scope columns may
+use `All` for pre-aggregated dashboard scopes. Rank is calculated within each
+scope by lowest `deaths_per_kill` first, with `survivability_rank_percentile`
+provided as a 0-100 display scale where higher is better.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `player_name` | STRING | Character name |
+| `player_class` | STRING | WarcraftLogs class |
+| `zone_name` | STRING | Raid zone, or `All` |
+| `encounter_id` | LONG | Encounter id when the display boss scope maps to one encounter; null for all-boss or ambiguous all-zone scopes |
+| `boss_name` | STRING | Boss name, or `All` |
+| `difficulty` | LONG | Difficulty id when the display difficulty scope maps to one id; null for all-difficulty or ambiguous scopes |
+| `difficulty_label` | STRING | Difficulty label, or `All` |
+| `deaths` | LONG | Death count in scope |
+| `kills` | LONG | Kill roster rows in scope |
+| `deaths_per_kill` | DOUBLE | Deaths divided by kills |
+| `survivability_rank` | LONG | Rank in scope; 1 is best survivability |
+| `survivability_rank_total` | LONG | Number of ranked players in scope |
+| `survivability_rank_percentile` | DOUBLE | 0-100 percentile derived from rank |
+
+Downstream consumer: `frontend/src/features/player-detail/index.tsx`.
+
+---
+
+### gold_wipe_survival_discipline
+
+Gold-owned Wipe Analysis survival-discipline product. Grain is one row per
+`player_name`, `zone_name`, `boss_name`, and `difficulty_label`; scope columns may
+use the literal `All` for pre-aggregated static dashboard views. Primary key:
+`player_name`, `zone_name`, `boss_name`, `difficulty_label`.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `player_name` | STRING | Character name |
+| `player_class` | STRING | WarcraftLogs class |
+| `role` | STRING | Latest known kill-role when available |
+| `zone_name` | STRING | Raid zone, or `All` |
+| `encounter_id` | LONG | Encounter id; null for all-boss scopes |
+| `boss_name` | STRING | Boss name, or `All` |
+| `difficulty` | LONG | WCL difficulty; null for all-difficulty scopes |
+| `difficulty_label` | STRING | Difficulty label, or `All` |
+| `wipe_pulls_tracked` | LONG | Instrumented wipe pulls where the player was present |
+| `wipe_deaths` | LONG | Player deaths on tracked wipe pulls |
+| `first_deaths` | LONG | Wipe deaths that were first in the pull |
+| `early_deaths` | LONG | Wipe deaths within the first minute |
+| `kill_deaths` | LONG | Player deaths on kill pulls in scope |
+| `kills_tracked` | LONG | Kill pulls where the player was present |
+| `deaths_per_kill` | DOUBLE | `kill_deaths / kills_tracked`; null when no kills are tracked |
+| `deaths_per_wipe` | DOUBLE | `wipe_deaths / wipe_pulls_tracked` |
+| `pulls_with_tracked_defensive_capacity` | LONG | Wipe pulls with scored personal defensive capacity |
+| `tracked_defensive_capacity` | LONG | Scored possible personal defensive casts |
+| `defensive_casts` | LONG | Scored personal defensive casts used |
+| `defensive_missed_casts` | LONG | Scored possible defensive casts left unused |
+| `healthstone_uses` | LONG | Wipe deaths with healthstone use before death |
+| `potion_uses` | LONG | Wipe deaths with health potion use before death |
+| `defensive_usage_rate` | DOUBLE | `defensive_casts / tracked_defensive_capacity * 100`; null when no defensive capacity is tracked |
+| `healthstone_usage_rate` | DOUBLE | `healthstone_uses / wipe_deaths * 100`; null when no wipe deaths exist |
+| `potion_usage_rate` | DOUBLE | `potion_uses / wipe_deaths * 100`; null when no wipe deaths exist |
+| `death_pressure_score` | DOUBLE | 0–100 component score for avoiding wipe deaths |
+| `defensive_component_score` | DOUBLE | 0–100 class-baselined defensive component; unknown and no-capacity states receive a neutral component while `defensive_tracking_status` preserves the distinction |
+| `healthstone_component_score` | DOUBLE | 0–100 healthstone discipline component |
+| `potion_component_score` | DOUBLE | 0–100 potion discipline component |
+| `defensive_class_baseline_pct` | DOUBLE | Scope/class median defensive usage rate for tracked-capacity players |
+| `survival_discipline_score` | DOUBLE | Absolute 0–100 consistency score; higher is better |
+| `survival_failure_score` | DOUBLE | Back-compatible alias for `survival_discipline_score` |
+| `top_improvement_area` | STRING | Lowest component label, or `—` when all components are strong |
+| `defensive_tracking_status` | STRING | `tracked_used`, `tracked_zero_usage`, `no_tracked_capacity`, or `unknown` |
+
+Null/zero semantics:
+- `tracked_zero_usage` means the player had tracked defensive capacity and `defensive_usage_rate = 0`.
+- `no_tracked_capacity` means the player was present on tracked wipe pulls but no scored personal defensive capacity existed for the observed class/spec rules.
+- `unknown` is reserved for rows where Gold cannot establish defensive capacity state.
+- Null rates mean no valid denominator or unknown state; they must not be coerced to zero by consumers.
+
+Downstream consumer: `frontend/src/features/wipe-analysis/index.tsx` via the
+`wipe_survival_discipline` dashboard JSON asset. The frontend may assign
+relative letter grades for the currently visible rows, but must not redefine the
+absolute component or score formula.
+
+---
+
 ### gold_boss_mechanics
 
 Enhanced wipe analysis per boss: phase bucket breakdown (Phase 1/2/3+), duration bucket breakdown (< 1 min / 1–3 min / 3–5 min / 5+ min), weekly pull counts, progress trend (last week avg boss% vs overall avg).
@@ -308,30 +393,55 @@ Per-player stat ratings. `latest_*` columns = most recent kill snapshot. `avg_*`
 
 What is killing players on each boss. `death_rank` orders abilities by deaths. Splits `deaths_on_kills` vs `deaths_on_wipes`. Includes `unique_players_killed` and `reports_with_deaths`.
 
-### Current Preparation page inputs
+### gold_preparation_readiness
 
-The live frontend `Preparation` page does **not** currently use `gold_player_consumables`
-or `gold_player_combat_stats` as its main source of truth.
+Current-tier raid-team preparation readiness. Grain is one row per preparation
+identity (`identity_key`). Gold applies published preparation identity overrides,
+uses `gold_live_raid_roster` when present and `gold_raid_team` otherwise, derives
+current tier from latest included `gold_raid_summary`, and computes preparation
+rates and readiness semantics from `gold_boss_kill_roster`.
 
-Instead it is built from:
-- `gold_raid_summary` to identify the current raid tier and its raid nights
-- `gold_boss_kill_roster` for current-tier preparation signals and latest prep names
-- `live_raid_roster` with `gold_raid_team` fallback for the current team scope
-- `preparation_overrides.csv` for same-raider character replacement/pooling
+| Column | Type | Description |
+|--------|------|-------------|
+| `identity_key` | STRING | Character or published override identity key |
+| `player_name` | STRING | Display name |
+| `player_class` | STRING | Latest known class or roster class |
+| `role` | STRING | dps / healer / tank / unknown |
+| `rank_label` | STRING | Roster rank label |
+| `is_active` | BOOLEAN | Active roster flag |
+| `current_tier` | STRING | Current raid tier |
+| `roster_source` | STRING | `live_raid_roster` or `gold_raid_team` |
+| `has_current_tier_data` | BOOLEAN | Whether current-tier kill rows exist |
+| `attendance_rate_pct` | DOUBLE | Current-tier raid nights present / raid nights tracked × 100 |
+| `raids_present` | LONG | Current-tier raid nights with at least one kill row |
+| `total_raids_tracked` | LONG | Current-tier raid nights tracked |
+| `kills_tracked` | LONG | Current-tier boss kill rows |
+| `food_rate` | DOUBLE | Kill coverage for food buff |
+| `flask_rate` | DOUBLE | Kill coverage for flask/phial |
+| `weapon_rate` | DOUBLE | Kill coverage for weapon enhancement |
+| `combat_potion_rate` | DOUBLE | Kill coverage for combat potion usage |
+| `readiness_score` | DOUBLE | Gold-owned 0-100 readiness score |
+| `readiness_label` | STRING | `watch`, `steady`, or `strong` |
+| `readiness_notes` | STRING | Pipe-delimited Gold-owned notes |
+| `weakest_signal_label` | STRING | Lowest preparation component label |
+| `recent_food_names` | STRING | Latest non-empty current-tier food buff names, or empty string |
+| `recent_flask_names` | STRING | Latest non-empty current-tier flask/phial names, or empty string |
+| `recent_weapon_names` | STRING | Latest non-empty current-tier weapon enhancement names, or empty string |
+| `recent_combat_potion_names` | STRING | Latest non-empty classified combat potion names. If potion usage exists but the event name is unavailable, `Combat potion used`; otherwise empty string |
+| `character_names` | STRING | Pipe-delimited characters included in the identity |
+| `override_label` | STRING | `Replace`, `Pool`, or empty string |
 
-The page is intentionally current-tier only. Historical all-time aggregates are not
-used there unless the page is explicitly redesigned to support mixed-tier views.
+Score semantics:
+- attendance contributes 25% when raid nights exist
+- food contributes 25%, flask/phial 20%, and weapon enhancement 15% when kills exist
+- Shaman weapon enhancement is spec-aware: Enhancement requires both `Flametongue Weapon` and `Windfury Weapon`, Restoration requires `Earthliving Weapon`, and Elemental accepts either `Flametongue Weapon` or a tracked weapon oil/enhancement
+- combat potion contributes 15% only for DPS identities
+- non-DPS readiness renormalises the non-potion weights
+- `strong` is score >= 85 with at most one note; `watch` is score < 65 or at least three notes; otherwise `steady`
 
-`gold_boss_kill_roster` now carries these preparation-facing columns used directly
-by the frontend:
-- `has_food_buff`, `food_buff_names`
-- `has_flask_or_phial_buff`, `flask_or_phial_names`
-- `has_weapon_enhancement`, `weapon_enhancement_names`
-- `potion_use`, `combat_potion_casts`, `combat_potion_names`
-
-Role-specific scoring rule:
-- combat potion usage is displayed for all roles
-- combat potion usage contributes to readiness scoring only for DPS
+Downstream consumer: `frontend/src/pages/Preparation.tsx` via the
+`preparation_readiness` dashboard JSON asset. The frontend owns filtering,
+sorting, colours, override-edit UI, and display formatting only.
 
 ---
 
@@ -368,6 +478,9 @@ Latest Raider.IO Mythic+ summary per player.
 | `world_rank` | LONG | Overall world rank if returned by Raider.IO |
 | `region_rank` | LONG | Overall region rank |
 | `realm_rank` | LONG | Overall realm rank |
+| `guild_mplus_rank` | LONG | Guild rank by current-season overall score |
+| `guild_mplus_rank_total` | LONG | Number of guild players with non-zero current-season score |
+| `guild_mplus_rank_percentile` | DOUBLE | 0-100 percentile derived from guild rank |
 | `total_runs` | LONG | Deduped recent/best runs exported for this character |
 | `timed_runs` | LONG | Runs completed in time |
 | `untimed_runs` | LONG | Runs not completed in time |

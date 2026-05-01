@@ -38,6 +38,16 @@ MIDNIGHT_WEAPON_ENHANCEMENT_NAMES = {
 }
 MIDNIGHT_WEAPON_ENHANCEMENT_IDS: tuple[int, ...] = ()
 
+SHAMAN_WEAPON_IMBUE_ENCHANT_NAMES_BY_ID = {
+    # WCL playerDetails.gear.temporaryEnchant can carry the SpellItemEnchantment id
+    # while temporaryEnchantName is blank. These are retail imbue enchant ids.
+    5400: "Flametongue Weapon",
+    5401: "Windfury Weapon",
+    # Earthliving has appeared under both current/legacy enchant ids in exports.
+    5402: "Earthliving Weapon",
+    3345: "Earthliving Weapon",
+}
+
 MIDNIGHT_COMBAT_POTION_NAMES = {
     "lights potential",
     "potion of recklessness",

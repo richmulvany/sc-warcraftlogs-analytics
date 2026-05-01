@@ -5,6 +5,7 @@ import { AppLayout } from '../../components/layout/AppLayout'
 import {
   usePlayerPerformance,
   usePlayerSurvivability,
+  usePlayerSurvivabilityRankings,
   usePlayerDeathEvents,
   usePlayerAttendance,
   useBossKillRoster,
@@ -19,7 +20,6 @@ import {
   usePlayerMplusScoreHistory,
   usePlayerMplusRunHistory,
   usePlayerMplusDungeonBreakdown,
-  useRaidTeam,
 } from '../../hooks/useGoldData'
 import { getClassColor } from '../../constants/wow'
 import { toFiniteNumber, meanIgnoringNulls, hasRealText } from '../../utils/format'
@@ -41,6 +41,7 @@ export function PlayerDetail() {
 
   const perf = usePlayerPerformance()
   const surv = usePlayerSurvivability()
+  const survivabilityRankings = usePlayerSurvivabilityRankings()
   const deathEvents = usePlayerDeathEvents()
   const att = usePlayerAttendance()
   const raids = useRaidSummary()
@@ -51,7 +52,6 @@ export function PlayerDetail() {
   const characterMedia = usePlayerCharacterMedia()
   const characterEquipment = usePlayerCharacterEquipment()
   const raidAchievements = usePlayerRaidAchievements()
-  const raidTeam = useRaidTeam()
   const mplusSummary = usePlayerMplusSummary()
   const mplusScoreHistory = usePlayerMplusScoreHistory()
   const mplusRunHistory = usePlayerMplusRunHistory()
@@ -256,73 +256,23 @@ export function PlayerDetail() {
   )
 
   const teamDeathRank = useMemo((): TeamDeathRank | null => {
-    const raidTeamNames = new Set(
-      raidTeam.data
-        .map(row => row.name)
-        .filter(hasRealText)
-        .map(player => player.toLowerCase())
+    const row = survivabilityRankings.data.find(candidate =>
+      candidate.player_name.toLowerCase() === name.toLowerCase() &&
+      candidate.zone_name === (selectedTier || 'All') &&
+      candidate.boss_name === selectedBoss &&
+      candidate.difficulty_label === difficulty
     )
+    if (!row) return null
 
-    const scopedParticipants = new Set(
-      roster.data
-        .filter(row => isIncludedZoneName(row.zone_name))
-        .filter(row =>
-          (selectedTier === 'All' || !selectedTier || row.zone_name === selectedTier) &&
-          (difficulty === 'All' || row.difficulty_label === difficulty) &&
-          (selectedBoss === 'All' || row.boss_name === selectedBoss)
-        )
-        .map(row => row.player_name)
-        .filter(hasRealText)
-        .filter(player => raidTeamNames.size === 0 || raidTeamNames.has(player.toLowerCase()))
-    )
-
-    const targetName = name.toLowerCase()
-    if (scopedParticipants.size === 0 || !scopedParticipants.has(name)) return null
-
-    const playerStats = new Map<string, { deaths: number; kills: number }>()
-    scopedParticipants.forEach(player => playerStats.set(player.toLowerCase(), { deaths: 0, kills: 0 }))
-
-    for (const row of roster.data) {
-      if (!hasRealText(row.player_name)) continue
-      const playerKey = row.player_name.toLowerCase()
-      const stats = playerStats.get(playerKey)
-      if (!stats) continue
-      if (!isIncludedZoneName(row.zone_name)) continue
-      if (selectedTier !== 'All' && selectedTier && row.zone_name !== selectedTier) continue
-      if (difficulty !== 'All' && row.difficulty_label !== difficulty) continue
-      if (selectedBoss !== 'All' && row.boss_name !== selectedBoss) continue
-      stats.kills += 1
-    }
-
-    for (const row of deathEvents.data) {
-      if (!hasRealText(row.player_name)) continue
-      const playerKey = row.player_name.toLowerCase()
-      const stats = playerStats.get(playerKey)
-      if (!stats) continue
-      if (!isIncludedZoneName(row.zone_name)) continue
-      if (selectedTier !== 'All' && selectedTier && row.zone_name !== selectedTier) continue
-      if (difficulty !== 'All' && row.difficulty_label !== difficulty) continue
-      if (selectedBoss !== 'All' && row.boss_name !== selectedBoss) continue
-      stats.deaths += 1
-    }
-
-    const rankedStats = [...playerStats.values()]
-      .filter(stats => stats.kills > 0)
-      .map(stats => ({ ...stats, deathsPerKill: stats.deaths / stats.kills }))
-      .sort((a, b) => a.deathsPerKill - b.deathsPerKill)
-
-    const playerStatsForRank = playerStats.get(targetName)
-    if (!playerStatsForRank || playerStatsForRank.kills === 0) return null
-
-    const playerDeathsPerKill = playerStatsForRank.deaths / playerStatsForRank.kills
     return {
-      rank: rankedStats.findIndex(stats => stats.deathsPerKill === playerDeathsPerKill) + 1,
-      total: rankedStats.length,
-      deaths: playerStatsForRank.deaths,
-      kills: playerStatsForRank.kills,
-      deathsPerKill: playerDeathsPerKill,
+      rank: toFiniteNumber(row.survivability_rank) ?? 0,
+      total: toFiniteNumber(row.survivability_rank_total) ?? 0,
+      deaths: toFiniteNumber(row.deaths) ?? 0,
+      kills: toFiniteNumber(row.kills) ?? 0,
+      deathsPerKill: toFiniteNumber(row.deaths_per_kill) ?? 0,
+      percentile: toFiniteNumber(row.survivability_rank_percentile) ?? 0,
     }
-  }, [deathEvents.data, difficulty, name, raidTeam.data, roster.data, selectedBoss, selectedTier])
+  }, [difficulty, name, selectedBoss, selectedTier, survivabilityRankings.data])
 
   const reportHrefByBossKey = useMemo(() => {
     const map = new Map<string, string>()
@@ -452,14 +402,13 @@ export function PlayerDetail() {
     [mplusSummary.data, name]
   )
 
-  const guildMplusRank = useMemo(() => {
-    const scored = mplusSummary.data
-      .filter(row => Number(row.score_all) > 0)
-      .sort((a, b) => Number(b.score_all) - Number(a.score_all))
-    const idx = scored.findIndex(row => row.player_name.toLowerCase() === name.toLowerCase())
-    if (idx === -1 || !playerMplusSummary || !Number(playerMplusSummary.score_all)) return null
-    return { rank: idx + 1, total: scored.length }
-  }, [mplusSummary.data, name, playerMplusSummary])
+  const guildMplusRank = playerMplusSummary?.guild_mplus_rank
+    ? {
+        rank: toFiniteNumber(playerMplusSummary.guild_mplus_rank) ?? 0,
+        total: toFiniteNumber(playerMplusSummary.guild_mplus_rank_total) ?? 0,
+        percentile: toFiniteNumber(playerMplusSummary.guild_mplus_rank_percentile) ?? 0,
+      }
+    : null
 
   const playerMplusScoreHistory = useMemo(
     () => [...mplusScoreHistory.data]

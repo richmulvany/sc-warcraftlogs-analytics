@@ -149,7 +149,7 @@ def gold_player_mplus_summary():
         )
     )
 
-    return (
+    summary = (
         latest_scores.join(run_counts, ["player_name", "realm_slug", "region", "season"], "left")
         .join(best_run, ["player_name", "realm_slug", "region", "season"], "left")
         .join(most_common_key, ["player_name", "realm_slug", "region", "season"], "left")
@@ -182,8 +182,49 @@ def gold_player_mplus_summary():
             "best_run_completed_at",
             "best_run_url",
         )
-        .orderBy(F.col("score_all").desc_nulls_last(), "player_name")
     )
+
+    ranked = (
+        summary.withColumn(
+            "_has_score",
+            F.when(F.coalesce(F.col("score_all"), F.lit(0.0)) > 0, F.lit(1)).otherwise(F.lit(0)),
+        )
+        .withColumn(
+            "guild_mplus_rank",
+            F.when(
+                F.col("_has_score") == 1,
+                F.rank().over(
+                    Window.partitionBy("season").orderBy(
+                        F.col("score_all").desc(), F.col("player_name")
+                    )
+                ),
+            ),
+        )
+        .withColumn(
+            "guild_mplus_rank_total",
+            F.sum("_has_score").over(Window.partitionBy("season")),
+        )
+        .withColumn(
+            "guild_mplus_rank_percentile",
+            F.when(
+                F.col("guild_mplus_rank_total") <= 1,
+                F.lit(100.0),
+            ).when(
+                F.col("guild_mplus_rank").isNotNull(),
+                F.round(
+                    (
+                        (F.col("guild_mplus_rank_total") - F.col("guild_mplus_rank"))
+                        / (F.col("guild_mplus_rank_total") - F.lit(1))
+                    )
+                    * 100,
+                    1,
+                ),
+            ),
+        )
+        .drop("_has_score")
+    )
+
+    return ranked.orderBy(F.col("score_all").desc_nulls_last(), "player_name")
 
 
 @dlt.table(

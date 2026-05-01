@@ -188,6 +188,183 @@ def gold_player_death_events():
     )
 
 
+@dlt.table(
+    name="03_gold.sc_analytics.gold_player_survivability_rankings",
+    comment=(
+        "Scoped raid-team survivability rankings by deaths per kill. Scope "
+        "dimensions use 'All' sentinel values for dashboard tier/boss/difficulty filters."
+    ),
+    table_properties={"quality": "gold"},
+)
+def gold_player_survivability_rankings():
+    return spark.sql(  # noqa: F821
+        """
+        WITH raid_team AS (
+          SELECT LOWER(name) AS player_key
+          FROM 03_gold.sc_analytics.gold_raid_team
+          WHERE name IS NOT NULL AND name != ''
+        ),
+        raid_team_count AS (
+          SELECT COUNT(*) AS row_count FROM raid_team
+        ),
+        kill_base AS (
+          SELECT
+            k.player_name,
+            MAX(k.player_class) AS player_class,
+            k.zone_name,
+            k.encounter_id,
+            k.boss_name,
+            k.difficulty,
+            k.difficulty_label,
+            COUNT(*) AS kills
+          FROM 03_gold.sc_analytics.gold_boss_kill_roster k
+          CROSS JOIN raid_team_count rtc
+          LEFT JOIN raid_team rt ON LOWER(k.player_name) = rt.player_key
+          WHERE k.player_name IS NOT NULL
+            AND k.player_name != ''
+            AND k.zone_name != 'Blackrock Depths'
+            AND (rtc.row_count = 0 OR rt.player_key IS NOT NULL)
+          GROUP BY
+            k.player_name,
+            k.zone_name,
+            k.encounter_id,
+            k.boss_name,
+            k.difficulty,
+            k.difficulty_label
+        ),
+        death_base AS (
+          SELECT
+            d.player_name,
+            d.zone_name,
+            d.encounter_id,
+            d.boss_name,
+            d.difficulty,
+            d.difficulty_label,
+            COUNT(*) AS deaths
+          FROM 03_gold.sc_analytics.gold_player_death_events d
+          CROSS JOIN raid_team_count rtc
+          LEFT JOIN raid_team rt ON LOWER(d.player_name) = rt.player_key
+          WHERE d.player_name IS NOT NULL
+            AND d.player_name != ''
+            AND d.zone_name != 'Blackrock Depths'
+            AND (rtc.row_count = 0 OR rt.player_key IS NOT NULL)
+          GROUP BY
+            d.player_name,
+            d.zone_name,
+            d.encounter_id,
+            d.boss_name,
+            d.difficulty,
+            d.difficulty_label
+        ),
+        scoped_kills AS (
+          SELECT
+            player_name,
+            MAX(player_class) AS player_class,
+            CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
+            CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
+            CASE WHEN GROUPING(difficulty_label) = 1 THEN 'All' ELSE difficulty_label END AS difficulty_label,
+            CASE
+              WHEN GROUPING(boss_name) = 1 OR COUNT(DISTINCT encounter_id) != 1 THEN CAST(NULL AS BIGINT)
+              ELSE MAX(encounter_id)
+            END AS encounter_id,
+            CASE
+              WHEN GROUPING(difficulty_label) = 1 OR COUNT(DISTINCT difficulty) != 1 THEN CAST(NULL AS BIGINT)
+              ELSE MAX(difficulty)
+            END AS difficulty,
+            SUM(kills) AS kills
+          FROM kill_base
+          GROUP BY GROUPING SETS (
+            (player_name, zone_name, boss_name, difficulty_label),
+            (player_name, zone_name, difficulty_label),
+            (player_name, boss_name, difficulty_label),
+            (player_name, difficulty_label),
+            (player_name, zone_name, boss_name),
+            (player_name, boss_name),
+            (player_name, zone_name),
+            (player_name)
+          )
+        ),
+        scoped_deaths AS (
+          SELECT
+            player_name,
+            CASE WHEN GROUPING(zone_name) = 1 THEN 'All' ELSE zone_name END AS zone_name,
+            CASE WHEN GROUPING(boss_name) = 1 THEN 'All' ELSE boss_name END AS boss_name,
+            CASE WHEN GROUPING(difficulty_label) = 1 THEN 'All' ELSE difficulty_label END AS difficulty_label,
+            CASE
+              WHEN GROUPING(boss_name) = 1 OR COUNT(DISTINCT encounter_id) != 1 THEN CAST(NULL AS BIGINT)
+              ELSE MAX(encounter_id)
+            END AS encounter_id,
+            CASE
+              WHEN GROUPING(difficulty_label) = 1 OR COUNT(DISTINCT difficulty) != 1 THEN CAST(NULL AS BIGINT)
+              ELSE MAX(difficulty)
+            END AS difficulty,
+            SUM(deaths) AS deaths
+          FROM death_base
+          GROUP BY GROUPING SETS (
+            (player_name, zone_name, boss_name, difficulty_label),
+            (player_name, zone_name, difficulty_label),
+            (player_name, boss_name, difficulty_label),
+            (player_name, difficulty_label),
+            (player_name, zone_name, boss_name),
+            (player_name, boss_name),
+            (player_name, zone_name),
+            (player_name)
+          )
+        ),
+        joined AS (
+          SELECT
+            k.player_name,
+            k.player_class,
+            k.zone_name,
+            k.encounter_id,
+            k.boss_name,
+            k.difficulty,
+            k.difficulty_label,
+            k.kills,
+            COALESCE(d.deaths, 0) AS deaths,
+            COALESCE(d.deaths, 0) / GREATEST(k.kills, 1) AS deaths_per_kill
+          FROM scoped_kills k
+          LEFT JOIN scoped_deaths d
+            ON k.player_name = d.player_name
+           AND k.zone_name = d.zone_name
+           AND k.boss_name = d.boss_name
+           AND k.difficulty_label = d.difficulty_label
+          WHERE k.kills > 0
+        ),
+        ranked AS (
+          SELECT
+            *,
+            RANK() OVER (
+              PARTITION BY zone_name, boss_name, difficulty_label
+              ORDER BY deaths_per_kill ASC, deaths ASC, player_name ASC
+            ) AS survivability_rank,
+            COUNT(*) OVER (
+              PARTITION BY zone_name, boss_name, difficulty_label
+            ) AS survivability_rank_total
+          FROM joined
+        )
+        SELECT
+          player_name,
+          player_class,
+          zone_name,
+          encounter_id,
+          boss_name,
+          difficulty,
+          difficulty_label,
+          deaths,
+          kills,
+          ROUND(deaths_per_kill, 4) AS deaths_per_kill,
+          survivability_rank,
+          survivability_rank_total,
+          CASE
+            WHEN survivability_rank_total <= 1 THEN 100.0
+            ELSE ROUND(((survivability_rank_total - survivability_rank) / (survivability_rank_total - 1)) * 100, 1)
+          END AS survivability_rank_percentile
+        FROM ranked
+        """
+    )
+
+
 # ── Boss Mechanics ─────────────────────────────────────────────────────────────
 # Enhanced wipe analysis beyond gold_boss_wipe_analysis.
 # Analyses wipe patterns to surface progress and help teams understand where

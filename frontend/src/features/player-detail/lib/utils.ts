@@ -9,21 +9,6 @@ export function formatNumber(value: unknown, digits = 0): string {
   })
 }
 
-export function rankToParseScale(rank: number, total: number): number {
-  if (total <= 1) return 100
-  return Math.round(((total - rank) / (total - 1)) * 100)
-}
-
-export function getSurvivabilityRankColor(
-  rank: number,
-  total: number,
-  getParseColor: (rank: number) => string,
-  worstColor: string,
-): string {
-  const scaledRank = rankToParseScale(rank, total)
-  return scaledRank < 25 ? worstColor : getParseColor(scaledRank)
-}
-
 export function formatRealmName(value: unknown): string {
   if (typeof value !== 'string' || !value.trim()) return ''
   return value

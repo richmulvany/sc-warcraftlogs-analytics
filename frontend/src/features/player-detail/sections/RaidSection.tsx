@@ -10,7 +10,7 @@ import { formatDate } from '../../../utils/format'
 import { formatThroughput } from '../../../constants/wow'
 import type { PlayerCharacterMedia, PlayerCharacterEquipment, PlayerRaidAchievement, PlayerBossPerformance } from '../../../types'
 import { EQUIPMENT_SLOTS, BOSS_PARSE_MODES, WARCRAFTLOGS_LINK_TITLE } from '../lib/constants'
-import { formatBlizzardTimestamp, getSurvivabilityRankColor, warcraftLogsReportUrl } from '../lib/utils'
+import { formatBlizzardTimestamp, warcraftLogsReportUrl } from '../lib/utils'
 import type { TierCompletionRow, BossParseMode, KillingBlowSummary, TeamDeathRank, ScopedSummary, DpsDataPoint } from '../lib/types'
 import { GearSlot } from '../components/GearSlot'
 import { CompletionRow } from '../components/CompletionRow'
@@ -366,7 +366,7 @@ export function RaidSection({
                       className="text-xl font-semibold"
                       style={{
                         color: teamDeathRank
-                          ? getSurvivabilityRankColor(teamDeathRank.rank, teamDeathRank.total, getParseColor, wipeColor)
+                          ? teamDeathRank.percentile < 25 ? wipeColor : getParseColor(teamDeathRank.percentile)
                           : undefined,
                       }}
                     >

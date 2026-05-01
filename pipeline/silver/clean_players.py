@@ -65,7 +65,10 @@ from pyspark.sql.types import (  # noqa: E402
     StructType,
 )
 
-from pipeline.consumables import MIDNIGHT_WEAPON_ENHANCEMENT_NAMES  # noqa: E402
+from pipeline.consumables import (  # noqa: E402
+    MIDNIGHT_WEAPON_ENHANCEMENT_NAMES,
+    SHAMAN_WEAPON_IMBUE_ENCHANT_NAMES_BY_ID,
+)
 from pipeline.expectations.common_expectations import (
     INGESTED_AT_PRESENT,
     REPORT_FIGHT_PLAYER_UNIQUE,
@@ -168,6 +171,22 @@ def _sql_string_array(values: set[str]) -> str:
     return (
         "array(" + ", ".join("'" + value.replace("'", "''") + "'" for value in sorted(values)) + ")"
     )
+
+
+def _sql_int_array(values: set[int]) -> str:
+    return "array(" + ", ".join(str(value) for value in sorted(values)) + ")"
+
+
+def _sql_string(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _shaman_imbue_name_case_sql(id_sql: str) -> str:
+    clauses = [
+        f"WHEN {id_sql} = {enchant_id} THEN {_sql_string(name)}"
+        for enchant_id, name in sorted(SHAMAN_WEAPON_IMBUE_ENCHANT_NAMES_BY_ID.items())
+    ]
+    return "CASE " + " ".join(clauses) + " END"
 
 
 def _normalized_name_sql(name_sql: str) -> str:
@@ -285,14 +304,29 @@ def silver_player_performance():
         all_players.withColumn(
             "temporary_enchant_names",
             F.expr(
-                """
-                transform(
-                  filter(
-                    coalesce(player.combatantInfo.gear, array()),
-                    g -> g.temporaryEnchantName is not null AND trim(g.temporaryEnchantName) <> ''
+                f"""
+                array_distinct(concat(
+                  transform(
+                    filter(
+                      coalesce(player.combatantInfo.gear, array()),
+                      g -> g.temporaryEnchantName is not null AND trim(g.temporaryEnchantName) <> ''
+                    ),
+                    g -> trim(g.temporaryEnchantName)
                   ),
-                  g -> trim(g.temporaryEnchantName)
-                )
+                  filter(
+                    transform(
+                      filter(
+                        coalesce(player.combatantInfo.gear, array()),
+                        g -> array_contains(
+                          {_sql_int_array(set(SHAMAN_WEAPON_IMBUE_ENCHANT_NAMES_BY_ID))},
+                          g.temporaryEnchant
+                        )
+                      ),
+                      g -> {_shaman_imbue_name_case_sql("g.temporaryEnchant")}
+                    ),
+                    name -> name is not null AND trim(name) <> ''
+                  )
+                ))
                 """
             ),
         )

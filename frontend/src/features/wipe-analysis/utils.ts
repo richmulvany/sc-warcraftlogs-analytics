@@ -39,10 +39,6 @@ export function isKillRow(row: { is_kill?: boolean | string | null }) {
   return row.is_kill === true || row.is_kill === 'true'
 }
 
-export function isPositiveFlag(value: unknown) {
-  return value === true || value === 'true' || Number(value) > 0
-}
-
 export function sectionTotal<T extends { [k: string]: unknown }>(rows: T[], key: keyof T) {
   return rows.reduce((sum, row) => sum + Number(row[key] ?? 0), 0)
 }
