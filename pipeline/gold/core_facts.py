@@ -291,15 +291,16 @@ def fact_player_fight_performance():
         .drop("_b_report_code", "_b_fight_id", "_b_player_name")
         .drop("_p_report_code", "_p_fight_id", "_p_player_name")
         .withColumn("potion_use", F.coalesce(F.col("cast_potion_use"), F.lit(0)))
-        .withColumn("has_food_buff", F.coalesce(F.col("has_food_buff"), F.lit(0)))
+        .withColumn("has_food_buff", F.coalesce(F.col("has_food_buff"), F.lit(False)))
         .withColumn(
-            "has_flask_or_phial_buff", F.coalesce(F.col("has_flask_or_phial_buff"), F.lit(0))
+            "has_flask_or_phial_buff",
+            F.coalesce(F.col("has_flask_or_phial_buff"), F.lit(False)),
         )
         .withColumn(
             "has_weapon_enhancement",
-            F.greatest(
-                F.coalesce(F.col("has_weapon_enhancement"), F.lit(0)),
-                F.coalesce(F.col("has_weapon_enhancement_aura"), F.lit(0)),
+            (
+                F.coalesce(F.col("has_weapon_enhancement"), F.lit(False))
+                | F.coalesce(F.col("has_weapon_enhancement_aura"), F.lit(False))
             ),
         )
         .withColumn(

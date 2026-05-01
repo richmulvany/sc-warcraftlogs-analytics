@@ -1,0 +1,46 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_wipe_survival_discipline
+info:
+  title: Gold Wipe Survival Discipline
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_wipe_survival_discipline:
+    type: table
+    primaryKey: [player_identity_key, zone_name, boss_name, difficulty_label]
+    fields:
+      player_identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_class: { type: string, required: true, nullable: false, allowEmpty: false }
+      realm: { type: string, required: true, nullable: false, allowEmpty: false }
+      zone_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      boss_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      difficulty_label: { type: string, required: true, nullable: false, allowEmpty: false }
+      wipe_pulls_tracked: { type: integer, required: true, nullable: false }
+      wipe_deaths: { type: integer, required: true, nullable: false }
+      tracked_defensive_capacity: { type: integer, required: true, nullable: false }
+      defensive_casts: { type: integer, required: true, nullable: false }
+      defensive_usage_rate: { type: number, required: false, nullable: true }
+      defensive_component_score: { type: number, required: true, nullable: false }
+      healthstone_component_score: { type: number, required: true, nullable: false }
+      potion_component_score: { type: number, required: true, nullable: false }
+      survival_failure_score: { type: number, required: true, nullable: false }
+      survival_discipline_score: { type: number, required: true, nullable: false }
+      top_improvement_area: { type: string, required: true, nullable: false, allowEmpty: false }
+      defensive_tracking_status: { type: string, required: true, nullable: false, allowEmpty: false }
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_wipe_survival_discipline
+    model: gold_wipe_survival_discipline
+    grain: One row per player and stable Wipe Analysis dashboard scope.
+    downstream:
+      dashboardAssets: [wipe_survival_discipline]
+    rules:
+      - name: valid_defensive_tracking_status
+        field: defensive_tracking_status
+        enum: [tracked_used, tracked_zero_usage, no_tracked_capacity, unknown]
+      - name: score_range
+        expression: survival_discipline_score >= 0 and survival_discipline_score <= 100 and survival_failure_score == survival_discipline_score
+      - name: defensive_zero_usage_semantics
+        expression: defensive_tracking_status != "tracked_zero_usage" or defensive_usage_rate == 0

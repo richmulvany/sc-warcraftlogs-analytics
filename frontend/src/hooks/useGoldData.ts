@@ -13,12 +13,15 @@ import type {
   BossProgressHistoryRow,
   BossPullHistoryRow,
   PlayerSurvivability,
+  PlayerSurvivabilityRanking,
   PlayerDeathEvent,
   PlayerUtilityByPull,
   WipeSurvivalEvent,
   WipeCooldownUtilization,
+  WipeSurvivalDiscipline,
   ProgressionTimeline,
   RaidTeamMember,
+  PreparationReadiness,
   LiveRaidRosterEntry,
   PlayerCharacterMedia,
   PlayerCharacterEquipment,
@@ -45,6 +48,7 @@ export const usePlayerAttendance   = () => useCSV<PlayerAttendance>('gold_player
 export const usePlayerUtilityByPull = () => useCSV<PlayerUtilityByPull>('gold_player_utility_by_pull.csv', { optional: true })
 export const useWipeSurvivalEvents = () => useCSV<WipeSurvivalEvent>('gold_wipe_survival_events.csv', { optional: true })
 export const useWipeCooldownUtilization = () => useCSV<WipeCooldownUtilization>('gold_wipe_cooldown_utilization.csv', { optional: true })
+export const useWipeSurvivalDiscipline = () => useCSV<WipeSurvivalDiscipline>('gold_wipe_survival_discipline.csv', { optional: true })
 export const useGuildRoster        = () => useCSV<GuildRoster>('gold_guild_roster.csv')
 export const useWeeklyActivity     = () => useCSV<WeeklyActivity>('gold_weekly_activity.csv')
 export const useGuildZoneRanks     = () => useCSV<GuildZoneRank>('guild_zone_ranks.csv', { optional: true })
@@ -52,9 +56,11 @@ export const useBossWipeAnalysis   = () => useCSV<BossWipeAnalysis>('gold_boss_w
 export const useBossProgressHistory = () => useCSV<BossProgressHistoryRow>('gold_boss_progress_history.csv', { optional: true })
 export const useBossPullHistory    = () => useCSV<BossPullHistoryRow>('gold_boss_pull_history.csv', { optional: true })
 export const usePlayerSurvivability = () => useCSV<PlayerSurvivability>('gold_player_survivability.csv')
+export const usePlayerSurvivabilityRankings = () => useCSV<PlayerSurvivabilityRanking>('gold_player_survivability_rankings.csv', { optional: true })
 export const usePlayerDeathEvents  = () => useCSV<PlayerDeathEvent>('gold_player_death_events.csv', { optional: true })
 export const useProgressionTimeline = () => useCSV<ProgressionTimeline>('gold_progression_timeline.csv')
 export const useRaidTeam           = () => useCSV<RaidTeamMember>('gold_raid_team.csv')
+export const usePreparationReadiness = () => useCSV<PreparationReadiness>('gold_preparation_readiness.csv', { optional: true })
 export const useLiveRaidRoster     = () => useCSV<LiveRaidRosterEntry>('live_raid_roster.csv', { optional: true })
 export const usePlayerCharacterMedia = () => useCSV<PlayerCharacterMedia>('player_character_media.csv', { optional: true })
 export const usePlayerCharacterEquipment = () => useCSV<PlayerCharacterEquipment>('player_character_equipment.csv', { optional: true })

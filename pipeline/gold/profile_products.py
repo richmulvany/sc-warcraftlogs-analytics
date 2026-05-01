@@ -26,6 +26,16 @@ from pyspark.sql.types import (
     StructType,
 )
 
+
+def _profile_player_identity_key() -> F.Column:
+    return F.concat_ws(
+        ":",
+        F.lower(F.trim(F.col("player_name"))),
+        F.lit("unknown"),
+        F.lower(F.trim(F.coalesce(F.col("realm_slug"), F.lit("unknown")))),
+    )
+
+
 # ── gold_live_raid_roster ──────────────────────────────────────────────────────
 
 
@@ -85,6 +95,7 @@ def gold_guild_zone_ranks():
 )
 def gold_player_character_media():
     return spark.read.table("02_silver.sc_analytics_blizzard.silver_character_media").select(  # noqa: F821
+        _profile_player_identity_key().alias("player_identity_key"),
         "player_name",
         "realm_slug",
         "avatar_url",
@@ -242,6 +253,7 @@ def gold_player_character_equipment():
 
     parsed = raw.withColumn("eq", F.from_json("equipment_json", _EQUIPMENT_FULL_SCHEMA))
     exploded = parsed.select(
+        _profile_player_identity_key().alias("player_identity_key"),
         "player_name",
         "realm_slug",
         F.explode("eq.equipped_items").alias("it"),
@@ -292,6 +304,7 @@ def gold_player_character_equipment():
     )
 
     flattened = exploded.select(
+        "player_identity_key",
         "player_name",
         "realm_slug",
         F.col("it.slot.type").alias("slot_type"),
@@ -316,6 +329,7 @@ def gold_player_character_equipment():
         .join(item_media.alias("m"), F.col("e.item_id") == F.col("m.item_id"), "left")
         .select(
             "e.player_name",
+            "e.player_identity_key",
             "e.realm_slug",
             "e.slot_type",
             "e.slot_name",
@@ -380,6 +394,7 @@ def gold_player_raid_achievements():
     raw = spark.read.table("02_silver.sc_analytics_blizzard.silver_character_achievements")  # noqa: F821
     parsed = raw.withColumn("a", F.from_json("achievements_json", _ACHIEVEMENTS_SCHEMA))
     exploded = parsed.select(
+        _profile_player_identity_key().alias("player_identity_key"),
         "player_name",
         "realm_slug",
         F.explode("a.achievements").alias("row"),
@@ -395,6 +410,7 @@ def gold_player_raid_achievements():
         .filter((F.col("is_completed") == F.lit(True)) | F.col("completed_timestamp").isNotNull())
         .filter(F.lower(F.col("achievement_name")).rlike(r"cutting edge:|famed slayer|famed bane"))
         .select(
+            "player_identity_key",
             "player_name",
             "realm_slug",
             "achievement_id",

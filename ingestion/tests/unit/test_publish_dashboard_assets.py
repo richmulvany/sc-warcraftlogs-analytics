@@ -30,6 +30,18 @@ class _ExpiredSparkSession:
         raise RuntimeError("[NO_ACTIVE_SESSION] No active Spark session found.")
 
 
+class _TableColumnsSparkSession:
+    def __init__(self, columns: list[str]) -> None:
+        self._columns = columns
+
+    def table(self, _table_name: str) -> object:
+        class _DataFrame:
+            def __init__(self, columns: list[str]) -> None:
+                self.columns = columns
+
+        return _DataFrame(self._columns)
+
+
 def test_get_spark_session_ignores_expired_global_session(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(publish_dashboard_assets, "spark", _ExpiredSparkSession(), raising=False)
 
@@ -166,6 +178,30 @@ def test_export_query_dataset_validates_rows_before_writing(
         )
 
     assert not (tmp_path / "contracted_dataset.json").exists()
+
+
+def test_export_query_dataset_rejects_stale_wipe_cooldown_schema(tmp_path: Path) -> None:
+    spark_session = _TableColumnsSparkSession(
+        [
+            "boss_name",
+            "possible_casts",
+            "actual_casts",
+            "missed_casts",
+        ]
+    )
+
+    with pytest.raises(RuntimeError, match="Rerun the SDP/DLT pipeline"):
+        export_query_dataset(
+            spark_session,
+            None,
+            None,
+            "wipe_cooldown_utilization",
+            "03_gold.sc_analytics.gold_wipe_cooldown_utilization",
+            "SELECT 1",
+            tmp_path,
+        )
+
+    assert not (tmp_path / "wipe_cooldown_utilization.json").exists()
 
 
 def test_publish_local_tree_failure_leaves_latest_intact(

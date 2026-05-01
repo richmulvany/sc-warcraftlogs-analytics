@@ -64,6 +64,7 @@ export interface TeamDeathRank {
   deaths: number
   kills: number
   deathsPerKill: number
+  percentile: number
 }
 
 export interface ProfileLinks {

@@ -1,0 +1,72 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_survivability_rankings
+info:
+  title: Player Survivability Rankings Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+  description: >
+    Published JSON asset containing Gold-owned raid-team survivability rank
+    metrics for stable player-detail scopes.
+servers:
+  dashboard_json:
+    type: custom
+    description: Databricks gold table exported as static JSON through dashboard publishing.
+    location: /Volumes/03_gold/sc_analytics/dashboard_exports/latest/player_survivability_rankings.json
+models:
+  player_survivability_rankings:
+    type: table
+    description: Scoped player survivability ranks by deaths per kill.
+    primaryKey:
+      - player_identity_key
+      - zone_name
+      - boss_name
+      - difficulty_label
+    fields:
+      player_identity_key: { type: string, required: true, primary: true, description: Deterministic lowercase player identity key. }
+      player_name: { type: string, required: true, description: Character name. }
+      player_class: { type: string, required: true, description: WarcraftLogs class. }
+      zone_name: { type: string, required: true, primary: true, description: Raid zone, or All. }
+      encounter_id: { type: integer, required: false, description: Encounter id when the display boss scope maps to one encounter; null for all-boss or ambiguous all-zone scopes. }
+      boss_name: { type: string, required: true, primary: true, description: Boss name, or All. }
+      difficulty: { type: integer, required: false, description: Difficulty id when the display difficulty scope maps to one id; null for all-difficulty or ambiguous scopes. }
+      difficulty_label: { type: string, required: true, primary: true, description: Difficulty label, or All. }
+      deaths: { type: integer, required: true, description: Deaths in scope. }
+      kills: { type: integer, required: true, description: Kill roster rows in scope. }
+      deaths_per_kill: { type: number, required: true, description: Deaths divided by kills. Lower is better. }
+      survivability_rank: { type: integer, required: true, description: Rank within scope, ordered by lowest deaths_per_kill. }
+      survivability_rank_total: { type: integer, required: true, description: Number of ranked players in the scope. }
+      survivability_rank_percentile: { type: number, required: true, description: 0-100 percentile derived from rank; higher is better. }
+quality:
+  type: custom
+  specification:
+    checks for player_survivability_rankings:
+      - duplicate_count(player_identity_key, zone_name, boss_name, difficulty_label) = 0
+      - survivability_rank >= 1
+      - survivability_rank <= survivability_rank_total
+      - survivability_rank_percentile >= 0
+      - survivability_rank_percentile <= 100
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_survivability_rankings
+    sourceTable: 03_gold.sc_analytics.gold_player_survivability_rankings
+    publishedPath: player_survivability_rankings.json
+    grain: >
+      One row per player and stable player-detail display scope:
+      player_identity_key, zone_name, boss_name, difficulty_label. Scope columns may be All.
+    consumers:
+      - frontend/src/hooks/useGoldData.ts:usePlayerSurvivabilityRankings
+      - frontend/src/features/player-detail/index.tsx
+    freshness:
+      expectedAfterJob: daily_orchestrator
+      maxStalenessHours: 48
+    rules:
+      - name: rank_bounds
+        expression: survivability_rank >= 1 and survivability_rank <= survivability_rank_total
+      - name: percentile_range
+        expression: survivability_rank_percentile >= 0 and survivability_rank_percentile <= 100
+      - name: non_negative_counts
+        expression: deaths >= 0 and kills > 0
+    breakingChanges:
+      - Removing or renaming any listed field.
+      - Changing the rank ordering away from lower deaths_per_kill being better.

@@ -1,0 +1,38 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_player_survivability_rankings
+info:
+  title: Gold Player Survivability Rankings
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_player_survivability_rankings:
+    type: table
+    primaryKey: [player_identity_key, zone_name, boss_name, difficulty_label]
+    fields:
+      player_identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_class: { type: string, required: true, nullable: false, allowEmpty: false }
+      zone_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      boss_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      difficulty_label: { type: string, required: true, nullable: false, allowEmpty: false }
+      deaths: { type: integer, required: true, nullable: false }
+      kills: { type: integer, required: true, nullable: false }
+      deaths_per_kill: { type: number, required: true, nullable: false }
+      survivability_rank: { type: integer, required: true, nullable: false }
+      survivability_rank_total: { type: integer, required: true, nullable: false }
+      survivability_rank_percentile: { type: number, required: true, nullable: false }
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_player_survivability_rankings
+    model: gold_player_survivability_rankings
+    grain: One row per player and stable player-detail display scope.
+    downstream:
+      dashboardAssets: [player_survivability_rankings]
+    rules:
+      - name: rank_bounds
+        expression: survivability_rank >= 1 and survivability_rank <= survivability_rank_total
+      - name: percentile_range
+        expression: survivability_rank_percentile >= 0 and survivability_rank_percentile <= 100
+      - name: non_negative_counts
+        expression: deaths >= 0 and kills > 0

@@ -1,0 +1,37 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_best_kills
+info:
+  title: Gold Best Kills
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_best_kills:
+    type: table
+    primaryKey: [encounter_id, boss_name, zone_name, difficulty]
+    fields:
+      encounter_id: { type: integer, required: true, nullable: false }
+      boss_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      zone_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      difficulty: { type: integer, required: true, nullable: false }
+      difficulty_label: { type: string, required: true, nullable: false, allowEmpty: false }
+      best_kill_seconds: { type: number, required: true, nullable: false }
+      avg_kill_seconds: { type: number, required: true, nullable: false }
+      total_kills: { type: integer, required: true, nullable: false }
+      first_kill_date: { type: date, required: true, nullable: false }
+      latest_kill_date: { type: date, required: true, nullable: false }
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_best_kills
+    model: gold_best_kills
+    grain: One row per encounter, boss, zone, and difficulty with at least one kill.
+    downstream:
+      dashboardAssets: [best_kills]
+    rules:
+      - name: valid_difficulty
+        field: difficulty_label
+        enum: [Normal, Heroic, Mythic]
+      - name: positive_kill_count
+        expression: total_kills > 0
+      - name: best_not_slower_than_average
+        expression: best_kill_seconds <= avg_kill_seconds

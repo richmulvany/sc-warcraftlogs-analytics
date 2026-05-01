@@ -63,11 +63,26 @@ databricks bundle deploy
 The table will be created on the next pipeline run. For immediate creation:
 - UI: Pipeline → Start (incremental, not full refresh)
 
-### 5. Update the data dictionary
+### 5. Add contracts
+
+If the table is consumed by the frontend or another governed downstream product, add:
+
+- a Gold product contract in `pipeline/contracts/gold/`
+- a `pipeline/contracts/data_products.yml` catalog entry
+- a dashboard asset contract in `pipeline/contracts/dashboard_assets/` if the table is exported as static JSON
+
+Contract fields must distinguish missing, null, and empty string semantics:
+
+- listed fields must exist in every row
+- use `nullable: true` only when `null` is meaningful and expected
+- use `allowEmpty: true` only when `""` is an intentional sentinel
+- keep primary key fields non-null and non-empty
+
+### 6. Update the data dictionary
 
 Add an entry to `docs/data_dictionary/README.md` with all column names, types, and descriptions.
 
-### 6. Verify
+### 7. Verify
 
 ```sql
 -- In Databricks SQL or a notebook
@@ -75,14 +90,16 @@ SELECT COUNT(*) FROM 03_gold.sc_analytics.gold_your_table_name;
 SELECT * FROM 03_gold.sc_analytics.gold_your_table_name LIMIT 10;
 ```
 
-### 7. Publish to frontend
+### 8. Publish to frontend
 
-If the React frontend needs the table, add it to `EXPORT_TABLES` in `scripts/publish_dashboard_assets.py`.
+If the React frontend needs the table, add it to `EXPORT_TABLES` or
+`QUERY_EXPORTS` in `scripts/publish_dashboard_assets.py`.
 
 The preferred frontend path is manifest-driven JSON fetched from the published dashboard assets, so also add:
 
 - A dataset key mapping if the page currently loads through `useCSV()`
 - Any TypeScript row interface the consuming page needs
 - Any page/component wiring that consumes the dataset through the compatibility layer or `dashboardDataClient`
+- Contract metadata via `pipeline/contracts/data_products.yml`
 
 If you need a temporary local fallback for development, `scripts/dev/export_gold_tables.py` still exists, but it is no longer the primary production publishing path.

@@ -11,13 +11,11 @@ import { ProgressBar } from '../components/ui/ProgressBar'
 import { LoadingState } from '../components/ui/LoadingState'
 import { ErrorState } from '../components/ui/ErrorState'
 import { ClassDot, ClassLabel } from '../components/ui/ClassLabel'
-import { useBossKillRoster, useLiveRaidRoster, usePreparationOverrides, useRaidSummary, useRaidTeam } from '../hooks/useGoldData'
+import { useLiveRaidRoster, usePreparationOverrides, usePreparationReadiness } from '../hooks/useGoldData'
 import { formatDate, formatNumber, safeNumber } from '../utils/format'
 import { matchesLooseSearch, normaliseSearchText } from '../utils/search'
-import { normaliseRole } from '../constants/wow'
-import { isIncludedZoneName } from '../utils/zones'
 import { useColourBlind } from '../context/ColourBlindContext'
-import type { PreparationOverrideRow } from '../types'
+import type { PreparationOverrideRow, PreparationReadiness } from '../types'
 
 type RoleFilter = 'all' | 'dps' | 'healer' | 'tank'
 type HealthFilter = 'all' | 'watch' | 'steady' | 'strong'
@@ -44,6 +42,8 @@ interface JoinedReadinessRow {
   role: string
   rank_label: string
   is_active: boolean
+  current_tier: string
+  roster_source: string
   has_current_tier_data: boolean
   attendance_rate_pct: number
   raids_present: number
@@ -80,16 +80,6 @@ interface PreparationOverride {
   updated_by?: string
   updated_at?: string
   source: 'file' | 'local'
-}
-
-interface TeamIdentity {
-  identity_key: string
-  player_name: string
-  player_class: string
-  rank_label: string
-  is_active: boolean
-  character_names: string[]
-  override_label: string
 }
 
 const EDITOR_UNLOCK_STORAGE_KEY = 'preparation_editor_unlocked_v1'
@@ -229,9 +219,7 @@ function parseOverrideRow(row: PreparationOverrideRow, source: 'file' | 'local')
 
 export function Preparation() {
   const { getAttendanceColor } = useColourBlind()
-  const raidSummary = useRaidSummary()
-  const killRoster = useBossKillRoster()
-  const raidTeam = useRaidTeam()
+  const readiness = usePreparationReadiness()
   const liveRaidRoster = useLiveRaidRoster()
   const preparationOverrides = usePreparationOverrides()
 
@@ -259,35 +247,9 @@ export function Preparation() {
 
   const editorPassword = String(import.meta.env.VITE_PREPARATION_EDITOR_CODE || '')
 
-  const validRaidRows = useMemo(
-    () => raidSummary.data.filter(row => row.report_code && row.raid_night_date && isIncludedZoneName(row.zone_name)),
-    [raidSummary.data]
-  )
-
-  const currentTier = useMemo(
-    () => [...validRaidRows]
-      .sort((a, b) => String(b.raid_night_date ?? '').localeCompare(String(a.raid_night_date ?? '')))[0]?.zone_name ?? null,
-    [validRaidRows]
-  )
-
-  const currentTierRaidRows = useMemo(
-    () => validRaidRows.filter(row => row.zone_name === currentTier),
-    [validRaidRows, currentTier]
-  )
-
-  const currentTierRaidDates = useMemo(
-    () => [...new Set(currentTierRaidRows.map(row => row.raid_night_date).filter(Boolean))].sort(),
-    [currentTierRaidRows]
-  )
-
   const liveRosterEntries = useMemo(
     () => liveRaidRoster.data.filter(row => row.name),
     [liveRaidRoster.data]
-  )
-
-  const baseTeamMembers = useMemo(
-    () => raidTeam.data.filter(row => row.name),
-    [raidTeam.data]
   )
 
   const fileOverrides = useMemo(
@@ -304,254 +266,47 @@ export function Preparation() {
     return [...merged.values()]
   }, [draftOverrides, fileOverrides])
 
-  const teamMembers = useMemo(() => {
-    if (liveRosterEntries.length === 0) return baseTeamMembers
-
-    const raidTeamByName = new Map(baseTeamMembers.map(row => [row.name.toLowerCase(), row]))
-    return liveRosterEntries.map(entry => {
-      const existing = raidTeamByName.get(entry.name.toLowerCase())
-      return {
-        ...existing,
-        name: entry.name,
-        player_class: existing?.player_class || entry.player_class || 'Unknown',
-        rank_label: entry.roster_rank || existing?.rank_label || 'Raider',
-        is_active: existing?.is_active ?? true,
-      }
-    })
-  }, [baseTeamMembers, liveRosterEntries])
-
-  const overrideGroups = useMemo(() => {
-    const byKey = new Map<string, { characters: string[]; displayName: string; mode: 'replace' | 'pool'; notes?: string }>()
-    const charToKey = new Map<string, string>()
-
-    for (const override of activeOverrides) {
-      const key = `override:${override.id}`
-      const displayName = override.display_name
-        || (override.mode === 'replace' ? override.source_character : undefined)
-        || override.characters[0]
-      byKey.set(key, {
-        characters: override.characters,
-        displayName,
-        mode: override.mode,
-        notes: override.notes,
-      })
-      for (const character of override.characters) charToKey.set(normalizeName(character), key)
-    }
-
-    return { byKey, charToKey }
-  }, [activeOverrides])
-
-  const teamIdentityRows = useMemo<TeamIdentity[]>(() => {
-    const byIdentity = new Map<string, TeamIdentity>()
-
-    for (const member of teamMembers) {
-      const normalized = normalizeName(member.name)
-      const identityKey = overrideGroups.charToKey.get(normalized) || `character:${normalized}`
-      const overrideGroup = overrideGroups.byKey.get(identityKey)
-      const existing = byIdentity.get(identityKey)
-
-      if (!existing) {
-        byIdentity.set(identityKey, {
-          identity_key: identityKey,
-          player_name: overrideGroup?.displayName || member.name,
-          player_class: member.player_class || 'Unknown',
-          rank_label: member.rank_label || 'Raider',
-          is_active: isTruthy(member.is_active),
-          character_names: overrideGroup?.characters || [member.name],
-          override_label: overrideGroup ? (overrideGroup.mode === 'replace' ? 'Replace' : 'Pool') : '',
-        })
-        continue
-      }
-
-      existing.is_active = existing.is_active || isTruthy(member.is_active)
-      existing.character_names = [...new Set([...existing.character_names, member.name, ...(overrideGroup?.characters || [])])]
-      if (!existing.player_class || existing.player_class === 'Unknown') existing.player_class = member.player_class || existing.player_class
-    }
-
-    return [...byIdentity.values()].sort((a, b) => a.player_name.localeCompare(b.player_name))
-  }, [overrideGroups, teamMembers])
-
-  const includedCharacterSet = useMemo(() => {
-    const set = new Set<string>()
-    for (const identity of teamIdentityRows) {
-      for (const character of identity.character_names) set.add(normalizeName(character))
-    }
-    return set
-  }, [teamIdentityRows])
-
-  const currentTierKillRows = useMemo(
-    () => killRoster.data.filter(
-      row => row.player_name && row.zone_name === currentTier && includedCharacterSet.has(normalizeName(row.player_name))
-    ),
-    [killRoster.data, currentTier, includedCharacterSet]
-  )
-
-  const currentTierSnapshots = useMemo(() => {
-    const byName = new Map<string, {
-      player_class: string
-      role: string
-      spec: string
-      latest_avg_item_level: number
-      latest_kill_date: string
-      kills_tracked: number
-      kills_with_food: number
-      kills_with_flask: number
-      kills_with_weapon: number
-      kills_with_combat_potion: number
-      raid_dates: Set<string>
-      recent_food_names: string
-      recent_flask_names: string
-      recent_weapon_names: string
-      recent_combat_potion_names: string
-    }>()
-
-    for (const row of currentTierKillRows) {
-      const normalizedPlayer = normalizeName(row.player_name)
-      const key = overrideGroups.charToKey.get(normalizedPlayer) || `character:${normalizedPlayer}`
-      const date = row.raid_night_date || ''
-      const potionUse = safeNumber(row.potion_use)
-      const foodUse = safeNumber(row.has_food_buff)
-      const flaskUse = safeNumber(row.has_flask_or_phial_buff)
-      const weaponUse = safeNumber(row.has_weapon_enhancement)
-      let snapshot = byName.get(key)
-
-      if (!snapshot) {
-        snapshot = {
-          player_class: row.player_class || 'Unknown',
-          role: normaliseRole(row.role),
-          spec: row.spec || '—',
-          latest_avg_item_level: safeNumber(row.avg_item_level),
-          latest_kill_date: date,
-          kills_tracked: 0,
-          kills_with_food: 0,
-          kills_with_flask: 0,
-          kills_with_weapon: 0,
-          kills_with_combat_potion: 0,
-          raid_dates: new Set<string>(),
-          recent_food_names: '',
-          recent_flask_names: '',
-          recent_weapon_names: '',
-          recent_combat_potion_names: '',
-        }
-        byName.set(key, snapshot)
-      }
-
-      snapshot.kills_tracked += 1
-      snapshot.kills_with_food += foodUse > 0 ? 1 : 0
-      snapshot.kills_with_flask += flaskUse > 0 ? 1 : 0
-      snapshot.kills_with_weapon += weaponUse > 0 ? 1 : 0
-      snapshot.kills_with_combat_potion += potionUse > 0 ? 1 : 0
-      if (date) snapshot.raid_dates.add(date)
-
-      if (date >= snapshot.latest_kill_date) {
-        snapshot.player_class = row.player_class || snapshot.player_class
-        snapshot.role = normaliseRole(row.role || snapshot.role)
-        snapshot.spec = row.spec || snapshot.spec
-        snapshot.latest_avg_item_level = safeNumber(row.avg_item_level) || snapshot.latest_avg_item_level
-        snapshot.latest_kill_date = date
-        snapshot.recent_food_names = row.food_buff_names || snapshot.recent_food_names
-        snapshot.recent_flask_names = row.flask_or_phial_names || snapshot.recent_flask_names
-        snapshot.recent_weapon_names = row.weapon_enhancement_names || snapshot.recent_weapon_names
-        snapshot.recent_combat_potion_names = row.combat_potion_names || snapshot.recent_combat_potion_names
-      }
-
-      if (!snapshot.recent_food_names && row.food_buff_names) snapshot.recent_food_names = row.food_buff_names
-      if (!snapshot.recent_flask_names && row.flask_or_phial_names) snapshot.recent_flask_names = row.flask_or_phial_names
-      if (!snapshot.recent_weapon_names && row.weapon_enhancement_names) snapshot.recent_weapon_names = row.weapon_enhancement_names
-      if (!snapshot.recent_combat_potion_names && row.combat_potion_names) snapshot.recent_combat_potion_names = row.combat_potion_names
-    }
-
-    return byName
-  }, [currentTierKillRows, overrideGroups])
-
-  const currentTierPlayerSet = useMemo(
-    () => new Set([...currentTierSnapshots.keys()]),
-    [currentTierSnapshots]
-  )
-
   const joinedRows = useMemo<JoinedReadinessRow[]>(() => {
-    return teamIdentityRows.map(member => {
-      const key = member.identity_key
-      const snapshot = currentTierSnapshots.get(key)
-      const hasCurrentTierData = currentTierPlayerSet.has(key)
-
-      const killsTracked = snapshot?.kills_tracked ?? 0
-      const foodRate = killsTracked > 0 ? ((snapshot?.kills_with_food ?? 0) / killsTracked) * 100 : 0
-      const flaskRate = killsTracked > 0 ? ((snapshot?.kills_with_flask ?? 0) / killsTracked) * 100 : 0
-      const weaponRate = killsTracked > 0 ? ((snapshot?.kills_with_weapon ?? 0) / killsTracked) * 100 : 0
-      const combatPotionRate = killsTracked > 0 ? ((snapshot?.kills_with_combat_potion ?? 0) / killsTracked) * 100 : 0
-      const raidsPresent = snapshot?.raid_dates.size ?? 0
-      const totalRaidsTracked = currentTierRaidDates.length
-      const attendanceRatePct = totalRaidsTracked > 0 ? (raidsPresent / totalRaidsTracked) * 100 : 0
-      const roleForScoring = snapshot?.role || 'unknown'
-      const includeCombatPotionInReadiness = requiresCombatPotion(roleForScoring)
-
-      const signalScores = [
-        { label: 'Food', value: foodRate },
-        { label: 'Flask', value: flaskRate },
-        { label: 'Weapon', value: weaponRate },
-        ...(includeCombatPotionInReadiness ? [{ label: 'Combat Potion', value: combatPotionRate }] : []),
-      ]
-      const weakestSignalLabel = signalScores.sort((a, b) => a.value - b.value)[0]?.label ?? '—'
-
-      const weightedScores: Array<{ weight: number; score: number }> = []
-      if (totalRaidsTracked > 0) weightedScores.push({ weight: 0.25, score: attendanceRatePct })
-      if (killsTracked > 0) {
-        weightedScores.push({ weight: 0.25, score: foodRate })
-        weightedScores.push({ weight: 0.2, score: flaskRate })
-        weightedScores.push({ weight: 0.15, score: weaponRate })
-        if (includeCombatPotionInReadiness) weightedScores.push({ weight: 0.15, score: combatPotionRate })
-      }
-      const totalWeight = weightedScores.reduce((sum, entry) => sum + entry.weight, 0)
-      const readinessScore = totalWeight > 0
-        ? weightedScores.reduce((sum, entry) => sum + entry.score * entry.weight, 0) / totalWeight
-        : 0
-
-      const readinessNotes: string[] = []
-      if (!hasCurrentTierData) readinessNotes.push('no current-tier logs')
-      if (attendanceRatePct > 0 && attendanceRatePct < 70) readinessNotes.push('attendance risk')
-      if (killsTracked > 0 && foodRate < 80) readinessNotes.push('food coverage low')
-      if (killsTracked > 0 && flaskRate < 80) readinessNotes.push('flask/phial coverage low')
-      if (killsTracked > 0 && weaponRate < 80) readinessNotes.push('weapon enhancement coverage low')
-      if (includeCombatPotionInReadiness && killsTracked > 0 && combatPotionRate < 50) readinessNotes.push('combat potion usage low')
-      if (hasCurrentTierData && killsTracked === 0) readinessNotes.push('no tracked boss kills')
-
-      let readinessLabel: HealthFilter = 'steady'
-      if (readinessScore >= 85 && readinessNotes.length <= 1) readinessLabel = 'strong'
-      else if (readinessScore < 65 || readinessNotes.length >= 3) readinessLabel = 'watch'
-
+    return readiness.data.map((row: PreparationReadiness) => {
       return {
-        identity_key: key,
-        player_name: member.player_name,
-        player_class: snapshot?.player_class || member.player_class || 'Unknown',
-        role: roleForScoring || 'unknown',
-        rank_label: member.rank_label || 'Raider',
-        is_active: isTruthy(member.is_active),
-        has_current_tier_data: hasCurrentTierData,
-        attendance_rate_pct: attendanceRatePct,
-        raids_present: raidsPresent,
-        total_raids_tracked: totalRaidsTracked,
-        kills_tracked: killsTracked,
-        food_rate: foodRate,
-        flask_rate: flaskRate,
-        weapon_rate: weaponRate,
-        combat_potion_rate: combatPotionRate,
-        readiness_score: readinessScore,
-        readiness_label: readinessLabel,
-        readiness_notes: readinessNotes,
-        spec: snapshot?.spec || '—',
-        latest_avg_item_level: snapshot?.latest_avg_item_level ?? 0,
-        latest_kill_date: snapshot?.latest_kill_date || '',
-        weakest_signal_label: weakestSignalLabel,
-        recent_food_names: snapshot?.recent_food_names || '',
-        recent_flask_names: snapshot?.recent_flask_names || '',
-        recent_weapon_names: snapshot?.recent_weapon_names || '',
-        recent_combat_potion_names: snapshot?.recent_combat_potion_names || '',
-        character_names: member.character_names,
-        override_label: member.override_label,
+        identity_key: row.identity_key,
+        player_name: row.player_name,
+        player_class: row.player_class || 'Unknown',
+        role: row.role || 'unknown',
+        rank_label: row.rank_label || 'Raider',
+        is_active: isTruthy(row.is_active),
+        current_tier: row.current_tier || '',
+        roster_source: row.roster_source || '',
+        has_current_tier_data: isTruthy(row.has_current_tier_data),
+        attendance_rate_pct: safeNumber(row.attendance_rate_pct),
+        raids_present: safeNumber(row.raids_present),
+        total_raids_tracked: safeNumber(row.total_raids_tracked),
+        kills_tracked: safeNumber(row.kills_tracked),
+        food_rate: safeNumber(row.food_rate),
+        flask_rate: safeNumber(row.flask_rate),
+        weapon_rate: safeNumber(row.weapon_rate),
+        combat_potion_rate: safeNumber(row.combat_potion_rate),
+        readiness_score: safeNumber(row.readiness_score),
+        readiness_label: row.readiness_label || 'steady',
+        readiness_notes: row.readiness_notes ? row.readiness_notes.split('|').filter(Boolean) : [],
+        spec: row.spec || '—',
+        latest_avg_item_level: safeNumber(row.latest_avg_item_level),
+        latest_kill_date: row.latest_kill_date || '',
+        weakest_signal_label: row.weakest_signal_label || '—',
+        recent_food_names: row.recent_food_names || '',
+        recent_flask_names: row.recent_flask_names || '',
+        recent_weapon_names: row.recent_weapon_names || '',
+        recent_combat_potion_names: row.recent_combat_potion_names || '',
+        character_names: row.character_names ? row.character_names.split('|').filter(Boolean) : [row.player_name],
+        override_label: row.override_label || '',
       }
     })
-  }, [currentTierPlayerSet, currentTierRaidDates.length, currentTierSnapshots, teamIdentityRows])
+  }, [readiness.data])
+
+  const teamIdentityRows = joinedRows
+  const currentTier = joinedRows[0]?.current_tier || 'Unknown'
+  const currentTierRaidCount = joinedRows[0]?.total_raids_tracked ?? 0
+  const rosterSource = joinedRows[0]?.roster_source || (liveRosterEntries.length > 0 ? 'live_raid_roster' : 'gold_raid_team')
 
   const filteredRows = useMemo(() => {
     let rows = [...joinedRows]
@@ -737,8 +492,8 @@ export function Preparation() {
     [draftOverrides]
   )
 
-  const loading = raidSummary.loading || killRoster.loading || raidTeam.loading || liveRaidRoster.loading || preparationOverrides.loading
-  const error = raidSummary.error || killRoster.error || raidTeam.error || liveRaidRoster.error || preparationOverrides.error
+  const loading = readiness.loading || liveRaidRoster.loading || preparationOverrides.loading
+  const error = readiness.error || liveRaidRoster.error || preparationOverrides.error
 
   return (
     <AppLayout title="Preparation" subtitle="raid readiness · current tier · current raid team" wide>
@@ -747,7 +502,7 @@ export function Preparation() {
           <StatCard
             label="Current Raid Team"
             value={teamIdentityRows.length}
-            subValue={liveRosterEntries.length > 0 ? `${summary.active} active · ${summary.currentTierCount} with current-tier logs` : `${summary.active} active · raid-team export fallback`}
+            subValue={rosterSource === 'live_raid_roster' ? `${summary.active} active · ${summary.currentTierCount} with current-tier logs` : `${summary.active} active · raid-team export fallback`}
             icon={<Users size={14} />}
             accent="none"
           />
@@ -785,7 +540,7 @@ export function Preparation() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="blue" size="sm">Raid Readiness</Badge>
                 <Badge variant="ghost" size="sm">
-                  Source: {liveRosterEntries.length > 0 ? '`live_raid_roster`' : '`gold_raid_team`'} + current-tier raid rows only
+                  Source: <span className="font-mono">{rosterSource}</span> + current-tier Gold readiness rows only
                 </Badge>
               </div>
               <h2 className="mt-4 text-2xl font-semibold tracking-tight text-ctp-text">
@@ -804,7 +559,7 @@ export function Preparation() {
               />
               <StatPill
                 label="Raid nights"
-                value={String(currentTierRaidDates.length)}
+                value={String(currentTierRaidCount)}
                 className="bg-gradient-to-b from-ctp-surface0/80 via-ctp-surface0/45 to-transparent"
               />
               <StatPill

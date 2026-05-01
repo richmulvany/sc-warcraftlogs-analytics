@@ -65,6 +65,16 @@ The publisher writes:
 - a timestamped snapshot folder
 - a mirrored `latest/` folder for the frontend
 
+`manifest.json` also includes data contract metadata:
+
+- `contract_set_version` from `pipeline/contracts/data_products.yml`
+- per-dataset dashboard asset `contract_id` and `contract_version`
+- per-dataset source Gold `source_contract_id` and `source_contract_version`
+
+The frontend sidebar displays the contract set version and manifest
+`generated_at` timestamp. The per-dataset metadata is retained in the manifest
+for diagnostics and future data-about views.
+
 ## GitHub Actions workflow
 
 Workflow:
@@ -183,15 +193,33 @@ The Databricks publisher enforces these defaults:
 
 - `MAX_DATASET_ROWS = 100_000`
 - `MAX_DATASET_BYTES = 25 MB`
-- `MAX_TOTAL_EXPORT_BYTES = 125 MB`
+- `MAX_TOTAL_EXPORT_BYTES = 175 MB`
 
 They can be overridden with:
 
 - `DASHBOARD_EXPORT_MAX_DATASET_ROWS`
 - `DASHBOARD_EXPORT_MAX_DATASET_BYTES`
+- `DASHBOARD_EXPORT_PLAYER_DEATH_EVENTS_MAX_DATASET_BYTES`
 - `DASHBOARD_EXPORT_MAX_TOTAL_EXPORT_BYTES`
 
 If any dataset or the overall export exceeds the configured limits, the publish fails loudly.
+High-volume event-level datasets may define narrower per-dataset overrides rather than raising
+the global asset limit for every product. `player_death_events` currently defaults to 40 MB
+because it is a row-level event feed used by Wipe Analysis and player detail views.
+
+## Contract Validation
+
+Dashboard publishing validates rows before writing the snapshot:
+
+1. source rows are validated against a matching Gold contract from
+   `pipeline/contracts/gold/`
+2. exported JSON rows are validated against a matching dashboard asset contract
+   from `pipeline/contracts/dashboard_assets/`
+3. only a fully valid snapshot is copied into `latest/`
+
+Datasets without contracts publish with warnings by default. Set
+`DASHBOARD_CONTRACT_STRICT=true` to fail when any exported dataset is missing a
+Gold or dashboard asset contract.
 
 ## Manual runbook
 

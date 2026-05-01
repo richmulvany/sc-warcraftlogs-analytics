@@ -1,0 +1,37 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_performance_summary
+info:
+  title: Player Performance Summary Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  player_performance_summary:
+    type: table
+    primaryKey: [player_identity_key, role]
+    fields:
+      player_identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_class: { type: string, required: true, nullable: false, allowEmpty: false }
+      realm: { type: string, required: true, nullable: false, allowEmpty: false }
+      role: { type: string, required: false, nullable: true, allowEmpty: true }
+      kills_tracked: { type: integer, required: true, nullable: false }
+      avg_throughput_per_second: { type: number, required: true, nullable: true }
+      best_throughput_per_second: { type: number, required: true, nullable: true }
+      avg_rank_percent: { type: number, required: false, nullable: true }
+      best_rank_percent: { type: number, required: false, nullable: true }
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_performance_summary
+    sourceTable: 03_gold.sc_analytics.gold_player_performance_summary
+    publishedPath: player_performance_summary.json
+    grain: >
+      One row per player identity and role. player_identity_key is the
+      deterministic lowercase name:class:realm fingerprint; realm is resolved
+      from the per-report actor roster when available, otherwise unknown.
+    consumers:
+      - frontend/src/pages/Performance.tsx
+      - frontend/src/pages/Players.tsx
+    rules:
+      - name: non_negative_performance
+        expression: kills_tracked >= 0 and (avg_throughput_per_second is None or avg_throughput_per_second >= 0) and (best_throughput_per_second is None or best_throughput_per_second >= 0)

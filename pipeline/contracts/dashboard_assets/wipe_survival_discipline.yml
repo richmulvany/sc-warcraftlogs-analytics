@@ -1,0 +1,114 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.wipe_survival_discipline
+info:
+  title: Wipe Survival Discipline Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+  description: >
+    Published JSON asset containing Gold-owned wipe survival discipline component
+    metrics, defensive tracking semantics, and absolute consistency scores.
+servers:
+  dashboard_json:
+    type: custom
+    description: Databricks gold table exported as static JSON through dashboard publishing.
+    location: /Volumes/03_gold/sc_analytics/dashboard_exports/latest/wipe_survival_discipline.json
+models:
+  wipe_survival_discipline:
+    type: table
+    description: >
+      Per-player survival discipline rows for stable Wipe Analysis scopes. Scope
+      dimensions use the literal value All for pre-aggregated tier/boss/difficulty
+      dashboard views.
+    primaryKey:
+      - player_identity_key
+      - zone_name
+      - boss_name
+      - difficulty_label
+    fields:
+      player_identity_key: { type: string, required: true, primary: true, description: Deterministic lowercase player identity key. }
+      player_name: { type: string, required: true, description: Character name. }
+      player_class: { type: string, required: true, description: WarcraftLogs class name. }
+      realm: { type: string, required: true, description: Realm resolved from WCL actor roster, or unknown. }
+      role: { type: string, required: false, nullable: true, allowEmpty: true, description: Latest known kill-role for the player when available. }
+      zone_name: { type: string, required: true, primary: true, description: Raid zone name, or All for an all-zone scope. }
+      encounter_id: { type: integer, required: false, description: WCL encounter id; null for boss-aggregated scopes. }
+      boss_name: { type: string, required: true, primary: true, description: Boss name, or All for an all-boss scope. }
+      difficulty: { type: integer, required: false, description: WCL difficulty id; null for all-difficulty scopes. }
+      difficulty_label: { type: string, required: true, primary: true, description: Difficulty label, or All for an all-difficulty scope. }
+      wipe_pulls_tracked: { type: integer, required: true, description: Instrumented wipe pulls where the player was present. }
+      wipe_deaths: { type: integer, required: true, description: Player deaths on tracked wipe pulls. }
+      first_deaths: { type: integer, required: true, description: Wipe deaths that were first in the pull. }
+      early_deaths: { type: integer, required: true, description: Wipe deaths occurring within the first minute. }
+      kill_deaths: { type: integer, required: true, description: Player deaths on kill pulls in the same scope. }
+      kills_tracked: { type: integer, required: true, description: Kill pulls where the player was present in the same scope. }
+      deaths_per_kill: { type: number, required: false, description: kill_deaths divided by kills_tracked; null when no kills are tracked. }
+      deaths_per_wipe: { type: number, required: true, description: wipe_deaths divided by wipe_pulls_tracked. }
+      pulls_with_tracked_defensive_capacity: { type: integer, required: true, description: Wipe pulls with scored personal defensive capacity. }
+      tracked_defensive_capacity: { type: integer, required: true, description: Scored possible personal defensive casts. }
+      defensive_casts: { type: integer, required: true, description: Scored personal defensive casts used. }
+      defensive_missed_casts: { type: integer, required: true, description: Scored possible defensive casts left unused. }
+      healthstone_uses: { type: integer, required: true, description: Wipe deaths with a healthstone before death. }
+      potion_uses: { type: integer, required: true, description: Wipe deaths with a health potion before death. }
+      no_healthstone_deaths: { type: integer, required: true, description: Wipe deaths without healthstone use before death. }
+      no_health_potion_deaths: { type: integer, required: true, description: Wipe deaths without health potion use before death. }
+      defensive_usage_rate: { type: number, required: false, description: defensive_casts / tracked_defensive_capacity * 100; null when no capacity is tracked. }
+      healthstone_usage_rate: { type: number, required: false, description: healthstone_uses / wipe_deaths * 100; null when no wipe deaths exist. }
+      potion_usage_rate: { type: number, required: false, description: potion_uses / wipe_deaths * 100; null when no wipe deaths exist. }
+      no_healthstone_pct: { type: number, required: true, description: no_healthstone_deaths / wipe_deaths * 100, or 0 when no wipe deaths exist. }
+      no_health_potion_pct: { type: number, required: true, description: no_health_potion_deaths / wipe_deaths * 100, or 0 when no wipe deaths exist. }
+      death_pressure_score: { type: number, required: true, description: 0-100 component score for avoiding wipe deaths. }
+      defensive_component_score: { type: number, required: true, description: 0-100 defensive component; unknown and no-capacity states receive a neutral component while status preserves the distinction. }
+      healthstone_component_score: { type: number, required: true, description: 0-100 healthstone discipline component. }
+      potion_component_score: { type: number, required: true, description: 0-100 potion discipline component. }
+      defensive_class_baseline_pct: { type: number, required: false, description: Scope/class median defensive usage rate for tracked-capacity players. }
+      defensive_class_delta_pct: { type: number, required: false, description: Player defensive usage rate minus class baseline. }
+      weighted_failure_points: { type: number, required: true, description: Diagnostic weighted missed-resource points retained for lineage. }
+      survival_failure_score: { type: number, required: true, description: Back-compatible alias for survival_discipline_score. }
+      survival_discipline_score: { type: number, required: true, description: Gold-owned absolute 0-100 consistency score; higher is better. }
+      top_improvement_area: { type: string, required: true, description: Lowest component label, or — when all components are strong. }
+      top_missing_category: { type: string, required: true, description: Back-compatible alias for top_improvement_area. }
+      defensive_tracking_status: { type: string, required: true, description: tracked_used, tracked_zero_usage, no_tracked_capacity, or unknown. }
+      has_defensive_capacity_tracked: { type: boolean, required: true, description: True only for tracked_used and tracked_zero_usage. }
+      most_common_killing_blow: { type: string, required: true, nullable: false, allowEmpty: true, description: Most frequent killing blow in scope, or empty string. }
+      most_common_killing_blow_count: { type: integer, required: true, description: Count for most_common_killing_blow. }
+quality:
+  type: custom
+  specification:
+    checks for wipe_survival_discipline:
+      - duplicate_count(player_name, zone_name, boss_name, difficulty_label) = 0
+      - survival_discipline_score >= 0
+      - survival_discipline_score <= 100
+      - defensive_tracking_status in (tracked_used, tracked_zero_usage, no_tracked_capacity, unknown)
+x-sc-analytics:
+  dashboardAsset:
+    dataset: wipe_survival_discipline
+    sourceTable: 03_gold.sc_analytics.gold_wipe_survival_discipline
+    publishedPath: wipe_survival_discipline.json
+    grain: >
+      One row per player and stable dashboard scope. Unique key is
+      player_name, zone_name, boss_name, difficulty_label. zone_name,
+      boss_name, and difficulty_label may be All to represent pre-aggregated
+      static dashboard scopes.
+    consumers:
+      - frontend/src/hooks/useGoldData.ts:useWipeSurvivalDiscipline
+      - frontend/src/features/wipe-analysis/index.tsx
+    freshness:
+      expectedAfterJob: daily_orchestrator
+      maxStalenessHours: 48
+    rules:
+      - name: valid_defensive_tracking_status
+        field: defensive_tracking_status
+        enum: [tracked_used, tracked_zero_usage, no_tracked_capacity, unknown]
+      - name: score_range
+        expression: survival_discipline_score >= 0 and survival_discipline_score <= 100 and survival_failure_score == survival_discipline_score
+      - name: non_negative_counts
+        expression: wipe_pulls_tracked >= 0 and wipe_deaths >= 0 and tracked_defensive_capacity >= 0 and defensive_casts >= 0 and defensive_missed_casts >= 0
+      - name: defensive_zero_usage_semantics
+        expression: defensive_tracking_status != "tracked_zero_usage" or defensive_usage_rate == 0
+      - name: no_capacity_semantics
+        expression: defensive_tracking_status != "no_tracked_capacity" or tracked_defensive_capacity == 0
+    breakingChanges:
+      - Removing or renaming any listed field.
+      - Changing the stable scope key or All sentinel semantics.
+      - Moving absolute score or component formula ownership back to the frontend.

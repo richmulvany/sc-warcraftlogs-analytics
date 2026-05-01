@@ -16,7 +16,7 @@ import { SectionDivider } from '../components/SectionDivider'
 
 interface MplusSectionProps {
   playerMplusSummary: PlayerMplusSummary | null
-  guildMplusRank: { rank: number; total: number } | null
+  guildMplusRank: { rank: number; total: number; percentile: number } | null
   playerMplusScoreHistory: PlayerMplusScoreHistory[]
   playerMplusRunHistory: PlayerMplusRunHistory[]
   recentMplusRuns: PlayerMplusRunHistory[]
@@ -82,7 +82,7 @@ export function MplusSection({
               }
               subValueColor={
                 guildMplusRank
-                  ? getParseColor(100 - ((guildMplusRank.rank - 1) / guildMplusRank.total) * 100)
+                  ? getParseColor(guildMplusRank.percentile)
                   : undefined
               }
               icon="◆"

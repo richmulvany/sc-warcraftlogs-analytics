@@ -28,7 +28,16 @@ from databricks.sdk import WorkspaceClient
 from databricks.sdk.service import sql
 from dotenv import load_dotenv
 
-from scripts.dashboard_asset_contracts import validate_dashboard_asset_rows
+from scripts.dashboard_asset_contracts import (
+    DashboardAssetContract,
+    GoldProductContract,
+    ProductCatalog,
+    load_dashboard_asset_contracts,
+    load_gold_product_contracts,
+    load_product_catalog,
+    validate_dashboard_asset_rows,
+    validate_gold_product_rows,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(REPO_ROOT / ".env")
@@ -48,10 +57,48 @@ DEFAULT_OUTPUT_PATH = os.environ.get(
 MAX_DATASET_ROWS = int(os.environ.get("DASHBOARD_EXPORT_MAX_DATASET_ROWS", "100000"))
 MAX_DATASET_BYTES = int(os.environ.get("DASHBOARD_EXPORT_MAX_DATASET_BYTES", str(25 * 1024 * 1024)))
 MAX_TOTAL_EXPORT_BYTES = int(
-    os.environ.get("DASHBOARD_EXPORT_MAX_TOTAL_EXPORT_BYTES", str(125 * 1024 * 1024))
+    os.environ.get("DASHBOARD_EXPORT_MAX_TOTAL_EXPORT_BYTES", str(175 * 1024 * 1024))
 )
+DATASET_BYTE_LIMIT_OVERRIDES = {
+    "player_death_events": int(
+        os.environ.get(
+            "DASHBOARD_EXPORT_PLAYER_DEATH_EVENTS_MAX_DATASET_BYTES", str(40 * 1024 * 1024)
+        )
+    )
+}
 POLL_INTERVAL_SECONDS = float(os.environ.get("EXPORT_POLL_INTERVAL_SECONDS", "2"))
 POLL_TIMEOUT_SECONDS = int(os.environ.get("EXPORT_POLL_TIMEOUT_SECONDS", "300"))
+CONTRACT_STRICT = os.environ.get("DASHBOARD_CONTRACT_STRICT", "").lower() in {"1", "true", "yes"}
+
+QUERY_SOURCE_REQUIRED_COLUMNS: dict[str, set[str]] = {
+    "wipe_cooldown_utilization": {
+        "player_identity_key",
+        "observed_casts",
+        "over_capacity_casts",
+        "actual_casts",
+        "possible_casts",
+        "missed_casts",
+    },
+    "wipe_survival_discipline": {
+        "player_identity_key",
+        "survival_discipline_score",
+        "defensive_tracking_status",
+        "defensive_component_score",
+        "healthstone_component_score",
+        "potion_component_score",
+    },
+    "preparation_readiness": {
+        "readiness_score",
+        "readiness_label",
+        "readiness_notes",
+        "weakest_signal_label",
+    },
+    "player_attendance": {"player_identity_key", "player_realm"},
+    "player_performance_summary": {"player_identity_key"},
+    "boss_kill_roster": {"player_identity_key", "realm"},
+    "player_mplus_summary": {"player_identity_key"},
+    "player_survivability_rankings": {"player_identity_key"},
+}
 
 
 def _gold(name: str) -> str:
@@ -67,42 +114,24 @@ EXPORT_TABLES: dict[str, str] = {}
 QUERY_EXPORTS: dict[str, tuple[str, str]] = {
     "raid_summary": (
         _gold("gold_raid_summary"),
-        _projection(
-            _gold("gold_raid_summary"),
-            [
-                "report_code",
-                "report_title",
-                "start_time_utc",
-                "end_time_utc",
-                "zone_id",
-                "zone_name",
-                "raid_night_date",
-                "primary_difficulty",
-                "total_pulls",
-                "boss_kills",
-                "total_wipes",
-                "total_fight_seconds",
-                "unique_bosses_engaged",
-                "unique_bosses_killed",
-            ],
+        (
+            f"SELECT report_code, report_title, start_time_utc, end_time_utc, zone_id, "
+            f"zone_name, raid_night_date, primary_difficulty, total_pulls, boss_kills, "
+            f"total_wipes, total_fight_seconds, unique_bosses_engaged, unique_bosses_killed "
+            f"FROM {_gold('gold_raid_summary')} "
+            f"WHERE zone_name IS NOT NULL AND TRIM(zone_name) <> ''"
         ),
     ),
     "player_attendance": (
         _gold("gold_player_attendance"),
-        _projection(
-            _gold("gold_player_attendance"),
-            [
-                "player_name",
-                "player_class",
-                "total_raids_tracked",
-                "raids_present",
-                "raids_benched",
-                "raids_absent",
-                "last_raid_date",
-                "first_raid_date",
-                "zones_attended",
-                "attendance_rate_pct",
-            ],
+        (
+            f"SELECT player_identity_key, player_name, player_class, player_realm, "
+            f"total_raids_tracked, raids_present, raids_benched, raids_absent, "
+            f"last_raid_date, first_raid_date, zones_attended, attendance_rate_pct "
+            f"FROM {_gold('gold_player_attendance')} "
+            f"WHERE player_name IS NOT NULL "
+            f"AND TRIM(player_name) <> '' "
+            f"AND LOWER(TRIM(player_name)) <> 'nil'"
         ),
     ),
     "boss_wipe_analysis": (
@@ -134,8 +163,10 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
         _projection(
             _gold("gold_player_survivability"),
             [
+                "player_identity_key",
                 "player_name",
                 "player_class",
+                "realm",
                 "total_deaths",
                 "kills_tracked",
                 "deaths_per_kill",
@@ -194,6 +225,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
         _projection(
             _gold("gold_player_performance_summary"),
             [
+                "player_identity_key",
                 "player_name",
                 "player_class",
                 "realm",
@@ -213,7 +245,8 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
         _gold("gold_boss_kill_roster"),
         (
             f"SELECT report_code, fight_id, boss_name, encounter_id, difficulty, difficulty_label, "
-            f"zone_name, raid_night_date, duration_seconds, player_name, player_class, role, spec, "
+            f"zone_name, raid_night_date, duration_seconds, player_identity_key, player_name, "
+            f"player_class, realm, role, spec, "
             f"avg_item_level, potion_use, combat_potion_names, has_food_buff, food_buff_names, "
             f"has_flask_or_phial_buff, flask_or_phial_names, has_weapon_enhancement, "
             f"weapon_enhancement_names, throughput_per_second, rank_percent "
@@ -242,6 +275,44 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
             ],
         ),
     ),
+    "preparation_readiness": (
+        _gold("gold_preparation_readiness"),
+        _projection(
+            _gold("gold_preparation_readiness"),
+            [
+                "identity_key",
+                "player_name",
+                "player_class",
+                "role",
+                "rank_label",
+                "is_active",
+                "current_tier",
+                "roster_source",
+                "has_current_tier_data",
+                "attendance_rate_pct",
+                "raids_present",
+                "total_raids_tracked",
+                "kills_tracked",
+                "food_rate",
+                "flask_rate",
+                "weapon_rate",
+                "combat_potion_rate",
+                "readiness_score",
+                "readiness_label",
+                "COALESCE(readiness_notes, '') AS readiness_notes",
+                "COALESCE(spec, '—') AS spec",
+                "latest_avg_item_level",
+                "COALESCE(latest_kill_date, '') AS latest_kill_date",
+                "COALESCE(weakest_signal_label, '') AS weakest_signal_label",
+                "COALESCE(recent_food_names, '') AS recent_food_names",
+                "COALESCE(recent_flask_names, '') AS recent_flask_names",
+                "COALESCE(recent_weapon_names, '') AS recent_weapon_names",
+                "COALESCE(recent_combat_potion_names, '') AS recent_combat_potion_names",
+                "COALESCE(character_names, '') AS character_names",
+                "COALESCE(override_label, '') AS override_label",
+            ],
+        ),
+    ),
     "live_raid_roster": (
         _gold("gold_live_raid_roster"),
         _projection(
@@ -261,6 +332,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
         _projection(
             _gold("gold_player_mplus_summary"),
             [
+                "player_identity_key",
                 "player_name",
                 "realm_slug",
                 "region",
@@ -274,6 +346,9 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
                 "world_rank",
                 "region_rank",
                 "realm_rank",
+                "guild_mplus_rank",
+                "guild_mplus_rank_total",
+                "guild_mplus_rank_percentile",
                 "total_runs",
                 "timed_runs",
                 "untimed_runs",
@@ -384,6 +459,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
         _projection(
             _gold("gold_player_character_media"),
             [
+                "player_identity_key",
                 "player_name",
                 "realm_slug",
                 "avatar_url",
@@ -396,7 +472,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
     "player_character_equipment": (
         _gold("gold_player_character_equipment"),
         (
-            f"SELECT player_name, realm_slug, slot_type, slot_name, item_id, item_name, icon_url, "
+            f"SELECT player_identity_key, player_name, realm_slug, slot_type, slot_name, item_id, item_name, icon_url, "
             f"quality, item_level, inventory_type, item_subclass, binding, transmog_name, "
             f"enchantments_json, sockets_json, stats_json, spells_json "
             f"FROM {_gold('gold_player_character_equipment')}"
@@ -407,6 +483,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
         _projection(
             _gold("gold_player_raid_achievements"),
             [
+                "player_identity_key",
                 "player_name",
                 "realm_slug",
                 "achievement_id",
@@ -418,7 +495,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
     "player_mplus_score_history": (
         _gold("gold_player_mplus_score_history"),
         (
-            f"SELECT player_name, realm_slug, region, profile_url, season, snapshot_at, "
+            f"SELECT player_identity_key, player_name, realm_slug, region, profile_url, season, snapshot_at, "
             f"snapshot_date, score_all, score_dps, score_healer, score_tank, world_rank, "
             f"region_rank, realm_rank "
             f"FROM {_gold('gold_player_mplus_score_history')}"
@@ -427,7 +504,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
     "player_mplus_run_history": (
         _gold("gold_player_mplus_run_history"),
         (
-            f"SELECT player_name, realm_slug, region, season, dungeon, short_name, mythic_level, "
+            f"SELECT player_identity_key, player_name, realm_slug, region, season, dungeon, short_name, mythic_level, "
             f"score, completed_at, completed_date, clear_time_ms, par_time_ms, timed, url "
             f"FROM {_gold('gold_player_mplus_run_history')}"
         ),
@@ -437,6 +514,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
         _projection(
             _gold("gold_player_mplus_weekly_activity"),
             [
+                "player_identity_key",
                 "player_name",
                 "realm_slug",
                 "region",
@@ -454,7 +532,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
     "player_mplus_dungeon_breakdown": (
         _gold("gold_player_mplus_dungeon_breakdown"),
         (
-            f"SELECT player_name, realm_slug, region, season, dungeon, best_short_name, "
+            f"SELECT player_identity_key, player_name, realm_slug, region, season, dungeon, best_short_name, "
             f"highest_key_level, highest_timed_level, total_runs, timed_runs, untimed_runs, "
             f"latest_completed_at, best_key_level, best_score, best_timed, best_clear_time_ms, "
             f"best_par_time_ms, best_completed_at, best_run_url "
@@ -544,8 +622,8 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
     "wipe_cooldown_utilization": (
         _gold("gold_wipe_cooldown_utilization"),
         (
-            f"SELECT boss_name, zone_name, difficulty_label, cooldown_category, player_name, "
-            f"player_class, ability_id, ability_name, "
+            f"SELECT boss_name, zone_name, difficulty_label, cooldown_category, player_identity_key, player_name, "
+            f"player_class, realm, ability_id, ability_name, "
             f"SUM(possible_casts) AS possible_casts, "
             f"SUM(observed_casts) AS observed_casts, "
             f"SUM(actual_casts) AS actual_casts, "
@@ -553,14 +631,68 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
             f"SUM(missed_casts) AS missed_casts "
             f"FROM {_gold('gold_wipe_cooldown_utilization')} "
             f"GROUP BY boss_name, zone_name, difficulty_label, cooldown_category, "
-            f"player_name, player_class, ability_id, ability_name"
+            f"player_identity_key, player_name, player_class, realm, ability_id, ability_name"
+        ),
+    ),
+    "wipe_survival_discipline": (
+        _gold("gold_wipe_survival_discipline"),
+        _projection(
+            _gold("gold_wipe_survival_discipline"),
+            [
+                "player_identity_key",
+                "player_name",
+                "player_class",
+                "realm",
+                "role",
+                "zone_name",
+                "encounter_id",
+                "boss_name",
+                "difficulty",
+                "difficulty_label",
+                "wipe_pulls_tracked",
+                "wipe_deaths",
+                "first_deaths",
+                "early_deaths",
+                "kill_deaths",
+                "kills_tracked",
+                "deaths_per_kill",
+                "deaths_per_wipe",
+                "pulls_with_tracked_defensive_capacity",
+                "tracked_defensive_capacity",
+                "defensive_casts",
+                "defensive_missed_casts",
+                "healthstone_uses",
+                "potion_uses",
+                "no_healthstone_deaths",
+                "no_health_potion_deaths",
+                "defensive_usage_rate",
+                "healthstone_usage_rate",
+                "potion_usage_rate",
+                "no_healthstone_pct",
+                "no_health_potion_pct",
+                "death_pressure_score",
+                "defensive_component_score",
+                "healthstone_component_score",
+                "potion_component_score",
+                "defensive_class_baseline_pct",
+                "defensive_class_delta_pct",
+                "weighted_failure_points",
+                "survival_failure_score",
+                "survival_discipline_score",
+                "top_improvement_area",
+                "top_missing_category",
+                "defensive_tracking_status",
+                "has_defensive_capacity_tracked",
+                "most_common_killing_blow",
+                "most_common_killing_blow_count",
+            ],
         ),
     ),
     "player_boss_performance": (
         _gold("gold_player_boss_performance"),
         (
-            f"SELECT player_name, encounter_id, boss_name, zone_name, difficulty, difficulty_label, "
-            f"kills_on_boss, avg_throughput_per_second, best_throughput_per_second, "
+            f"SELECT player_identity_key, player_name, player_class, realm, role, encounter_id, boss_name, zone_name, difficulty, difficulty_label, "
+            f"kills_on_boss, avg_throughput_per_second, best_throughput_per_second, latest_throughput_per_second, throughput_trend, "
             f"avg_rank_percent, best_rank_percent "
             f"FROM {_gold('gold_player_boss_performance')}"
         ),
@@ -568,9 +700,33 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
     "player_death_events": (
         _gold("gold_player_death_events"),
         (
-            f"SELECT report_code, fight_id, boss_name, zone_name, difficulty_label, raid_night_date, "
-            f"is_kill, player_name, player_class, death_timestamp_ms, fight_start_ms, killing_blow_name "
+            f"SELECT report_code, fight_id, encounter_id, boss_name, zone_name, zone_id, difficulty, "
+            f"difficulty_label, raid_night_date, is_kill, player_identity_key, player_name, "
+            f"player_class, realm, death_timestamp_ms, fight_start_ms, overkill, killing_blow_name, "
+            f"killing_blow_id "
             f"FROM {_gold('gold_player_death_events')}"
+        ),
+    ),
+    "player_survivability_rankings": (
+        _gold("gold_player_survivability_rankings"),
+        _projection(
+            _gold("gold_player_survivability_rankings"),
+            [
+                "player_identity_key",
+                "player_name",
+                "player_class",
+                "zone_name",
+                "encounter_id",
+                "boss_name",
+                "difficulty",
+                "difficulty_label",
+                "deaths",
+                "kills",
+                "deaths_per_kill",
+                "survivability_rank",
+                "survivability_rank_total",
+                "survivability_rank_percentile",
+            ],
         ),
     ),
     "preparation_overrides": (
@@ -587,6 +743,10 @@ class DatasetResult:
     row_count: int
     path: str
     byte_size: int
+    contract_id: str | None = None
+    contract_version: str | None = None
+    source_contract_id: str | None = None
+    source_contract_version: str | None = None
 
 
 def iso_utc_now() -> str:
@@ -627,13 +787,14 @@ def write_json_file(path: Path, data: Any) -> int:
 
 
 def _validate_dataset_size(dataset_name: str, *, row_count: int, byte_size: int) -> None:
+    byte_limit = DATASET_BYTE_LIMIT_OVERRIDES.get(dataset_name, MAX_DATASET_BYTES)
     if row_count > MAX_DATASET_ROWS:
         raise RuntimeError(
             f'Dataset "{dataset_name}" exceeded row limit: {row_count} > {MAX_DATASET_ROWS}'
         )
-    if byte_size > MAX_DATASET_BYTES:
+    if byte_size > byte_limit:
         raise RuntimeError(
-            f'Dataset "{dataset_name}" exceeded byte limit: {byte_size} > {MAX_DATASET_BYTES}'
+            f'Dataset "{dataset_name}" exceeded byte limit: {byte_size} > {byte_limit}'
         )
 
 
@@ -871,6 +1032,89 @@ def _query_rows(
     return _statement_rows_to_dicts(response)
 
 
+def _table_columns(
+    spark_session: Any | None,
+    client: WorkspaceClient | None,
+    warehouse_id: str | None,
+    table_name: str,
+) -> set[str]:
+    if spark_session is not None:
+        return set(spark_session.table(table_name).columns)
+
+    rows = _query_rows(
+        spark_session,
+        client,
+        warehouse_id,
+        sql_text=f"DESCRIBE TABLE {table_name}",
+    )
+    return {str(row.get("col_name")) for row in rows if row.get("col_name")}
+
+
+def _validate_query_source_schema(
+    spark_session: Any | None,
+    client: WorkspaceClient | None,
+    warehouse_id: str | None,
+    dataset_name: str,
+    source_table: str,
+) -> None:
+    required_columns = QUERY_SOURCE_REQUIRED_COLUMNS.get(dataset_name)
+    if not required_columns:
+        return
+
+    columns = _table_columns(spark_session, client, warehouse_id, source_table)
+    missing = sorted(required_columns - columns)
+    if missing:
+        raise RuntimeError(
+            f'Dataset "{dataset_name}" cannot be published from {source_table}; '
+            f"missing columns: {', '.join(missing)}. "
+            "Rerun the SDP/DLT pipeline so the gold table is rebuilt before rerunning "
+            "the dashboard asset publisher. A repair run of only the publish task will "
+            "reuse the old table schema."
+        )
+
+
+def _normalize_table_name(table_name: str) -> str:
+    return table_name.replace("`", "").lower()
+
+
+def _contract_metadata_for_dataset(
+    dataset_name: str,
+    source_table: str,
+    dashboard_contracts: dict[str, DashboardAssetContract],
+    gold_contracts: dict[str, GoldProductContract],
+) -> dict[str, str | None]:
+    dashboard_contract = dashboard_contracts.get(dataset_name)
+    gold_contract = gold_contracts.get(_normalize_table_name(source_table))
+    return {
+        "contract_id": dashboard_contract.contract_id if dashboard_contract else None,
+        "contract_version": dashboard_contract.version if dashboard_contract else None,
+        "source_contract_id": gold_contract.contract_id if gold_contract else None,
+        "source_contract_version": gold_contract.version if gold_contract else None,
+    }
+
+
+def _warn_or_fail_missing_contracts(
+    dashboard_contracts: dict[str, DashboardAssetContract],
+    gold_contracts: dict[str, GoldProductContract],
+) -> None:
+    missing_dashboard = sorted(_expected_dataset_names() - set(dashboard_contracts))
+    source_tables = {
+        _normalize_table_name(source_table) for source_table, _query in QUERY_EXPORTS.values()
+    } | {_normalize_table_name(table_name) for table_name in EXPORT_TABLES.values()}
+    missing_gold = sorted(source_tables - set(gold_contracts))
+    messages: list[str] = []
+    if missing_dashboard:
+        messages.append("dashboard asset contracts missing for: " + ", ".join(missing_dashboard))
+    if missing_gold:
+        messages.append("Gold product contracts missing for: " + ", ".join(missing_gold))
+    if not messages:
+        return
+    message = "; ".join(messages)
+    if CONTRACT_STRICT:
+        raise RuntimeError(message)
+    logger.warning("%s. Set DASHBOARD_CONTRACT_STRICT=true to fail on missing contracts.", message)
+
+
 def export_dataset(
     spark_session: Any | None,
     client: WorkspaceClient | None,
@@ -878,6 +1122,8 @@ def export_dataset(
     dataset_name: str,
     table_name: str,
     output_dir: Path,
+    dashboard_contracts: dict[str, DashboardAssetContract],
+    gold_contracts: dict[str, GoldProductContract],
 ) -> DatasetResult:
     rows = _query_rows(
         spark_session,
@@ -885,7 +1131,8 @@ def export_dataset(
         warehouse_id,
         table_name=table_name,
     )
-    validate_dashboard_asset_rows(dataset_name, rows)
+    validate_gold_product_rows(table_name, rows, gold_contracts)
+    validate_dashboard_asset_rows(dataset_name, rows, dashboard_contracts)
     output_file = output_dir / f"{dataset_name}.json"
     byte_size = write_json_file(output_file, rows)
     _validate_dataset_size(dataset_name, row_count=len(rows), byte_size=byte_size)
@@ -898,6 +1145,12 @@ def export_dataset(
         row_count=len(rows),
         path=output_file.name,
         byte_size=byte_size,
+        **_contract_metadata_for_dataset(
+            dataset_name,
+            table_name,
+            dashboard_contracts,
+            gold_contracts,
+        ),
     )
 
 
@@ -909,14 +1162,24 @@ def export_query_dataset(
     source_table: str,
     sql_text: str,
     output_dir: Path,
+    dashboard_contracts: dict[str, DashboardAssetContract],
+    gold_contracts: dict[str, GoldProductContract],
 ) -> DatasetResult:
+    _validate_query_source_schema(
+        spark_session,
+        client,
+        warehouse_id,
+        dataset_name,
+        source_table,
+    )
     rows = _query_rows(
         spark_session,
         client,
         warehouse_id,
         sql_text=sql_text,
     )
-    validate_dashboard_asset_rows(dataset_name, rows)
+    validate_gold_product_rows(source_table, rows, gold_contracts)
+    validate_dashboard_asset_rows(dataset_name, rows, dashboard_contracts)
     output_file = output_dir / f"{dataset_name}.json"
     byte_size = write_json_file(output_file, rows)
     _validate_dataset_size(dataset_name, row_count=len(rows), byte_size=byte_size)
@@ -929,6 +1192,12 @@ def export_query_dataset(
         row_count=len(rows),
         path=output_file.name,
         byte_size=byte_size,
+        **_contract_metadata_for_dataset(
+            dataset_name,
+            source_table,
+            dashboard_contracts,
+            gold_contracts,
+        ),
     )
 
 
@@ -938,17 +1207,35 @@ def write_manifest(
     generated_at: str,
     snapshot_id: str,
     datasets: list[DatasetResult],
+    product_catalog: ProductCatalog,
 ) -> dict[str, Any]:
     payload = {
         "generated_at": generated_at,
         "snapshot_id": snapshot_id,
         "format_version": 1,
+        "contract_set_version": product_catalog.contract_set_version or None,
         "datasets": {
             dataset.dataset_name: {
                 "path": dataset.path,
                 "row_count": dataset.row_count,
                 "byte_size": dataset.byte_size,
                 "source_table": dataset.source_table,
+                **(
+                    {
+                        "contract_id": dataset.contract_id,
+                        "contract_version": dataset.contract_version,
+                    }
+                    if dataset.contract_id and dataset.contract_version
+                    else {}
+                ),
+                **(
+                    {
+                        "source_contract_id": dataset.source_contract_id,
+                        "source_contract_version": dataset.source_contract_version,
+                    }
+                    if dataset.source_contract_id and dataset.source_contract_version
+                    else {}
+                ),
             }
             for dataset in datasets
         },
@@ -1097,6 +1384,10 @@ def main() -> None:
 
     generated_at = iso_utc_now()
     snapshot_id = make_snapshot_id()
+    product_catalog = load_product_catalog()
+    dashboard_contracts = load_dashboard_asset_contracts()
+    gold_contracts = load_gold_product_contracts()
+    _warn_or_fail_missing_contracts(dashboard_contracts, gold_contracts)
 
     with tempfile.TemporaryDirectory(prefix="dashboard_assets_") as tmp_dir:
         staging_root = Path(tmp_dir)
@@ -1114,6 +1405,8 @@ def main() -> None:
                 dataset_name,
                 table_name,
                 snapshot_dir,
+                dashboard_contracts,
+                gold_contracts,
             )
             dataset_results.append(result)
         for dataset_name, query_spec in QUERY_EXPORTS.items():
@@ -1126,6 +1419,8 @@ def main() -> None:
                 source_table,
                 query,
                 snapshot_dir,
+                dashboard_contracts,
+                gold_contracts,
             )
             dataset_results.append(result)
 
@@ -1134,6 +1429,7 @@ def main() -> None:
             generated_at=generated_at,
             snapshot_id=snapshot_id,
             datasets=dataset_results,
+            product_catalog=product_catalog,
         )
         _validate_manifest_datasets(manifest)
         manifest_byte_size = (snapshot_dir / "manifest.json").stat().st_size

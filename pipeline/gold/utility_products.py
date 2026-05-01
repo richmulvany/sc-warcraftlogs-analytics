@@ -110,8 +110,10 @@ def gold_player_utility_by_pull():
             f.difficulty_label,
             f.raid_night_date,
             f.is_kill,
+            CONCAT_WS(':', LOWER(TRIM(a.player_name)), LOWER(TRIM(COALESCE(a.player_class, 'unknown'))), LOWER(TRIM(COALESCE(a.realm, 'unknown')))) AS player_identity_key,
             a.player_name,
-            a.player_class
+            a.player_class,
+            COALESCE(a.realm, 'unknown') AS realm
           FROM (
             SELECT
               report_code,
@@ -160,8 +162,10 @@ def gold_player_utility_by_pull():
           SELECT
             c.report_code,
             c.fight_id,
+            CONCAT_WS(':', LOWER(TRIM(a.player_name)), LOWER(TRIM(COALESCE(a.player_class, 'unknown'))), LOWER(TRIM(COALESCE(a.realm, 'unknown')))) AS player_identity_key,
             a.player_name,
             a.player_class,
+            COALESCE(a.realm, 'unknown') AS realm,
             c.ability_id,
             c.ability_name
           FROM casts c
@@ -180,8 +184,10 @@ def gold_player_utility_by_pull():
             f.difficulty_label,
             f.raid_night_date,
             f.is_kill,
+            c.player_identity_key,
             c.player_name,
             c.player_class,
+            c.realm,
             COALESCE(c.ability_name, CAST(c.ability_id AS STRING)) AS ability_name,
             CASE
               WHEN c.ability_id IN ({healthstone_ids})
@@ -203,7 +209,7 @@ def gold_player_utility_by_pull():
           SELECT
             report_code,
             fight_id,
-            player_name,
+            player_identity_key,
             SUM(CASE WHEN utility_type = 'health_potion' THEN 1 ELSE 0 END) AS health_potion_uses,
             SUM(CASE WHEN utility_type = 'healthstone' THEN 1 ELSE 0 END) AS healthstone_casts,
             SUM(CASE WHEN utility_type = 'defensive' THEN 1 ELSE 0 END) AS defensive_casts,
@@ -213,7 +219,7 @@ def gold_player_utility_by_pull():
             ) AS defensive_abilities
           FROM classified
           WHERE utility_type IS NOT NULL
-          GROUP BY report_code, fight_id, player_name
+          GROUP BY report_code, fight_id, player_identity_key
         )
         SELECT
           p.report_code,
@@ -225,8 +231,10 @@ def gold_player_utility_by_pull():
           p.difficulty_label,
           p.raid_night_date,
           p.is_kill,
+          p.player_identity_key,
           p.player_name,
           p.player_class,
+          p.realm,
           COALESCE(u.health_potion_uses, 0) AS health_potion_uses,
           COALESCE(u.healthstone_casts, 0) AS healthstone_casts,
           COALESCE(u.defensive_casts, 0) AS defensive_casts,
@@ -238,6 +246,6 @@ def gold_player_utility_by_pull():
         LEFT JOIN utility_by_player_pull u
           ON p.report_code = u.report_code
          AND p.fight_id = u.fight_id
-         AND p.player_name = u.player_name
+         AND p.player_identity_key = u.player_identity_key
         """
     )

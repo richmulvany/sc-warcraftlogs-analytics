@@ -27,8 +27,8 @@ import {
   useBossPullHistory,
   useBossKillRoster,
   usePlayerUtilityByPull,
-  useWipeSurvivalEvents,
   useWipeCooldownUtilization,
+  useWipeSurvivalDiscipline,
 } from '../../hooks/useGoldData'
 import { formatDate, formatNumber, formatPct, toFiniteNumber } from '../../utils/format'
 import { isIncludedZoneName } from '../../utils/zones'
@@ -37,8 +37,8 @@ import { useColourBlind } from '../../context/ColourBlindContext'
 import { CHART_TICK_STYLE, CHART_TICK_STYLE_LIGHT } from '../../utils/chartStyle'
 import { DIFFS, WA_SECTIONS, toWipeRoleKey, CLASS_ROLE_FALLBACK } from './constants'
 import {
-  quantile, isKillRow, isPositiveFlag, sectionTotal,
-  pct as calcPct, gradeForPercentile, gradeClassName,
+  quantile, isKillRow, sectionTotal,
+  gradeForRelativeDisciplineScore, gradeClassName,
   clampPct, shortDateLabel,
 } from './utils'
 import type { SortDirection, WipeSurvivalSortKey, WipeSurvivalFailureRow, CooldownCapacityRow, ScopedSurvivabilityRow, DeathTimingSummary, ProgressSnapshotDatum } from './types'
@@ -66,8 +66,8 @@ export function WipeAnalysis() {
   const roster = useBossKillRoster()
   const raidSummary = useRaidSummary()
   const utilityByPull = usePlayerUtilityByPull()
-  const wipeSurvivalEvents = useWipeSurvivalEvents()
   const wipeCooldownUtilization = useWipeCooldownUtilization()
+  const wipeSurvivalDiscipline = useWipeSurvivalDiscipline()
 
   const activeSectionId = useActiveSection(WA_SECTIONS)
 
@@ -91,8 +91,8 @@ export function WipeAnalysis() {
     roster.loading ||
     raidSummary.loading ||
     utilityByPull.loading ||
-    wipeSurvivalEvents.loading ||
-    wipeCooldownUtilization.loading
+    wipeCooldownUtilization.loading ||
+    wipeSurvivalDiscipline.loading
   const error =
     mechs.error ||
     deathEvents.error ||
@@ -101,8 +101,8 @@ export function WipeAnalysis() {
     roster.error ||
     raidSummary.error ||
     utilityByPull.error ||
-    wipeSurvivalEvents.error ||
-    wipeCooldownUtilization.error
+    wipeCooldownUtilization.error ||
+    wipeSurvivalDiscipline.error
 
   const tierOptions = useMemo(() => {
     const values = [...wipes.data]
@@ -331,29 +331,6 @@ export function WipeAnalysis() {
 
   const wipeOnlyDeaths = useMemo(() => scopedDeathRows.filter(row => !isKillRow(row)), [scopedDeathRows])
 
-  const scopedWipeUtilityRows = useMemo(
-    () =>
-      utilityByPull.data
-        .filter(row => !isKillRow(row))
-        .filter(row => diff === 'All' || row.difficulty_label === diff)
-        .filter(row => isIncludedZoneName(row.zone_name))
-        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
-        .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
-        .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase())),
-    [utilityByPull.data, diff, selectedTier, selectedBoss, search]
-  )
-
-  const scopedWipeSurvivalEventRows = useMemo(
-    () =>
-      wipeSurvivalEvents.data
-        .filter(row => diff === 'All' || row.difficulty_label === diff)
-        .filter(row => isIncludedZoneName(row.zone_name))
-        .filter(row => selectedTier === 'All' || row.zone_name === selectedTier)
-        .filter(row => selectedBoss === 'All' || row.boss_name === selectedBoss)
-        .filter(row => !search.trim() || row.boss_name.toLowerCase().includes(search.toLowerCase())),
-    [wipeSurvivalEvents.data, diff, selectedTier, selectedBoss, search]
-  )
-
   const scopedCooldownUtilizationRows = useMemo(
     () =>
       wipeCooldownUtilization.data
@@ -404,35 +381,6 @@ export function WipeAnalysis() {
         .slice(0, 8),
     [cooldownCapacityRows]
   )
-
-  const personalDefensiveCapacityByPlayer = useMemo(() => {
-    const rows = new Map<
-      string,
-      {
-        possible_casts: number
-        actual_casts: number
-        missed_casts: number
-      }
-    >()
-
-    for (const row of cooldownCapacityRows) {
-      if (!row.key.startsWith('personal:') && !row.key.startsWith('personal_spec:')) continue
-
-      const key = row.player_name.toLowerCase()
-      const current = rows.get(key) ?? {
-        possible_casts: 0,
-        actual_casts: 0,
-        missed_casts: 0,
-      }
-
-      current.possible_casts += row.possible_casts
-      current.actual_casts += row.actual_casts
-      current.missed_casts += row.missed_casts
-      rows.set(key, current)
-    }
-
-    return rows
-  }, [cooldownCapacityRows])
 
   const externalCooldownRows = useMemo(
     () =>
@@ -507,162 +455,95 @@ export function WipeAnalysis() {
   }
 
   const wipeSurvivalFailures = useMemo((): WipeSurvivalFailureRow[] => {
-    const wipePullsByPlayer = new Map<string, Set<string>>()
-    const classByPlayer = new Map<string, string>()
-    const displayNameByPlayer = new Map<string, string>()
-
-    for (const row of scopedWipeUtilityRows) {
-      const playerKey = row.player_name.toLowerCase()
-      const pullKey = `${row.report_code}:${row.fight_id}`
-
-      if (!wipePullsByPlayer.has(playerKey)) wipePullsByPlayer.set(playerKey, new Set())
-      wipePullsByPlayer.get(playerKey)!.add(pullKey)
-      if (!classByPlayer.has(playerKey) && row.player_class) classByPlayer.set(playerKey, row.player_class)
-      if (!displayNameByPlayer.has(playerKey) && row.player_name) displayNameByPlayer.set(playerKey, row.player_name)
-    }
-
-    const rows = new Map<string, WipeSurvivalFailureRow>()
-    const killingBlowsByPlayer = new Map<string, Map<string, number>>()
-
-    function ensurePlayer(playerName: string, playerClass: string) {
-      const playerKey = playerName.toLowerCase()
-      const existing = rows.get(playerKey)
-      if (existing) {
-        if (existing.player_class === 'Unknown' && playerClass) existing.player_class = playerClass
-        return existing
+    const query = search.trim().toLowerCase()
+    const scopedRows = wipeSurvivalDiscipline.data.filter(row => {
+      const rowZone = row.zone_name || 'All'
+      const rowBoss = row.boss_name || 'All'
+      const rowDifficulty = row.difficulty_label || 'All'
+      if (rowDifficulty !== diff) return false
+      if (query && selectedBoss === 'All') {
+        if (rowBoss === 'All') return false
+        if (selectedTier !== 'All' && rowZone !== selectedTier) return false
+        return rowBoss.toLowerCase().includes(query)
       }
-
-      const row: WipeSurvivalFailureRow = {
-        player_name: displayNameByPlayer.get(playerKey) ?? playerName,
-        player_class: playerClass || 'Unknown',
-        wipe_pulls_tracked: 0,
-        wipe_deaths: 0,
-        kill_deaths: 0,
-        kills_tracked: 0,
-        deaths_per_kill: null,
-        deaths_per_wipe_pull: 0,
-        no_healthstone_deaths: 0,
-        no_health_potion_deaths: 0,
-        defensive_possible_casts: 0,
-        defensive_actual_casts: 0,
-        defensive_missed_casts: 0,
-        defensive_capacity_used_pct: 0,
-        has_defensive_capacity_tracked: false,
-        no_healthstone_pct: 0,
-        no_health_potion_pct: 0,
-        weighted_failure_points: 0,
-        survival_failure_score: 0,
-        survival_grade: 'S',
-        top_missing_category: '—',
-        most_common_killing_blow: '',
-        most_common_killing_blow_count: 0,
-      }
-      rows.set(playerKey, row)
-      return row
-    }
-
-    const survivabilityByKey = new Map(
-      scopedSurvivability.map(row => [row.player_name.toLowerCase(), row])
-    )
-
-    for (const [playerKey, pulls] of wipePullsByPlayer.entries()) {
-      const playerName = displayNameByPlayer.get(playerKey) ?? playerKey
-      const player = ensurePlayer(playerName, classByPlayer.get(playerKey) ?? 'Unknown')
-      player.wipe_pulls_tracked = pulls.size
-
-      const defensiveCapacity = personalDefensiveCapacityByPlayer.get(playerKey)
-      if (defensiveCapacity && defensiveCapacity.possible_casts > 0) {
-        player.defensive_possible_casts = defensiveCapacity.possible_casts
-        player.defensive_actual_casts = defensiveCapacity.actual_casts
-        player.defensive_missed_casts = defensiveCapacity.missed_casts
-        player.has_defensive_capacity_tracked = true
-      }
-
-      const survivability = survivabilityByKey.get(playerKey)
-      if (survivability) {
-        player.kill_deaths = survivability.kill_deaths
-        player.kills_tracked = survivability.kills_tracked
-        player.deaths_per_kill = survivability.deaths_per_kill
-      }
-    }
-
-    for (const death of scopedWipeSurvivalEventRows) {
-      const playerKey = death.player_name.toLowerCase()
-      const player = ensurePlayer(death.player_name, death.player_class)
-
-      player.wipe_deaths += 1
-      if (!isPositiveFlag(death.healthstone_before_death)) player.no_healthstone_deaths += 1
-      if (!isPositiveFlag(death.health_potion_before_death)) player.no_health_potion_deaths += 1
-
-      if (death.killing_blow_name) {
-        if (!killingBlowsByPlayer.has(playerKey)) {
-          killingBlowsByPlayer.set(playerKey, new Map())
-        }
-        const blows = killingBlowsByPlayer.get(playerKey)!
-        blows.set(death.killing_blow_name, (blows.get(death.killing_blow_name) ?? 0) + 1)
-      }
-    }
-
-    killingBlowsByPlayer.forEach((counts, playerKey) => {
-      const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]
-      const row = rows.get(playerKey)
-      if (row && top) {
-        row.most_common_killing_blow = top[0]
-        row.most_common_killing_blow_count = top[1]
-      }
+      return rowZone === selectedTier && rowBoss === selectedBoss
     })
 
-    const scoredRows = [...rows.values()]
-      .map(row => {
-        const missing = [
-          { label: 'Defensive capacity', count: row.defensive_missed_casts },
-          { label: 'Healthstone', count: row.no_healthstone_deaths },
-          { label: 'Health potion', count: row.no_health_potion_deaths },
-        ].sort((a, b) => b.count - a.count)
-        const wipePulls = Math.max(row.wipe_pulls_tracked, row.wipe_deaths)
-        const weightedFailurePoints =
-          row.defensive_missed_casts * 0.5 +
-          row.no_healthstone_deaths * 0.3 +
-          row.no_health_potion_deaths * 0.2
+    const goldRows = scopedRows.map(row => {
+      const defensiveStatus = row.defensive_tracking_status
+      const hasTrackedDefensive =
+        defensiveStatus === 'tracked_used' || defensiveStatus === 'tracked_zero_usage'
+      const defensiveRate = toFiniteNumber(row.defensive_usage_rate)
+      const disciplineScore = toFiniteNumber(row.survival_discipline_score) ?? 0
+      const deathsPerWipe = toFiniteNumber(row.deaths_per_wipe) ?? 0
 
-        return {
-          ...row,
-          wipe_pulls_tracked: wipePulls,
-          deaths_per_wipe_pull: wipePulls > 0 ? row.wipe_deaths / wipePulls : 0,
-          defensive_capacity_used_pct: row.has_defensive_capacity_tracked
-            ? (row.defensive_actual_casts / row.defensive_possible_casts) * 100
-            : 0,
-          no_healthstone_pct: calcPct(row.no_healthstone_deaths, row.wipe_deaths),
-          no_health_potion_pct: calcPct(row.no_health_potion_deaths, row.wipe_deaths),
-          weighted_failure_points: weightedFailurePoints,
-          // Presence-normalised score: weighted missing-tool deaths per wipe pull, scaled to 100.
-          // This keeps low-pull and high-pull boss scopes comparable.
-          survival_failure_score: wipePulls > 0 ? (weightedFailurePoints / wipePulls) * 100 : 0,
-          top_missing_category: missing[0]?.count > 0 ? missing[0].label : '—',
-        }
+      return {
+        ...row,
+        role: row.role || 'Unknown',
+        wipe_pulls_tracked: toFiniteNumber(row.wipe_pulls_tracked) ?? 0,
+        wipe_deaths: toFiniteNumber(row.wipe_deaths) ?? 0,
+        first_deaths: toFiniteNumber(row.first_deaths) ?? 0,
+        early_deaths: toFiniteNumber(row.early_deaths) ?? 0,
+        kill_deaths: toFiniteNumber(row.kill_deaths) ?? 0,
+        kills_tracked: toFiniteNumber(row.kills_tracked) ?? 0,
+        deaths_per_kill: toFiniteNumber(row.deaths_per_kill),
+        deaths_per_wipe: deathsPerWipe,
+        deaths_per_wipe_pull: deathsPerWipe,
+        pulls_with_tracked_defensive_capacity:
+          toFiniteNumber(row.pulls_with_tracked_defensive_capacity) ?? 0,
+        tracked_defensive_capacity: toFiniteNumber(row.tracked_defensive_capacity) ?? 0,
+        defensive_casts: toFiniteNumber(row.defensive_casts) ?? 0,
+        defensive_missed_casts: toFiniteNumber(row.defensive_missed_casts) ?? 0,
+        defensive_possible_casts: toFiniteNumber(row.tracked_defensive_capacity) ?? 0,
+        defensive_actual_casts: toFiniteNumber(row.defensive_casts) ?? 0,
+        defensive_capacity_used_pct: defensiveRate,
+        defensive_usage_rate: defensiveRate,
+        healthstone_uses: toFiniteNumber(row.healthstone_uses) ?? 0,
+        potion_uses: toFiniteNumber(row.potion_uses) ?? 0,
+        no_healthstone_deaths: toFiniteNumber(row.no_healthstone_deaths) ?? 0,
+        no_health_potion_deaths: toFiniteNumber(row.no_health_potion_deaths) ?? 0,
+        no_healthstone_pct: toFiniteNumber(row.no_healthstone_pct) ?? 0,
+        no_health_potion_pct: toFiniteNumber(row.no_health_potion_pct) ?? 0,
+        healthstone_usage_rate: toFiniteNumber(row.healthstone_usage_rate),
+        potion_usage_rate: toFiniteNumber(row.potion_usage_rate),
+        death_pressure_score: toFiniteNumber(row.death_pressure_score) ?? 0,
+        defensive_component_score: toFiniteNumber(row.defensive_component_score),
+        healthstone_component_score: toFiniteNumber(row.healthstone_component_score) ?? 0,
+        potion_component_score: toFiniteNumber(row.potion_component_score) ?? 0,
+        defensive_class_baseline_pct: toFiniteNumber(row.defensive_class_baseline_pct),
+        defensive_class_delta_pct: toFiniteNumber(row.defensive_class_delta_pct),
+        weighted_failure_points: toFiniteNumber(row.weighted_failure_points) ?? 0,
+        survival_failure_score: disciplineScore,
+        survival_discipline_score: disciplineScore,
+        survival_grade: 'S' as const,
+        top_improvement_area: row.top_improvement_area || row.top_missing_category || '—',
+        top_missing_category: row.top_missing_category || row.top_improvement_area || '—',
+        defensive_tracking_status: defensiveStatus,
+        has_defensive_capacity_tracked: hasTrackedDefensive,
+        most_common_killing_blow: row.most_common_killing_blow || '',
+        most_common_killing_blow_count: toFiniteNumber(row.most_common_killing_blow_count) ?? 0,
+      } satisfies WipeSurvivalFailureRow
+    })
+
+    const distinctScoresAscending = [...new Set(goldRows.map(row => row.survival_failure_score))]
+      .sort((a, b) => a - b)
+
+    return goldRows
+      .map(row => ({
+        ...row,
+        survival_grade: gradeForRelativeDisciplineScore(
+          row.survival_failure_score,
+          distinctScoresAscending
+        ),
+      }))
+      .sort((a, b) => {
+        return (
+          b.survival_failure_score - a.survival_failure_score ||
+          a.deaths_per_wipe_pull - b.deaths_per_wipe_pull ||
+          (b.defensive_capacity_used_pct ?? -1) - (a.defensive_capacity_used_pct ?? -1)
+        )
       })
-
-    const sortedForGrade = [...scoredRows].sort(
-      (a, b) => a.survival_failure_score - b.survival_failure_score || a.wipe_deaths - b.wipe_deaths
-    )
-    const distinctScores = new Set(sortedForGrade.map(row => row.survival_failure_score))
-    const gradeByPlayer = new Map<string, WipeSurvivalFailureRow['survival_grade']>()
-
-    for (const row of sortedForGrade) {
-      if (distinctScores.size <= 1) {
-        gradeByPlayer.set(row.player_name.toLowerCase(), 'S')
-        continue
-      }
-
-      const rank = sortedForGrade.findIndex(candidate => candidate === row)
-      const percentile = sortedForGrade.length <= 1 ? 0 : rank / (sortedForGrade.length - 1)
-      gradeByPlayer.set(row.player_name.toLowerCase(), gradeForPercentile(percentile))
-    }
-
-    return scoredRows
-      .map(row => ({ ...row, survival_grade: gradeByPlayer.get(row.player_name.toLowerCase()) ?? 'S' }))
-      .sort((a, b) => b.survival_failure_score - a.survival_failure_score || b.wipe_deaths - a.wipe_deaths)
-  }, [personalDefensiveCapacityByPlayer, scopedWipeUtilityRows, scopedWipeSurvivalEventRows, scopedSurvivability])
+  }, [wipeSurvivalDiscipline.data, selectedTier, selectedBoss, diff, search])
 
   const historicalClosestPull = useMemo(
     () =>
@@ -1244,7 +1125,7 @@ export function WipeAnalysis() {
           // Sort untracked-capacity players to the bottom of either direction —
           // treat as -Infinity so they aren't confused with truly low usage.
           return row.has_defensive_capacity_tracked
-            ? row.defensive_capacity_used_pct
+            ? row.defensive_capacity_used_pct ?? 0
             : Number.NEGATIVE_INFINITY
         case 'noHealthstonePct':
           return row.no_healthstone_pct
@@ -2409,14 +2290,14 @@ export function WipeAnalysis() {
                 <div>
                   <CardTitle>Survival Discipline on Wipes</CardTitle>
                   <p className="mt-0.5 text-xs text-ctp-overlay1">
-                    Wipe pulls only. Score blends missed personal defensive capacity with deaths lacking healthstones or health potions; grade is relative to this scope.
+                    Wipe pulls only. Component metrics and absolute consistency score are published from Gold.
                   </p>
                 </div>
                 <StatusPill label={`${formatNumber(wipeSurvivalFailures.length)} players`} active />
               </div>
             </CardHeader>
 
-            {deathEvents.loading || utilityByPull.loading || wipeSurvivalEvents.loading || wipeCooldownUtilization.loading ? (
+            {wipeSurvivalDiscipline.loading ? (
               <CardBody>
                 <LoadingState rows={7} />
               </CardBody>
@@ -2504,7 +2385,7 @@ export function WipeAnalysis() {
                         <WipeSurvivalSortButton k="noHealthPotionPct">No HPot Rate</WipeSurvivalSortButton>
                       </Th>
                       <Th right>
-                        <WipeSurvivalSortButton k="survivalFailureScore">Score</WipeSurvivalSortButton>
+                        <WipeSurvivalSortButton k="survivalFailureScore">Consistency</WipeSurvivalSortButton>
                       </Th>
                       <Th>
                         <WipeSurvivalSortButton k="topMissing">Top Missing</WipeSurvivalSortButton>
@@ -2517,14 +2398,16 @@ export function WipeAnalysis() {
                   <TBody>
                     {wipeSurvivalRows.map(row => {
                       const scoreColor =
-                        row.survival_failure_score >= 30
-                          ? wipeColor
-                          : row.survival_failure_score >= 15
-                            ? getParseColor(95)
-                            : '#a6adc8'
+                        row.survival_failure_score >= 85
+                          ? getParseColor(99)
+                          : row.survival_failure_score >= 70
+                            ? getParseColor(85)
+                            : row.survival_failure_score >= 55
+                              ? getParseColor(60)
+                              : wipeColor
 
                       return (
-                        <Tr key={row.player_name}>
+                        <Tr key={`${row.player_name}:${row.zone_name ?? 'All'}:${row.boss_name ?? 'All'}:${row.difficulty_label ?? 'All'}`}>
                           <Td>
                             <div className="flex items-center gap-2">
                               <ClassDot className={row.player_class} />
@@ -2562,15 +2445,25 @@ export function WipeAnalysis() {
                             <Td
                               right
                               mono
-                              style={{ color: getDeathRateColor(Math.max(0, 1 - row.defensive_capacity_used_pct / 100)) }}
+                              style={{ color: getDeathRateColor(Math.max(0, 1 - (row.defensive_capacity_used_pct ?? 0) / 100)) }}
                             >
-                              <span title={`${formatNumber(row.defensive_actual_casts)} cast / ${formatNumber(row.defensive_possible_casts)} possible`}>
-                                {`${row.defensive_capacity_used_pct.toFixed(0)}%`}
+                              <span
+                                title={[
+                                  `${formatNumber(row.defensive_actual_casts)} cast / ${formatNumber(row.defensive_possible_casts)} possible`,
+                                  row.defensive_class_baseline_pct == null
+                                    ? null
+                                    : `class median ${row.defensive_class_baseline_pct.toFixed(0)}%`,
+                                  row.defensive_class_delta_pct == null
+                                    ? null
+                                    : `${row.defensive_class_delta_pct >= 0 ? '+' : ''}${row.defensive_class_delta_pct.toFixed(0)} pts vs class`,
+                                ].filter(Boolean).join(' · ')}
+                              >
+                                {`${(row.defensive_capacity_used_pct ?? 0).toFixed(0)}%`}
                               </span>
                             </Td>
                           ) : (
                             <Td right mono className="text-ctp-overlay0">
-                              <span title="No tracked defensive capacity for this spec — review _cooldown_rules.py">
+                              <span title="Gold reports no tracked defensive capacity for this player scope.">
                                 n/a
                               </span>
                             </Td>
@@ -2614,8 +2507,7 @@ export function WipeAnalysis() {
                 </Table>
 
                 <p className="mt-3 font-mono text-[10px] text-ctp-overlay0">
-                  Score = ((missed personal defensive capacity × 0.5 + no healthstone before death × 0.3 + no health potion before death × 0.2) / player wipe pulls) × 100.
-                  Wipe Deaths and Deaths/Kill count logged death events on wipe pulls and tracked kills respectively; stone and potion rates use player wipe deaths as the denominator; Def Cap Used is limited to tracked abilities for the spec seen on the pull. Players whose spec has no tracked defensive rules show <span className="text-ctp-overlay1">n/a</span> and contribute zero defensive penalty — review <span className="font-mono">_cooldown_rules.py</span> if a spec is consistently missing.
+                  Letter grades are relative within the current table scope: top score is S, bottom score is F, and ties share the same grade. Def Cap Used shows <span className="text-ctp-overlay1">n/a</span> when Gold reports no tracked defensive capacity for the player scope.
                 </p>
               </CardBody>
             )}
