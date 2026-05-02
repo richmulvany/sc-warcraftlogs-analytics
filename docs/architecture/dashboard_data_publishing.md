@@ -211,15 +211,23 @@ because it is a row-level event feed used by Wipe Analysis and player detail vie
 
 Dashboard publishing validates rows before writing the snapshot:
 
-1. source rows are validated against a matching Gold contract from
+1. source projections are validated against a matching Gold contract from
    `pipeline/contracts/gold/`
 2. exported JSON rows are validated against a matching dashboard asset contract
    from `pipeline/contracts/dashboard_assets/`
 3. only a fully valid snapshot is copied into `latest/`
 
+Gold contracts are full table contracts. Dashboard exports are intentionally
+narrow JSON projections, so Gold validation during publishing only applies the
+selected Gold fields and any primary-key or quality rules whose fields are
+present in the projection. The dashboard asset contract remains the exact
+consumer-facing contract for the JSON payload.
+
 Datasets without contracts publish with warnings by default. Set
 `DASHBOARD_CONTRACT_STRICT=true` to fail when any exported dataset is missing a
-Gold or dashboard asset contract.
+dashboard asset contract, or when any Gold-backed export is missing a Gold
+product contract. Non-Gold operational exports, such as preparation overrides,
+use dashboard asset contracts but are not expected to have Gold contracts.
 
 ## Manual runbook
 

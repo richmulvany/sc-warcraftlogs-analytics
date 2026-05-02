@@ -1,0 +1,118 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_wipe_cooldown_utilization
+info:
+  title: Gold Wipe Cooldown Utilization
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_wipe_cooldown_utilization:
+    type: table
+    primaryKey:
+    - report_code
+    - fight_id
+    - player_identity_key
+    - ability_id
+    fields:
+      report_code:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      fight_id:
+        type: integer
+        required: true
+        nullable: false
+      encounter_id:
+        type: integer
+        required: true
+        nullable: false
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      difficulty:
+        type: integer
+        required: true
+        nullable: false
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      raid_night_date:
+        type: date
+        required: false
+        nullable: true
+      is_kill:
+        type: boolean
+        required: true
+        nullable: false
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      realm:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      cooldown_category:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      ability_id:
+        type: integer
+        required: true
+        nullable: false
+      ability_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      possible_casts:
+        type: integer
+        required: true
+        nullable: false
+      observed_casts:
+        type: integer
+        required: true
+        nullable: false
+      actual_casts:
+        type: integer
+        required: true
+        nullable: false
+      over_capacity_casts:
+        type: integer
+        required: true
+        nullable: false
+      missed_casts:
+        type: integer
+        required: true
+        nullable: false
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_wipe_cooldown_utilization
+    model: gold_wipe_cooldown_utilization
+    grain: One row per player, pull, and tracked cooldown ability with scored capacity and usage.
+    downstream:
+      dashboardAssets:
+      - wipe_cooldown_utilization

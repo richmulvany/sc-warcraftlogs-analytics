@@ -9,6 +9,7 @@ from scripts.dashboard_asset_contracts import (
     load_dashboard_asset_contracts,
     load_gold_product_contracts,
     load_product_catalog,
+    validate_projection_rows,
     validate_rows,
 )
 
@@ -153,3 +154,42 @@ def test_contract_metadata_loads() -> None:
     assert catalog.contract_set_version
     assert dashboard_contracts["preparation_readiness"].version
     assert "03_gold.sc_analytics.gold_preparation_readiness" in gold_contracts
+    assert catalog.entries["raid_summary"].exposure == "dashboard"
+
+
+def test_projection_validation_allows_unselected_gold_fields() -> None:
+    contract = _contract_with_rules(
+        {
+            "id": FieldContract("id", "string", required=True, nullable=False, allow_empty=False),
+            "score": FieldContract(
+                "score", "number", required=True, nullable=False, allow_empty=False
+            ),
+            "source_only": FieldContract(
+                "source_only", "string", required=True, nullable=False, allow_empty=False
+            ),
+        },
+        (
+            {"name": "score_range", "expression": "score >= 0 and score <= 100"},
+            {"name": "source_rule", "expression": "source_only != ''"},
+        ),
+    )
+
+    validate_projection_rows(contract, [{"id": "row-1", "score": 90}])
+
+
+def test_projection_validation_keeps_applicable_rules() -> None:
+    contract = _contract_with_rules(
+        {
+            "id": FieldContract("id", "string", required=True, nullable=False, allow_empty=False),
+            "score": FieldContract(
+                "score", "number", required=True, nullable=False, allow_empty=False
+            ),
+            "source_only": FieldContract(
+                "source_only", "string", required=True, nullable=False, allow_empty=False
+            ),
+        },
+        ({"name": "score_range", "expression": "score >= 0 and score <= 100"},),
+    )
+
+    with pytest.raises(ContractValidationError, match="score_range"):
+        validate_projection_rows(contract, [{"id": "row-1", "score": 101}])

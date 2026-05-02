@@ -1,0 +1,112 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_mplus_dungeon_breakdown
+info:
+  title: Player Mythic Plus Dungeon Breakdown Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  player_mplus_dungeon_breakdown:
+    type: table
+    primaryKey:
+    - player_identity_key
+    - region
+    - season
+    - dungeon
+    fields:
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      region:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      season:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      dungeon:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      best_short_name:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      highest_key_level:
+        type: integer
+        required: false
+        nullable: true
+      highest_timed_level:
+        type: integer
+        required: false
+        nullable: true
+      total_runs:
+        type: integer
+        required: true
+        nullable: false
+      timed_runs:
+        type: integer
+        required: true
+        nullable: false
+      untimed_runs:
+        type: integer
+        required: true
+        nullable: false
+      latest_completed_at:
+        type: timestamp
+        required: false
+        nullable: true
+      best_key_level:
+        type: integer
+        required: false
+        nullable: true
+      best_score:
+        type: number
+        required: false
+        nullable: true
+      best_timed:
+        type: boolean
+        required: false
+        nullable: true
+      best_clear_time_ms:
+        type: integer
+        required: false
+        nullable: true
+      best_par_time_ms:
+        type: integer
+        required: false
+        nullable: true
+      best_completed_at:
+        type: timestamp
+        required: false
+        nullable: true
+      best_run_url:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_mplus_dungeon_breakdown
+    sourceTable: 03_gold.sc_analytics.gold_player_mplus_dungeon_breakdown
+    publishedPath: player_mplus_dungeon_breakdown.json
+    grain: One row per player, region, season, and Mythic+ dungeon.
+    consumers:
+    - frontend static dashboard

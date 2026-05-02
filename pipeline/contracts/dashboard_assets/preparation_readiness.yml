@@ -5,66 +5,150 @@ info:
   version: 0.1.0
   status: active
   owner: richmulvany
-  description: >
-    Published JSON asset containing Gold-owned current-tier raid preparation
-    rates, readiness score, readiness label, notes, and weakest signal.
-servers:
-  dashboard_json:
-    type: custom
-    description: Databricks gold table exported as static JSON through dashboard publishing.
-    location: /Volumes/03_gold/sc_analytics/dashboard_exports/latest/preparation_readiness.json
 models:
   preparation_readiness:
     type: table
-    description: One row per current raid-team preparation identity.
     primaryKey:
-      - identity_key
+    - identity_key
     fields:
-      identity_key: { type: string, required: true, primary: true, description: Stable character or published override identity key. }
-      player_name: { type: string, required: true, description: Display name for the preparation identity. }
-      player_class: { type: string, required: true, description: Latest known class or roster class. }
-      role: { type: string, required: true, description: dps, healer, tank, or unknown. }
-      rank_label: { type: string, required: true, description: Roster rank label. }
-      is_active: { type: boolean, required: true, description: Active roster flag from selected roster source. }
-      current_tier: { type: string, required: true, description: Current raid tier selected from latest included raid summary row. }
-      roster_source: { type: string, required: true, description: live_raid_roster when present, otherwise gold_raid_team. }
-      has_current_tier_data: { type: boolean, required: true, description: Whether the identity has current-tier kill rows. }
-      attendance_rate_pct: { type: number, required: true, description: Current-tier raid nights present divided by current-tier raid nights tracked. }
-      raids_present: { type: integer, required: true, description: Current-tier raid nights with at least one kill row. }
-      total_raids_tracked: { type: integer, required: true, description: Current-tier raid nights tracked. }
-      kills_tracked: { type: integer, required: true, description: Current-tier boss kills for this identity. }
-      food_rate: { type: number, required: true, description: Current-tier kill coverage for food buff. }
-      flask_rate: { type: number, required: true, description: Current-tier kill coverage for flask/phial. }
+      identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      role:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      rank_label:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      is_active:
+        type: boolean
+        required: true
+        nullable: false
+      current_tier:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      roster_source:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      has_current_tier_data:
+        type: boolean
+        required: true
+        nullable: false
+      attendance_rate_pct:
+        type: number
+        required: true
+        nullable: false
+      raids_present:
+        type: integer
+        required: true
+        nullable: false
+      total_raids_tracked:
+        type: integer
+        required: true
+        nullable: false
+      kills_tracked:
+        type: integer
+        required: true
+        nullable: false
+      food_rate:
+        type: number
+        required: true
+        nullable: false
+      flask_rate:
+        type: number
+        required: true
+        nullable: false
       weapon_rate:
         type: number
         required: true
-        description: >
-          Current-tier kill coverage for required weapon enhancement. Shaman
-          semantics are spec-aware: Enhancement requires Flametongue Weapon and
-          Windfury Weapon; Restoration requires Earthliving Weapon; Elemental
-          accepts Flametongue Weapon or a tracked weapon oil/enhancement.
-      combat_potion_rate: { type: number, required: true, description: Current-tier kill coverage for combat potion usage. }
-      readiness_score: { type: number, required: true, description: Gold-owned 0-100 readiness score. }
-      readiness_label: { type: string, required: true, description: watch, steady, or strong. }
-      readiness_notes: { type: string, required: true, nullable: false, allowEmpty: true, description: Pipe-delimited Gold-owned readiness notes; empty when no notes apply. }
-      spec: { type: string, required: true, description: Latest known spec, or —. }
-      latest_avg_item_level: { type: number, required: true, description: Latest current-tier kill item level snapshot. }
-      latest_kill_date: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest current-tier kill date, or empty string when no current-tier kill is tracked. }
-      weakest_signal_label: { type: string, required: true, description: Lowest preparation component label. }
-      recent_food_names: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest/recent food buff names; empty when no food buff is tracked. }
-      recent_flask_names: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest/recent flask/phial names; empty when no flask/phial is tracked. }
-      recent_weapon_names: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest/recent weapon enhancement names; empty when no weapon enhancement is tracked. }
-      recent_combat_potion_names: { type: string, required: true, nullable: false, allowEmpty: true, description: Latest/recent combat potion names when classified; Combat potion used when usage exists but the source name is unavailable; empty string when no usage is tracked. }
-      character_names: { type: string, required: true, description: Pipe-delimited characters in this identity. }
-      override_label: { type: string, required: true, nullable: false, allowEmpty: true, description: Replace, Pool, or empty string for non-overridden identities. }
-quality:
-  type: custom
-  specification:
-    checks for preparation_readiness:
-      - duplicate_count(identity_key) = 0
-      - readiness_score >= 0
-      - readiness_score <= 100
-      - readiness_label in (watch, steady, strong)
+        nullable: false
+      combat_potion_rate:
+        type: number
+        required: true
+        nullable: false
+      readiness_score:
+        type: number
+        required: true
+        nullable: false
+      readiness_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      readiness_notes:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      spec:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      latest_avg_item_level:
+        type: number
+        required: true
+        nullable: true
+      latest_kill_date:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      weakest_signal_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      recent_food_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      recent_flask_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      recent_weapon_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      recent_combat_potion_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      character_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      override_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
 x-sc-analytics:
   dashboardAsset:
     dataset: preparation_readiness
@@ -72,19 +156,13 @@ x-sc-analytics:
     publishedPath: preparation_readiness.json
     grain: One row per current raid-team preparation identity.
     consumers:
-      - frontend/src/hooks/useGoldData.ts:usePreparationReadiness
-      - frontend/src/pages/Preparation.tsx
-    freshness:
-      expectedAfterJob: daily_orchestrator
-      maxStalenessHours: 48
+    - frontend static dashboard
     rules:
-      - name: valid_readiness_label
-        field: readiness_label
-        enum: [watch, steady, strong]
-      - name: score_range
-        expression: readiness_score >= 0 and readiness_score <= 100
-      - name: rate_ranges
-        expression: attendance_rate_pct >= 0 and attendance_rate_pct <= 100 and food_rate >= 0 and food_rate <= 100 and flask_rate >= 0 and flask_rate <= 100 and weapon_rate >= 0 and weapon_rate <= 100 and combat_potion_rate >= 0 and combat_potion_rate <= 100
-    breakingChanges:
-      - Removing or renaming any listed field.
-      - Changing readiness score, label, or notes semantics without updating this contract and the data dictionary.
+    - name: valid_readiness_label
+      field: readiness_label
+      enum:
+      - watch
+      - steady
+      - strong
+    - name: score_range
+      expression: readiness_score >= 0 and readiness_score <= 100

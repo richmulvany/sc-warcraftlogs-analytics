@@ -8,38 +8,161 @@ info:
 models:
   gold_preparation_readiness:
     type: table
-    primaryKey: [identity_key]
+    primaryKey:
+    - identity_key
     fields:
-      identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
-      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      player_class: { type: string, required: true, nullable: false, allowEmpty: false }
-      role: { type: string, required: true, nullable: false, allowEmpty: false }
-      current_tier: { type: string, required: true, nullable: false, allowEmpty: false }
-      roster_source: { type: string, required: true, nullable: false, allowEmpty: false }
-      has_current_tier_data: { type: boolean, required: true, nullable: false }
-      attendance_rate_pct: { type: number, required: true, nullable: false }
-      food_rate: { type: number, required: true, nullable: false }
-      flask_rate: { type: number, required: true, nullable: false }
-      weapon_rate: { type: number, required: true, nullable: false }
-      combat_potion_rate: { type: number, required: true, nullable: false }
-      readiness_score: { type: number, required: true, nullable: false }
-      readiness_label: { type: string, required: true, nullable: false, allowEmpty: false }
-      readiness_notes: { type: string, required: true, nullable: false, allowEmpty: true }
-      weakest_signal_label: { type: string, required: true, nullable: false, allowEmpty: true }
-      recent_combat_potion_names: { type: string, required: true, nullable: false, allowEmpty: true }
-      override_label: { type: string, required: true, nullable: false, allowEmpty: true }
+      identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      role:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      rank_label:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      is_active:
+        type: boolean
+        required: true
+        nullable: false
+      current_tier:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      roster_source:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      has_current_tier_data:
+        type: boolean
+        required: true
+        nullable: false
+      attendance_rate_pct:
+        type: number
+        required: true
+        nullable: false
+      raids_present:
+        type: integer
+        required: true
+        nullable: false
+      total_raids_tracked:
+        type: integer
+        required: true
+        nullable: false
+      kills_tracked:
+        type: integer
+        required: true
+        nullable: false
+      food_rate:
+        type: number
+        required: true
+        nullable: false
+      flask_rate:
+        type: number
+        required: true
+        nullable: false
+      weapon_rate:
+        type: number
+        required: true
+        nullable: false
+      combat_potion_rate:
+        type: number
+        required: true
+        nullable: false
+      readiness_score:
+        type: number
+        required: true
+        nullable: false
+      readiness_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      readiness_notes:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      spec:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      latest_avg_item_level:
+        type: number
+        required: true
+        nullable: true
+      latest_kill_date:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      weakest_signal_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      recent_food_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      recent_flask_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      recent_weapon_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      recent_combat_potion_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      character_names:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      override_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
 x-sc-analytics:
   goldProduct:
     table: 03_gold.sc_analytics.gold_preparation_readiness
     model: gold_preparation_readiness
     grain: One row per current raid-team preparation identity.
     downstream:
-      dashboardAssets: [preparation_readiness]
+      dashboardAssets:
+      - preparation_readiness
     rules:
-      - name: valid_readiness_label
-        field: readiness_label
-        enum: [watch, steady, strong]
-      - name: score_range
-        expression: readiness_score >= 0 and readiness_score <= 100
-      - name: rate_ranges
-        expression: attendance_rate_pct >= 0 and attendance_rate_pct <= 100 and food_rate >= 0 and food_rate <= 100 and flask_rate >= 0 and flask_rate <= 100 and weapon_rate >= 0 and weapon_rate <= 100 and combat_potion_rate >= 0 and combat_potion_rate <= 100
+    - name: valid_readiness_label
+      field: readiness_label
+      enum:
+      - watch
+      - steady
+      - strong
+    - name: score_range
+      expression: readiness_score >= 0 and readiness_score <= 100

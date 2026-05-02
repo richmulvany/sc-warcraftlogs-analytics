@@ -1,0 +1,94 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_mplus_run_history
+info:
+  title: Player Mythic Plus Run History Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  player_mplus_run_history:
+    type: table
+    primaryKey:
+    - player_identity_key
+    - region
+    - season
+    - dungeon
+    - completed_at
+    - url
+    fields:
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      region:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      season:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      dungeon:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      short_name:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      mythic_level:
+        type: integer
+        required: false
+        nullable: true
+      score:
+        type: number
+        required: false
+        nullable: true
+      completed_at:
+        type: timestamp
+        required: true
+        nullable: false
+      completed_date:
+        type: date
+        required: false
+        nullable: true
+      clear_time_ms:
+        type: integer
+        required: false
+        nullable: true
+      par_time_ms:
+        type: integer
+        required: false
+        nullable: true
+      timed:
+        type: boolean
+        required: false
+        nullable: true
+      url:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_mplus_run_history
+    sourceTable: 03_gold.sc_analytics.gold_player_mplus_run_history
+    publishedPath: player_mplus_run_history.json
+    grain: One row per Raider.IO Mythic+ run record.
+    consumers:
+    - frontend static dashboard

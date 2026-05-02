@@ -66,6 +66,7 @@ class ProductCatalogEntry:
     dashboard_dataset: str
     owner: str
     lifecycle: str
+    exposure: str
     gold_contract_path: str
     dashboard_contract_path: str
     downstream_consumers: tuple[str, ...]
@@ -109,6 +110,7 @@ def load_product_catalog(catalog_path: Path = DEFAULT_CATALOG_PATH) -> ProductCa
             dashboard_dataset=str(item.get("dashboard_dataset") or ""),
             owner=str(item.get("owner") or ""),
             lifecycle=str(item.get("lifecycle") or "active"),
+            exposure=str(item.get("exposure") or ""),
             gold_contract_path=str(item.get("gold_contract") or ""),
             dashboard_contract_path=str(item.get("dashboard_contract") or ""),
             downstream_consumers=tuple(
@@ -169,10 +171,58 @@ def validate_gold_product_rows(
     validate_rows(contract, rows)
 
 
+def validate_gold_product_projection_rows(
+    table_name: str,
+    rows: list[dict[str, Any]],
+    contracts: dict[str, GoldProductContract] | None = None,
+) -> None:
+    """Validate exported projection rows against the matching Gold contract.
+
+    Dashboard assets intentionally publish narrow JSON projections rather than
+    ``SELECT *`` from each Gold table. Gold contracts are table contracts, so a
+    projection can only validate selected fields and rules whose dependencies
+    are present in the exported rows.
+    """
+
+    contracts = contracts if contracts is not None else load_gold_product_contracts()
+    contract = contracts.get(_normalize_table_name(table_name))
+    if contract is None:
+        return
+    validate_projection_rows(contract, rows)
+
+
 def validate_rows(contract: DataProductContract, rows: list[dict[str, Any]]) -> None:
     _validate_row_shapes(contract, rows)
     _validate_unique_key(contract, rows)
     _validate_rules(contract, rows)
+
+
+def validate_projection_rows(contract: DataProductContract, rows: list[dict[str, Any]]) -> None:
+    if not rows:
+        return
+
+    projected_fields = set().union(*(set(row) for row in rows))
+    fields = {name: field for name, field in contract.fields.items() if name in projected_fields}
+    if not fields:
+        return
+
+    unique_key = contract.unique_key if set(contract.unique_key).issubset(projected_fields) else ()
+    rules = tuple(rule for rule in contract.rules if _rule_fields(rule).issubset(projected_fields))
+    projection_contract = DataProductContract(
+        contract_id=contract.contract_id,
+        version=contract.version,
+        name=contract.name,
+        product_kind=contract.product_kind,
+        table_or_dataset=contract.table_or_dataset,
+        source_table=contract.source_table,
+        published_path=contract.published_path,
+        model_name=contract.model_name,
+        fields=fields,
+        unique_key=unique_key,
+        rules=rules,
+        path=contract.path,
+    )
+    validate_rows(projection_contract, rows)
 
 
 def _load_contracts_from_dir(contract_dir: Path, *, product_kind: str) -> list[DataProductContract]:
@@ -359,6 +409,21 @@ def _validate_rules(contract: DataProductContract, rows: list[dict[str, Any]]) -
                         f'Dataset "{contract.name}" row {index} failed rule "{name}": '
                         f"{expression} (contract: {contract.path})"
                     )
+
+
+def _rule_fields(rule: dict[str, Any]) -> set[str]:
+    fields: set[str] = set()
+    if "field" in rule:
+        fields.add(str(rule["field"]))
+    if "expression" in rule:
+        expression = str(rule["expression"])
+        tree = ast.parse(expression, mode="eval")
+        fields.update(
+            node.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Name) and node.id not in {"max", "min", "abs"}
+        )
+    return fields
 
 
 def _validate_enum_rule(

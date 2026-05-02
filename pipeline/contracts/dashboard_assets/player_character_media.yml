@@ -1,0 +1,56 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_character_media
+info:
+  title: Player Character Media Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  player_character_media:
+    type: table
+    primaryKey:
+    - player_identity_key
+    fields:
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      avatar_url:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      inset_url:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      main_url:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      main_raw_url:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_character_media
+    sourceTable: 03_gold.sc_analytics.gold_player_character_media
+    publishedPath: player_character_media.json
+    grain: One row per player character media payload.
+    consumers:
+    - frontend static dashboard

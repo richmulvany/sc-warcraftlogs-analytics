@@ -36,6 +36,7 @@ from scripts.dashboard_asset_contracts import (
     load_gold_product_contracts,
     load_product_catalog,
     validate_dashboard_asset_rows,
+    validate_gold_product_projection_rows,
     validate_gold_product_rows,
 )
 
@@ -700,8 +701,9 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
     "player_death_events": (
         _gold("gold_player_death_events"),
         (
-            f"SELECT report_code, fight_id, encounter_id, boss_name, zone_name, zone_id, difficulty, "
-            f"difficulty_label, raid_night_date, is_kill, player_identity_key, player_name, "
+            f"SELECT death_event_key, report_code, fight_id, encounter_id, boss_name, zone_name, "
+            f"zone_id, difficulty, difficulty_label, raid_night_date, is_kill, "
+            f"player_identity_key, player_name, "
             f"player_class, realm, death_timestamp_ms, fight_start_ms, overkill, killing_blow_name, "
             f"killing_blow_id "
             f"FROM {_gold('gold_player_death_events')}"
@@ -1101,6 +1103,8 @@ def _warn_or_fail_missing_contracts(
     source_tables = {
         _normalize_table_name(source_table) for source_table, _query in QUERY_EXPORTS.values()
     } | {_normalize_table_name(table_name) for table_name in EXPORT_TABLES.values()}
+    gold_prefix = _normalize_table_name(f"{GOLD_CATALOG}.{GOLD_SCHEMA}.")
+    source_tables = {table for table in source_tables if table.startswith(gold_prefix)}
     missing_gold = sorted(source_tables - set(gold_contracts))
     messages: list[str] = []
     if missing_dashboard:
@@ -1122,9 +1126,13 @@ def export_dataset(
     dataset_name: str,
     table_name: str,
     output_dir: Path,
-    dashboard_contracts: dict[str, DashboardAssetContract],
-    gold_contracts: dict[str, GoldProductContract],
+    dashboard_contracts: dict[str, DashboardAssetContract] | None = None,
+    gold_contracts: dict[str, GoldProductContract] | None = None,
 ) -> DatasetResult:
+    dashboard_contracts = (
+        dashboard_contracts if dashboard_contracts is not None else load_dashboard_asset_contracts()
+    )
+    gold_contracts = gold_contracts if gold_contracts is not None else load_gold_product_contracts()
     rows = _query_rows(
         spark_session,
         client,
@@ -1162,9 +1170,13 @@ def export_query_dataset(
     source_table: str,
     sql_text: str,
     output_dir: Path,
-    dashboard_contracts: dict[str, DashboardAssetContract],
-    gold_contracts: dict[str, GoldProductContract],
+    dashboard_contracts: dict[str, DashboardAssetContract] | None = None,
+    gold_contracts: dict[str, GoldProductContract] | None = None,
 ) -> DatasetResult:
+    dashboard_contracts = (
+        dashboard_contracts if dashboard_contracts is not None else load_dashboard_asset_contracts()
+    )
+    gold_contracts = gold_contracts if gold_contracts is not None else load_gold_product_contracts()
     _validate_query_source_schema(
         spark_session,
         client,
@@ -1178,7 +1190,7 @@ def export_query_dataset(
         warehouse_id,
         sql_text=sql_text,
     )
-    validate_gold_product_rows(source_table, rows, gold_contracts)
+    validate_gold_product_projection_rows(source_table, rows, gold_contracts)
     validate_dashboard_asset_rows(dataset_name, rows, dashboard_contracts)
     output_file = output_dir / f"{dataset_name}.json"
     byte_size = write_json_file(output_file, rows)
@@ -1207,8 +1219,9 @@ def write_manifest(
     generated_at: str,
     snapshot_id: str,
     datasets: list[DatasetResult],
-    product_catalog: ProductCatalog,
+    product_catalog: ProductCatalog | None = None,
 ) -> dict[str, Any]:
+    product_catalog = product_catalog if product_catalog is not None else load_product_catalog()
     payload = {
         "generated_at": generated_at,
         "snapshot_id": snapshot_id,

@@ -1,0 +1,95 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.dim_guild_member
+info:
+  title: Dim Guild Member
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  dim_guild_member:
+    type: table
+    primaryKey:
+    - name
+    - realm_slug
+    fields:
+      name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      rank:
+        type: integer
+        required: true
+        nullable: false
+      rank_label:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      rank_category:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      is_raid_team:
+        type: boolean
+        required: true
+        nullable: false
+      class_id:
+        type: integer
+        required: false
+        nullable: true
+      class_name:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      level:
+        type: integer
+        required: false
+        nullable: true
+      total_raids_tracked:
+        type: integer
+        required: true
+        nullable: false
+      raids_present:
+        type: integer
+        required: true
+        nullable: false
+      attendance_rate_pct:
+        type: number
+        required: true
+        nullable: false
+      last_raid_date:
+        type: date
+        required: false
+        nullable: true
+      first_raid_date:
+        type: date
+        required: false
+        nullable: true
+      is_active:
+        type: boolean
+        required: true
+        nullable: false
+      possible_main:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      _ingested_at:
+        type: timestamp
+        required: false
+        nullable: true
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.dim_guild_member
+    model: dim_guild_member
+    grain: One row per Blizzard guild member character.
+    downstream:
+      dashboardAssets: []

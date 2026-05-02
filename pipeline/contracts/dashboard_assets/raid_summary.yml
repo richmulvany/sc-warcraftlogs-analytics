@@ -8,18 +8,69 @@ info:
 models:
   raid_summary:
     type: table
-    primaryKey: [report_code]
+    primaryKey:
+    - report_code
     fields:
-      report_code: { type: string, required: true, nullable: false, allowEmpty: false }
-      report_title: { type: string, required: true, nullable: false, allowEmpty: true }
-      zone_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      raid_night_date: { type: date, required: true, nullable: false }
-      total_pulls: { type: integer, required: true, nullable: false }
-      boss_kills: { type: integer, required: true, nullable: false }
-      total_wipes: { type: integer, required: true, nullable: false }
-      total_fight_seconds: { type: number, required: true, nullable: false }
-      unique_bosses_engaged: { type: integer, required: true, nullable: false }
-      unique_bosses_killed: { type: integer, required: true, nullable: false }
+      report_code:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      report_title:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      start_time_utc:
+        type: timestamp
+        required: false
+        nullable: true
+      end_time_utc:
+        type: timestamp
+        required: false
+        nullable: true
+      zone_id:
+        type: integer
+        required: false
+        nullable: true
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      raid_night_date:
+        type: date
+        required: true
+        nullable: false
+      primary_difficulty:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      total_pulls:
+        type: integer
+        required: true
+        nullable: false
+      boss_kills:
+        type: integer
+        required: true
+        nullable: false
+      total_wipes:
+        type: integer
+        required: true
+        nullable: false
+      total_fight_seconds:
+        type: number
+        required: true
+        nullable: false
+      unique_bosses_engaged:
+        type: integer
+        required: true
+        nullable: false
+      unique_bosses_killed:
+        type: integer
+        required: true
+        nullable: false
 x-sc-analytics:
   dashboardAsset:
     dataset: raid_summary
@@ -27,8 +78,7 @@ x-sc-analytics:
     publishedPath: raid_summary.json
     grain: One row per WarcraftLogs report.
     consumers:
-      - frontend/src/pages/Overview.tsx
-      - frontend/src/pages/Raids.tsx
+    - frontend static dashboard
     rules:
-      - name: pull_counts
-        expression: total_pulls == boss_kills + total_wipes and total_pulls >= 0
+    - name: pull_counts
+      expression: total_pulls == boss_kills + total_wipes and total_pulls >= 0

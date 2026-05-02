@@ -1,0 +1,107 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_player_mplus_run_history
+info:
+  title: Gold Player Mythic Plus Run History
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_player_mplus_run_history:
+    type: table
+    primaryKey:
+    - player_identity_key
+    - region
+    - season
+    - dungeon
+    - completed_at
+    - url
+    fields:
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      region:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      season:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      source:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      dungeon:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      short_name:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      mythic_level:
+        type: integer
+        required: false
+        nullable: true
+      score:
+        type: number
+        required: false
+        nullable: true
+      completed_at:
+        type: timestamp
+        required: true
+        nullable: false
+      completed_date:
+        type: date
+        required: false
+        nullable: true
+      clear_time_ms:
+        type: integer
+        required: false
+        nullable: true
+      par_time_ms:
+        type: integer
+        required: false
+        nullable: true
+      num_keystone_upgrades:
+        type: integer
+        required: false
+        nullable: true
+      timed:
+        type: boolean
+        required: false
+        nullable: true
+      url:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      snapshot_at:
+        type: timestamp
+        required: false
+        nullable: true
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_player_mplus_run_history
+    model: gold_player_mplus_run_history
+    grain: One row per Raider.IO Mythic+ run record.
+    downstream:
+      dashboardAssets:
+      - player_mplus_run_history

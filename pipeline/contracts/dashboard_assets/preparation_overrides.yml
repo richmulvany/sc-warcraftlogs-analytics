@@ -1,0 +1,69 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.preparation_overrides
+info:
+  title: Preparation Overrides Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  preparation_overrides:
+    type: table
+    primaryKey:
+    - id
+    fields:
+      id:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      mode:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      source_character:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      target_character:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      characters:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      display_name:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      enabled:
+        type: boolean
+        required: true
+        nullable: false
+      notes:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      updated_by:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      updated_at:
+        type: timestamp
+        required: false
+        nullable: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: preparation_overrides
+    sourceTable: 00_governance.warcraftlogs_admin.preparation_identity_overrides
+    publishedPath: preparation_overrides.json
+    grain: One row per operator-managed preparation identity override.
+    consumers:
+    - frontend static dashboard

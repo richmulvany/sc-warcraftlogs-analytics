@@ -1,0 +1,42 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.guild_zone_ranks
+info:
+  title: Guild Zone Ranks Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  guild_zone_ranks:
+    type: table
+    primaryKey:
+    - zone_id
+    fields:
+      zone_id:
+        type: integer
+        required: true
+        nullable: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      world_rank:
+        type: integer
+        required: false
+        nullable: true
+      region_rank:
+        type: integer
+        required: false
+        nullable: true
+      server_rank:
+        type: integer
+        required: false
+        nullable: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: guild_zone_ranks
+    sourceTable: 03_gold.sc_analytics.gold_guild_zone_ranks
+    publishedPath: guild_zone_ranks.json
+    grain: One row per raid zone with guild progression ranks.
+    consumers:
+    - frontend static dashboard

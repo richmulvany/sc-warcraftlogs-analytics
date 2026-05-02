@@ -1,0 +1,77 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_player_mplus_weekly_activity
+info:
+  title: Gold Player Mythic Plus Weekly Activity
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_player_mplus_weekly_activity:
+    type: table
+    primaryKey:
+    - player_identity_key
+    - region
+    - season
+    - week_start
+    fields:
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      region:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      season:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      week_start:
+        type: date
+        required: true
+        nullable: false
+      total_runs:
+        type: integer
+        required: true
+        nullable: false
+      timed_runs:
+        type: integer
+        required: true
+        nullable: false
+      untimed_runs:
+        type: integer
+        required: true
+        nullable: false
+      highest_key_level:
+        type: integer
+        required: false
+        nullable: true
+      unique_dungeons:
+        type: integer
+        required: true
+        nullable: false
+      most_common_key_level:
+        type: integer
+        required: false
+        nullable: true
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_player_mplus_weekly_activity
+    model: gold_player_mplus_weekly_activity
+    grain: One row per player, region, season, and Mythic+ week.
+    downstream:
+      dashboardAssets:
+      - player_mplus_weekly_activity

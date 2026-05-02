@@ -1,0 +1,51 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_raid_achievements
+info:
+  title: Player Raid Achievements Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  player_raid_achievements:
+    type: table
+    primaryKey:
+    - player_identity_key
+    - achievement_id
+    - completed_timestamp
+    fields:
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      achievement_id:
+        type: integer
+        required: true
+        nullable: false
+      achievement_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      completed_timestamp:
+        type: integer
+        required: true
+        nullable: false
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_raid_achievements
+    sourceTable: 03_gold.sc_analytics.gold_player_raid_achievements
+    publishedPath: player_raid_achievements.json
+    grain: One row per completed raid feat achievement for a character.
+    consumers:
+    - frontend static dashboard

@@ -1,0 +1,49 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.weekly_activity
+info:
+  title: Weekly Activity Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  weekly_activity:
+    type: table
+    primaryKey:
+    - week_start
+    fields:
+      week_start:
+        type: timestamp
+        required: true
+        nullable: false
+      raid_nights:
+        type: integer
+        required: true
+        nullable: false
+      total_boss_kills:
+        type: integer
+        required: true
+        nullable: false
+      total_wipes:
+        type: integer
+        required: true
+        nullable: false
+      total_pulls:
+        type: integer
+        required: true
+        nullable: false
+      total_raid_seconds:
+        type: number
+        required: true
+        nullable: false
+      zones_raided:
+        type: array
+        required: false
+        nullable: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: weekly_activity
+    sourceTable: 03_gold.sc_analytics.gold_weekly_activity
+    publishedPath: weekly_activity.json
+    grain: One row per raid activity week.
+    consumers:
+    - frontend static dashboard

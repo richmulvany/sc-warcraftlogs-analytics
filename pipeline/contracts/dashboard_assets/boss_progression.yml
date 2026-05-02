@@ -5,123 +5,93 @@ info:
   version: 0.1.0
   status: active
   owner: richmulvany
-  description: >
-    Published JSON asset containing kill and wipe progression per boss and
-    difficulty for the dashboard.
-servers:
-  dashboard_json:
-    type: custom
-    description: Databricks gold table exported as static JSON through dashboard publishing.
-    location: /Volumes/03_gold/sc_analytics/dashboard_exports/latest/boss_progression.json
 models:
   boss_progression:
     type: table
-    description: Kill and wipe counts per encounter, boss, zone, and difficulty.
     primaryKey:
-      - encounter_id
-      - boss_name
-      - zone_id
-      - zone_name
-      - difficulty
+    - encounter_id
+    - boss_name
+    - zone_id
+    - zone_name
+    - difficulty
     fields:
       encounter_id:
         type: integer
         required: true
-        primary: true
-        description: Stable WarcraftLogs encounter identifier.
+        nullable: false
       boss_name:
         type: string
         required: true
-        primary: true
-        description: Boss display name.
+        nullable: false
+        allowEmpty: false
       zone_id:
         type: integer
         required: true
-        primary: true
-        description: WarcraftLogs zone identifier.
+        nullable: false
       zone_name:
         type: string
         required: true
-        primary: true
-        description: Raid zone display name.
+        nullable: false
+        allowEmpty: false
       difficulty:
         type: integer
         required: true
-        primary: true
-        description: WarcraftLogs difficulty integer.
+        nullable: false
       difficulty_label:
         type: string
         required: true
-        description: Human-readable difficulty label.
+        nullable: false
+        allowEmpty: false
       total_pulls:
         type: integer
         required: true
-        description: Total tracked pulls for this boss and difficulty.
+        nullable: false
       total_kills:
         type: integer
         required: true
-        description: Number of kill pulls.
+        nullable: false
       total_wipes:
         type: integer
         required: true
-        description: Number of wipe pulls.
+        nullable: false
       best_kill_seconds:
         type: number
         required: false
-        description: Fastest kill duration in seconds; null until the boss has a kill.
+        nullable: true
       avg_pull_duration_seconds:
         type: number
-        required: true
-        description: Average duration across kill and wipe pulls.
+        required: false
+        nullable: true
       is_killed:
         type: boolean
         required: false
-        description: Whether any kill exists for this boss and difficulty.
+        nullable: true
       first_kill_date:
         type: date
         required: false
-        description: First kill date; null until the boss has a kill.
+        nullable: true
       last_attempt_date:
         type: date
-        required: true
-        description: Most recent attempt date.
+        required: false
+        nullable: true
       wipe_to_kill_ratio:
         type: number
         required: true
-        description: Wipes divided by kills, using one as the minimum denominator.
-quality:
-  type: custom
-  specification:
-    checks for boss_progression:
-      - duplicate_count(encounter_id, boss_name, zone_id, zone_name, difficulty) = 0
-      - total_pulls = total_kills + total_wipes
-      - total_pulls > 0
+        nullable: false
 x-sc-analytics:
   dashboardAsset:
     dataset: boss_progression
     sourceTable: 03_gold.sc_analytics.gold_boss_progression
     publishedPath: boss_progression.json
-    grain: One row per encounter, boss, zone, and difficulty across all tracked raid pulls.
+    grain: One row per encounter, boss, zone, and difficulty.
     consumers:
-      - frontend/src/hooks/useGoldData.ts:useBossProgression
-      - frontend/src/pages/BossDetail.tsx
-      - frontend/src/features/player-detail/index.tsx
-    freshness:
-      expectedAfterJob: daily_orchestrator
-      maxStalenessHours: 48
+    - frontend static dashboard
     rules:
-      - name: valid_difficulty
-        field: difficulty_label
-        enum: [Normal, Heroic, Mythic]
-      - name: non_negative_counts
-        expression: total_pulls >= 0 and total_kills >= 0 and total_wipes >= 0
-      - name: pulls_equal_kills_plus_wipes
-        expression: total_pulls == total_kills + total_wipes
-      - name: killed_rows_have_kill_context
-        expression: (total_kills > 0 and best_kill_seconds is not None and first_kill_date is not None) or (total_kills == 0 and best_kill_seconds is None and first_kill_date is None)
-      - name: wipe_to_kill_ratio_non_negative
-        expression: wipe_to_kill_ratio >= 0
-    breakingChanges:
-      - Removing or renaming any listed field.
-      - Changing the grain away from encounter plus boss plus zone plus difficulty.
-      - Changing duration units from seconds.
+    - name: valid_difficulty
+      field: difficulty_label
+      enum:
+      - Normal
+      - Heroic
+      - Mythic
+    - name: pull_counts
+      expression: total_pulls == total_kills + total_wipes

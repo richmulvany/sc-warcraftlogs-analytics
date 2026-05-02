@@ -1,0 +1,62 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_utility_by_pull
+info:
+  title: Player Utility By Pull Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  player_utility_by_pull:
+    type: table
+    primaryKey:
+    - report_code
+    - fight_id
+    - player_name
+    - player_class
+    fields:
+      report_code:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      fight_id:
+        type: integer
+        required: true
+        nullable: false
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      is_kill:
+        type: boolean
+        required: true
+        nullable: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_utility_by_pull
+    sourceTable: 03_gold.sc_analytics.gold_player_utility_by_pull
+    publishedPath: player_utility_by_pull.json
+    grain: One row per player on an instrumented pull with utility usage counts.
+    consumers:
+    - frontend static dashboard

@@ -8,34 +8,160 @@ info:
 models:
   gold_boss_kill_roster:
     type: table
-    primaryKey: [report_code, fight_id, player_identity_key]
+    primaryKey:
+    - report_code
+    - fight_id
+    - player_identity_key
     fields:
-      report_code: { type: string, required: true, nullable: false, allowEmpty: false }
-      fight_id: { type: integer, required: true, nullable: false }
-      boss_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      encounter_id: { type: integer, required: true, nullable: false }
-      difficulty_label: { type: string, required: true, nullable: false, allowEmpty: false }
-      zone_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      raid_night_date: { type: date, required: true, nullable: false }
-      player_identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
-      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      player_class: { type: string, required: true, nullable: false, allowEmpty: false }
-      realm: { type: string, required: true, nullable: false, allowEmpty: false }
-      role: { type: string, required: false, nullable: true, allowEmpty: true }
-      potion_use: { type: integer, required: true, nullable: false }
-      has_food_buff: { type: boolean, required: true, nullable: false }
-      has_flask_or_phial_buff: { type: boolean, required: true, nullable: false }
-      has_weapon_enhancement: { type: boolean, required: true, nullable: false }
+      report_code:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      fight_id:
+        type: integer
+        required: true
+        nullable: false
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      encounter_id:
+        type: integer
+        required: true
+        nullable: false
+      difficulty:
+        type: integer
+        required: true
+        nullable: false
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      raid_night_date:
+        type: date
+        required: true
+        nullable: false
+      duration_seconds:
+        type: number
+        required: false
+        nullable: true
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      role:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      spec:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      avg_item_level:
+        type: number
+        required: false
+        nullable: true
+      potion_use:
+        type: integer
+        required: true
+        nullable: false
+      combat_potion_casts:
+        type: integer
+        required: false
+        nullable: true
+      combat_potion_names:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      healthstone_use:
+        type: integer
+        required: false
+        nullable: true
+      has_food_buff:
+        type: boolean
+        required: true
+        nullable: false
+      food_buff_names:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      has_flask_or_phial_buff:
+        type: boolean
+        required: true
+        nullable: false
+      flask_or_phial_names:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      has_weapon_enhancement:
+        type: boolean
+        required: true
+        nullable: false
+      weapon_enhancement_names:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      throughput_per_second:
+        type: number
+        required: false
+        nullable: true
+      rank_percent:
+        type: number
+        required: false
+        nullable: true
+      bracket_percent:
+        type: number
+        required: false
+        nullable: true
+      rank_string:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
 x-sc-analytics:
   goldProduct:
     table: 03_gold.sc_analytics.gold_boss_kill_roster
     model: gold_boss_kill_roster
     grain: One row per player on each tracked boss kill.
     downstream:
-      dashboardAssets: [boss_kill_roster]
+      dashboardAssets:
+      - boss_kill_roster
     rules:
-      - name: valid_difficulty
-        field: difficulty_label
-        enum: [Normal, Heroic, Mythic]
-      - name: non_negative_potions
-        expression: potion_use >= 0
+    - name: valid_difficulty
+      field: difficulty_label
+      enum:
+      - Normal
+      - Heroic
+      - Mythic
+    - name: non_negative_potions
+      expression: potion_use >= 0

@@ -19,6 +19,15 @@ The catalog file `pipeline/contracts/data_products.yml` ties those contracts
 together and carries the project-level `contract_set_version` that is published
 in `manifest.json`.
 
+Final-state policy:
+
+- Every table in `03_gold.sc_analytics` has a Gold product contract.
+- Every exported dashboard JSON dataset has a dashboard asset contract.
+- Silver tables are not contracted in this system; Silver remains the cleaned
+  integration layer, while Gold is the governed semantic product layer.
+- Operational governance tables outside Gold may have dashboard asset contracts
+  when they are exported as frontend JSON, but they are not Gold products.
+
 ## Field Semantics
 
 Every field listed in a contract must exist in every row. Value validity is
@@ -40,15 +49,18 @@ Unique keys should normally use fields with `nullable: false` and
 
 During dashboard asset publishing:
 
-1. Source rows are validated against the matching Gold product contract when one
-   exists.
+1. Exported source projections are validated against the matching Gold product
+   contract when one exists. Because dashboard assets intentionally publish
+   narrow projections rather than `SELECT *`, this validation checks selected
+   Gold fields and only the key/rules whose fields are present.
 2. Exported JSON rows are validated against the matching dashboard asset
    contract when one exists.
 3. Contract failures abort before `latest/` is swapped.
 4. Datasets without contracts are allowed by default but logged as warnings.
 
 Set `DASHBOARD_CONTRACT_STRICT=true` to fail publishing when a frontend-exported
-dataset lacks either a dashboard asset contract or a Gold product contract.
+dataset lacks either a dashboard asset contract or, for Gold-backed exports, a
+Gold product contract.
 
 ## Manifest Metadata
 
@@ -64,22 +76,12 @@ data” views.
 
 ## Current Enforced Contracts
 
-Dashboard-critical Gold/dashboard products are contracted first. Internal-only
-Gold tables may remain uncontracted until they become shared or frontend
-consumed.
-
-| Product | Gold Contract | Dashboard Asset Contract |
-|---------|---------------|--------------------------|
-| Preparation readiness | `pipeline/contracts/gold/gold_preparation_readiness.yml` | `pipeline/contracts/dashboard_assets/preparation_readiness.yml` |
-| Wipe survival discipline | `pipeline/contracts/gold/gold_wipe_survival_discipline.yml` | `pipeline/contracts/dashboard_assets/wipe_survival_discipline.yml` |
-| Player survivability rankings | `pipeline/contracts/gold/gold_player_survivability_rankings.yml` | `pipeline/contracts/dashboard_assets/player_survivability_rankings.yml` |
-| Player Mythic+ summary | `pipeline/contracts/gold/gold_player_mplus_summary.yml` | `pipeline/contracts/dashboard_assets/player_mplus_summary.yml` |
-| Boss kill roster | `pipeline/contracts/gold/gold_boss_kill_roster.yml` | `pipeline/contracts/dashboard_assets/boss_kill_roster.yml` |
-| Raid summary | `pipeline/contracts/gold/gold_raid_summary.yml` | `pipeline/contracts/dashboard_assets/raid_summary.yml` |
-| Player attendance | `pipeline/contracts/gold/gold_player_attendance.yml` | `pipeline/contracts/dashboard_assets/player_attendance.yml` |
-| Player performance summary | `pipeline/contracts/gold/gold_player_performance_summary.yml` | `pipeline/contracts/dashboard_assets/player_performance_summary.yml` |
-| Boss progression | `pipeline/contracts/gold/gold_boss_progression.yml` | `pipeline/contracts/dashboard_assets/boss_progression.yml` |
-| Best kills | `pipeline/contracts/gold/gold_best_kills.yml` | `pipeline/contracts/dashboard_assets/best_kills.yml` |
+All Gold product contracts are listed in
+`pipeline/contracts/data_products.yml`. The same catalog records whether a Gold
+product is exposed to the dashboard, chatbot, internal downstream jobs, or
+monitoring. Dashboard asset contracts are required for every dataset exported by
+`scripts/publish_dashboard_assets.py`, including operator-managed governance
+assets such as `preparation_overrides`.
 
 ## Contract Lifecycle
 

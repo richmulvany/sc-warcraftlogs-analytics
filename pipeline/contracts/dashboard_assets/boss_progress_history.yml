@@ -1,0 +1,104 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.boss_progress_history
+info:
+  title: Boss Progress History Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  boss_progress_history:
+    type: table
+    primaryKey:
+    - encounter_id
+    - difficulty
+    - report_code
+    fields:
+      encounter_id:
+        type: integer
+        required: true
+        nullable: false
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      difficulty:
+        type: integer
+        required: true
+        nullable: false
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      raid_night_date:
+        type: date
+        required: true
+        nullable: false
+      report_code:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      report_title:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      start_time_utc:
+        type: timestamp
+        required: false
+        nullable: true
+      end_time_utc:
+        type: timestamp
+        required: false
+        nullable: true
+      pulls_on_night:
+        type: integer
+        required: true
+        nullable: false
+      kills_on_night:
+        type: integer
+        required: true
+        nullable: false
+      wipes_on_night:
+        type: integer
+        required: true
+        nullable: false
+      best_wipe_pct_on_night:
+        type: number
+        required: false
+        nullable: true
+      avg_wipe_pct_on_night:
+        type: number
+        required: false
+        nullable: true
+      best_boss_hp_remaining:
+        type: number
+        required: false
+        nullable: true
+      is_kill_on_night:
+        type: boolean
+        required: true
+        nullable: false
+      kill_duration_seconds:
+        type: number
+        required: false
+        nullable: true
+      longest_pull_seconds:
+        type: number
+        required: false
+        nullable: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: boss_progress_history
+    sourceTable: 03_gold.sc_analytics.gold_boss_progress_history
+    publishedPath: boss_progress_history.json
+    grain: One row per report, boss encounter, and difficulty with nightly progression summary.
+    consumers:
+    - frontend static dashboard

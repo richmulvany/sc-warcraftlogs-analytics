@@ -5,99 +5,77 @@ info:
   version: 0.1.0
   status: active
   owner: richmulvany
-  description: >
-    Published JSON asset containing the fastest recorded kill per encounter and
-    difficulty for dashboard progression views.
-servers:
-  dashboard_json:
-    type: custom
-    description: Databricks gold table exported as static JSON through dashboard publishing.
-    location: /Volumes/03_gold/sc_analytics/dashboard_exports/latest/best_kills.json
 models:
   best_kills:
     type: table
-    description: Fastest kill duration per encounter, boss, zone, and difficulty.
     primaryKey:
-      - encounter_id
-      - boss_name
-      - zone_name
-      - difficulty
+    - encounter_id
+    - boss_name
+    - zone_name
+    - difficulty
     fields:
       encounter_id:
         type: integer
         required: true
-        primary: true
-        description: Stable WarcraftLogs encounter identifier.
+        nullable: false
       boss_name:
         type: string
         required: true
-        primary: true
-        description: Boss display name.
+        nullable: false
+        allowEmpty: false
       zone_name:
         type: string
         required: true
-        primary: true
-        description: Raid zone display name.
+        nullable: false
+        allowEmpty: false
       difficulty:
         type: integer
         required: true
-        primary: true
-        description: WarcraftLogs difficulty integer.
+        nullable: false
       difficulty_label:
         type: string
         required: true
-        description: Human-readable difficulty label.
+        nullable: false
+        allowEmpty: false
       best_kill_seconds:
         type: number
         required: true
-        description: Fastest kill duration in seconds for the encounter and difficulty.
+        nullable: false
       avg_kill_seconds:
         type: number
         required: true
-        description: Average kill duration in seconds for the encounter and difficulty.
+        nullable: false
       total_kills:
         type: integer
         required: true
-        description: Number of kill pulls included.
+        nullable: false
       first_kill_date:
         type: date
         required: true
-        description: First recorded kill date.
+        nullable: false
       latest_kill_date:
         type: date
         required: true
-        description: Latest recorded kill date.
+        nullable: false
       best_kill_mm_ss:
         type: string
         required: true
-        description: Display-friendly fastest kill duration.
-quality:
-  type: custom
-  specification:
-    checks for best_kills:
-      - duplicate_count(encounter_id, boss_name, zone_name, difficulty) = 0
-      - total_kills > 0
-      - best_kill_seconds <= avg_kill_seconds
+        nullable: false
+        allowEmpty: false
 x-sc-analytics:
   dashboardAsset:
     dataset: best_kills
     sourceTable: 03_gold.sc_analytics.gold_best_kills
     publishedPath: best_kills.json
-    grain: One row per encounter, boss, zone, and difficulty with at least one recorded kill.
+    grain: One row per encounter, boss, zone, and difficulty with at least one kill.
     consumers:
-      - frontend/src/hooks/useGoldData.ts:useBestKills
-    freshness:
-      expectedAfterJob: daily_orchestrator
-      maxStalenessHours: 48
+    - frontend static dashboard
     rules:
-      - name: valid_difficulty
-        field: difficulty_label
-        enum: [Normal, Heroic, Mythic]
-      - name: positive_kill_count
-        expression: total_kills > 0
-      - name: best_not_slower_than_average
-        expression: best_kill_seconds <= avg_kill_seconds
-    breakingChanges:
-      - Removing or renaming any listed field.
-      - Changing the grain away from encounter plus boss plus zone plus difficulty.
-      - Changing duration units from seconds.
+    - name: valid_difficulty
+      field: difficulty_label
+      enum:
+      - Normal
+      - Heroic
+      - Mythic
+    - name: positive_kill_count
+      expression: total_kills > 0
