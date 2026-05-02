@@ -2,85 +2,147 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.gold_boss_wipe_analysis
 info:
   title: Gold Boss Wipe Analysis
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Per-(encounter, difficulty) wipe rollup. Includes how many wipes, best
+    (lowest remaining HP%) wipe, average wipe HP%, max phase reached, and wipe
+    durations. Use this to answer "where are we wiping?" and "are we improving
+    on this boss?". For per-pull mechanics use gold_boss_mechanics; for player
+    survival diagnosis use gold_wipe_survival_discipline.
 models:
   gold_boss_wipe_analysis:
     type: table
+    description: One row per (encounter, difficulty) summarising all wipes.
     primaryKey:
     - encounter_id
     - zone_name
     - difficulty
     fields:
       encounter_id:
+        description: "Stable WCL encounter identifier."
         type: integer
         required: true
         nullable: false
       boss_name:
+        description: "Boss name."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       zone_name:
+        description: "Raid zone name."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       difficulty:
+        description: "Difficulty integer (3=Normal, 4=Heroic, 5=Mythic)."
         type: integer
         required: true
         nullable: false
+        enum: [3, 4, 5]
       difficulty_label:
+        description: "Human-readable difficulty."
         type: string
         required: true
         nullable: false
         allowEmpty: false
+        enum: [Normal, Heroic, Mythic]
       total_wipes:
+        description: "Number of wipes recorded against this (encounter, difficulty)."
         type: integer
         required: true
         nullable: false
+        unit: count
       best_wipe_pct:
+        description: "Lowest remaining boss HP% across all wipes (closer to 0 = closer to a kill)."
         type: number
         required: false
         nullable: true
+        unit: percent_0_100
       avg_wipe_pct:
+        description: "Average remaining boss HP% across wipes."
         type: number
         required: false
         nullable: true
+        unit: percent_0_100
       avg_last_phase:
+        description: "Average final phase reached across wipes."
         type: number
         required: false
         nullable: true
       max_phase_reached:
+        description: "Furthest phase ever reached on a wipe."
         type: integer
         required: false
         nullable: true
       avg_wipe_duration_seconds:
+        description: "Average wipe duration."
         type: number
         required: false
         nullable: true
+        unit: seconds
       longest_wipe_seconds:
+        description: "Longest wipe duration ever recorded."
         type: number
         required: false
         nullable: true
+        unit: seconds
       first_wipe_date:
+        description: "Date of the first recorded wipe at this (encounter, difficulty)."
         type: date
         required: false
         nullable: true
       latest_wipe_date:
+        description: "Date of the most recent wipe."
         type: date
         required: false
         nullable: true
       raid_nights_attempted:
+        description: "Distinct raid nights with at least one pull on this (encounter, difficulty)."
         type: integer
         required: true
         nullable: false
+        unit: count
       avg_wipe_pct_rounded:
+        description: "avg_wipe_pct rounded for display use."
         type: number
         required: false
         nullable: true
+        unit: percent_0_100
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Wipe-side counterpart to gold_boss_progression. Use for "where are we
+    wiping?", "what is our best pull on <boss>?", "are we making progress
+    (avg_wipe_pct trending down)?". Lower best_wipe_pct = closer to killing.
+  exampleQuestions:
+    - Which bosses are we wiping on most this tier?
+    - What is our best pull (lowest HP%) on Mythic <boss>?
+    - How many raid nights have we spent on <boss>?
+    - Which Mythic bosses are we farthest from killing?
+  metrics:
+    - name: best_wipe_pct
+      definition: Lowest boss HP% remaining across all wipes — primary "how close are we" signal.
+      unit: percent_0_100
+      caveats: Phase-gated bosses can show low pct on phase 1 wipes that aren't actually progress.
+    - name: avg_wipe_pct
+      definition: Mean boss HP% remaining across wipes.
+      unit: percent_0_100
+      caveats: Sensitive to a small number of bad early-phase pulls; check max_phase_reached for context.
+  joinKeys:
+    - column: encounter_id
+      joinsTo: gold_encounter_catalog.encounter_id
+      cardinality: many-to-one
+    - column: encounter_id
+      joinsTo: gold_boss_progression.encounter_id
+      cardinality: many-to-one
+  notRecommendedFor:
+    - Counting kills — use gold_boss_progression.total_kills.
+    - Per-pull or per-player analysis — use gold_boss_pull_history or gold_wipe_survival_discipline.
+    - Computing parse percentiles — wipes don't generate parses.
   goldProduct:
     table: 03_gold.sc_analytics.gold_boss_wipe_analysis
     model: gold_boss_wipe_analysis

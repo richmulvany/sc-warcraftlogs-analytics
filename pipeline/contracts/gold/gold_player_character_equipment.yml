@@ -106,6 +106,7 @@ models:
         nullable: true
         allowEmpty: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_character_equipment
     model: gold_player_character_equipment

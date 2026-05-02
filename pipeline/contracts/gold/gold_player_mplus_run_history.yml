@@ -22,82 +22,100 @@ models:
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       realm_slug:
+        description: "Realm slug"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       region:
+        description: "Raider.IO region"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       season:
+        description: "Season identifier"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       source:
+        description: "`recent` or `best` source array"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       dungeon:
+        description: "Dungeon name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       short_name:
+        description: "Short dungeon name"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       mythic_level:
+        description: "Keystone level"
         type: integer
         required: false
         nullable: true
       score:
+        description: "Raider.IO run score"
         type: number
         required: false
         nullable: true
       completed_at:
+        description: "Completion timestamp"
         type: timestamp
         required: true
         nullable: false
       completed_date:
+        description: "Completion date"
         type: date
         required: false
         nullable: true
       clear_time_ms:
+        description: "Clear time in ms"
         type: integer
         required: false
         nullable: true
       par_time_ms:
+        description: "Timer/par time in ms"
         type: integer
         required: false
         nullable: true
       num_keystone_upgrades:
+        description: "Keystone upgrades awarded"
         type: integer
         required: false
         nullable: true
       timed:
+        description: "Whether the run was completed in time"
         type: boolean
         required: false
         nullable: true
       url:
+        description: "Raider.IO run URL"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       snapshot_at:
+        description: "Ingestion timestamp"
         type: timestamp
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_mplus_run_history
     model: gold_player_mplus_run_history

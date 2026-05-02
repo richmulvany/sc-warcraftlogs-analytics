@@ -242,6 +242,7 @@ export interface WipeSurvivalDiscipline {
   has_defensive_capacity_tracked: boolean | string
   most_common_killing_blow: string
   most_common_killing_blow_count: number
+  survival_grade?: 'S' | 'A' | 'B' | 'C' | 'D' | 'E' | 'F'
 }
 
 export interface GuildRoster {

@@ -2,12 +2,19 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.fact_player_events
 info:
   title: Fact Player Events
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    One row per player death event across all WCL reports. The grain is the
+    death itself, not the fight, so a player can have many rows in a single
+    fight. Includes the killing-blow ability when WCL recorded one. Use this
+    for "who dies most", "what kills us most often", and per-ability death
+    breakdowns. Wipe rate / pull counts live in gold_boss_wipe_analysis.
 models:
   fact_player_events:
     type: table
+    description: One row per logged death event.
     primaryKey:
     - report_code
     - fight_id
@@ -15,55 +22,104 @@ models:
     - death_timestamp_ms
     fields:
       report_code:
+        description: "WCL report identifier"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       fight_id:
+        description: "Fight the death occurred in"
         type: integer
         required: true
         nullable: false
       player_name:
+        description: "Player who died"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_class:
+        description: "Player's WoW class"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       death_timestamp_ms:
+        description: "Fight-relative timestamp in milliseconds"
         type: integer
         required: true
         nullable: false
+        unit: milliseconds
       overkill:
+        description: "Overkill damage amount on the killing blow"
         type: number
         required: false
         nullable: true
+        unit: count
       killing_blow_name:
+        description: "Name of the ability that killed the player (nullable — null if killing blow was from a friendly or events array was empty)"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       killing_blow_id:
+        description: "Spell ID of the killing blow ability"
         type: integer
         required: false
         nullable: true
       zone_name:
+        description: "Raid zone (from report-level context)"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       zone_id:
+        description: "WCL zone identifier"
         type: integer
         required: false
         nullable: true
       raid_night_date:
+        description: "Date of the raid night"
         type: date
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Death-event fact. Each row is a single death; group by player_name to count
+    deaths, by killing_blow_name to find which mechanics kill most, by
+    encounter to find dangerous fights. Joins to dim_player on player_name and
+    to gold_encounter_catalog on (zone_id, encounter_id) — but encounter_id is
+    not on this table directly, derive from a join on (report_code, fight_id)
+    via fact_player_fight_performance if needed.
+  exampleQuestions:
+    - Who dies most often on each boss?
+    - What are our most common killing blows?
+    - Which abilities killed players the most last raid night?
+    - Show death counts per player on Mythic <boss>.
+  metrics:
+    - name: death_count
+      definition: Count of rows per (player, fight) or per (boss, ability).
+      unit: count
+      caveats: A single fight may have multiple rows per player when the player died, was rezzed, and died again.
+    - name: most_common_killing_blow
+      definition: killing_blow_name with the highest count for the chosen scope.
+      unit: ability_name
+      caveats: Null killing_blow_name means a friendly source or empty events array — exclude with WHERE killing_blow_name IS NOT NULL.
+  joinKeys:
+    - column: player_name
+      joinsTo: dim_player.player_name
+      cardinality: many-to-one
+    - column: report_code
+      joinsTo: gold_raid_summary.report_code
+      cardinality: many-to-one
+    - column: zone_id
+      joinsTo: gold_encounter_catalog.zone_id
+      cardinality: many-to-one
+  notRecommendedFor:
+    - Counting wipes — a wipe and a death are different things; use gold_boss_wipe_analysis.
+    - Computing parse percentiles — use fact_player_fight_performance.
+    - Treating null killing_blow_name as zero — exclude or label as "unknown".
   goldProduct:
     table: 03_gold.sc_analytics.fact_player_events
     model: fact_player_events

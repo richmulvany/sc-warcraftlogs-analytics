@@ -34,6 +34,7 @@ models:
         required: true
         nullable: false
 x-sc-analytics:
+  chatbotTier: excluded
   goldProduct:
     table: 03_gold.sc_analytics.gold_parse_completeness_daily
     model: gold_parse_completeness_daily

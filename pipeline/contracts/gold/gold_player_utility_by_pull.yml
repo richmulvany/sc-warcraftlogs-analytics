@@ -91,6 +91,7 @@ models:
         nullable: true
         allowEmpty: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_utility_by_pull
     model: gold_player_utility_by_pull

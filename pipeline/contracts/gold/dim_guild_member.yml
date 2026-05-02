@@ -13,71 +13,87 @@ models:
     - realm_slug
     fields:
       name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       realm_slug:
+        description: "Realm slug (lowercase, hyphenated)"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       rank:
+        description: "Guild rank ID (0–9)"
         type: integer
         required: true
         nullable: false
       rank_label:
+        description: "Human-readable rank label"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       rank_category:
+        description: "Rank category grouping"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       is_raid_team:
+        description: "Active raid team member flag"
         type: boolean
         required: true
         nullable: false
       class_id:
+        description: "Blizzard class ID (1–13)"
         type: integer
         required: false
         nullable: true
       class_name:
+        description: "Derived WoW class name"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       level:
+        description: "Character level"
         type: integer
         required: false
         nullable: true
       total_raids_tracked:
+        description: "Total WCL raid reports in attendance data"
         type: integer
         required: true
         nullable: false
       raids_present:
+        description: "Reports where player was marked present"
         type: integer
         required: true
         nullable: false
       attendance_rate_pct:
+        description: "Attendance % (raids_present / total_raids_tracked × 100)"
         type: number
         required: true
         nullable: false
       last_raid_date:
+        description: "Most recent raid attendance date"
         type: date
         required: false
         nullable: true
       first_raid_date:
+        description: "First raid attendance date"
         type: date
         required: false
         nullable: true
       is_active:
+        description: "Attendance ≥ 25% OR rank IN (0, 1, 2)"
         type: boolean
         required: true
         nullable: false
       possible_main:
+        description: "Character's own name (alt resolution handled in gold_raid_team)"
         type: string
         required: false
         nullable: true
@@ -87,6 +103,7 @@ models:
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.dim_guild_member
     model: dim_guild_member

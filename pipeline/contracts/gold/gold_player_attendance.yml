@@ -12,6 +12,7 @@ models:
     - player_identity_key
     fields:
       player_identity_key:
+        description: "Lowercase `player_name:player_class:player_realm` identity key"
         type: string
         required: true
         nullable: false
@@ -27,23 +28,28 @@ models:
         nullable: false
         allowEmpty: false
       player_realm:
+        description: "Realm resolved from WCL actor roster, or `unknown`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       total_raids_tracked:
+        description: "Total report count"
         type: integer
         required: true
         nullable: false
       raids_present:
+        description: "Reports with presence = 1"
         type: integer
         required: true
         nullable: false
       raids_benched:
+        description: "Reports with presence = 2"
         type: integer
         required: true
         nullable: false
       raids_absent:
+        description: "Reports with presence = 3"
         type: integer
         required: true
         nullable: false
@@ -56,14 +62,17 @@ models:
         required: false
         nullable: true
       zones_attended:
+        description: "Distinct zones attended"
         type: array
         required: false
         nullable: true
       attendance_rate_pct:
+        description: "raids_present / total × 100"
         type: number
         required: true
         nullable: false
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_attendance
     model: gold_player_attendance

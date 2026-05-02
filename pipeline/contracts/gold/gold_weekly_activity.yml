@@ -12,34 +12,42 @@ models:
     - week_start
     fields:
       week_start:
+        description: "Monday of the ISO week"
         type: timestamp
         required: true
         nullable: false
       raid_nights:
+        description: "Number of unique reports that week"
         type: integer
         required: true
         nullable: false
       total_boss_kills:
+        description: "Sum of boss kills across all reports"
         type: integer
         required: true
         nullable: false
       total_wipes:
+        description: "Sum of wipes"
         type: integer
         required: true
         nullable: false
       total_pulls:
+        description: "Total pulls (kills + wipes)"
         type: integer
         required: true
         nullable: false
       total_raid_seconds:
+        description: "Total active fight time in seconds"
         type: number
         required: true
         nullable: false
       zones_raided:
+        description: "Distinct zones raided that week"
         type: array
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_weekly_activity
     model: gold_weekly_activity

@@ -20,68 +20,83 @@ models:
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       realm_slug:
+        description: "Realm slug"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       region:
+        description: "Raider.IO region"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       season:
+        description: "Season identifier"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       dungeon:
+        description: "Dungeon name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       best_short_name:
+        description: "Short dungeon name for the best run"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       highest_key_level:
+        description: "Highest key level in exported payload"
         type: integer
         required: false
         nullable: true
       highest_timed_level:
+        description: "Highest timed key level"
         type: integer
         required: false
         nullable: true
       total_runs:
+        description: "Runs for this dungeon"
         type: integer
         required: true
         nullable: false
       timed_runs:
+        description: "Timed runs for this dungeon"
         type: integer
         required: true
         nullable: false
       untimed_runs:
+        description: "Untimed runs for this dungeon"
         type: integer
         required: true
         nullable: false
       latest_completed_at:
+        description: "Latest completion timestamp"
         type: timestamp
         required: false
         nullable: true
       best_key_level:
+        description: "Key level for selected best run"
         type: integer
         required: false
         nullable: true
       best_score:
+        description: "Raider.IO best run score"
         type: number
         required: false
         nullable: true
       best_timed:
+        description: "Whether selected best run was timed"
         type: boolean
         required: false
         nullable: true
@@ -94,15 +109,18 @@ models:
         required: false
         nullable: true
       best_completed_at:
+        description: "Best run completion timestamp"
         type: timestamp
         required: false
         nullable: true
       best_run_url:
+        description: "Raider.IO run URL"
         type: string
         required: false
         nullable: true
         allowEmpty: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_mplus_dungeon_breakdown
     model: gold_player_mplus_dungeon_breakdown

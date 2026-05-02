@@ -132,6 +132,7 @@ models:
         nullable: true
         allowEmpty: true
       throughput_per_second:
+        description: "From WCL rankings (nullable)"
         type: number
         required: false
         nullable: true
@@ -149,6 +150,7 @@ models:
         nullable: true
         allowEmpty: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_boss_kill_roster
     model: gold_boss_kill_roster

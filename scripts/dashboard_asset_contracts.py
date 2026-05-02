@@ -33,6 +33,10 @@ class FieldContract:
     required: bool
     nullable: bool
     allow_empty: bool
+    description: str = ""
+    enum: tuple[Any, ...] = ()
+    unit: str = ""
+    classification: str = ""
 
 
 @dataclass(frozen=True)
@@ -49,6 +53,15 @@ class DataProductContract:
     unique_key: tuple[str, ...]
     rules: tuple[dict[str, Any], ...]
     path: Path
+    info_description: str = ""
+    model_description: str = ""
+    grain: str = ""
+    ai_summary: str = ""
+    metrics: tuple[dict[str, Any], ...] = ()
+    example_questions: tuple[str, ...] = ()
+    join_keys: tuple[dict[str, Any], ...] = ()
+    not_recommended_for: tuple[str, ...] = ()
+    chatbot_tier: str = ""
 
     @property
     def dataset(self) -> str:
@@ -71,6 +84,7 @@ class ProductCatalogEntry:
     dashboard_contract_path: str
     downstream_consumers: tuple[str, ...]
     refresh_expectation: str
+    chatbot_tier: str = ""
 
 
 @dataclass(frozen=True)
@@ -117,6 +131,7 @@ def load_product_catalog(catalog_path: Path = DEFAULT_CATALOG_PATH) -> ProductCa
                 str(value) for value in item.get("downstream_consumers") or ()
             ),
             refresh_expectation=str(item.get("refresh_expectation") or ""),
+            chatbot_tier=str(item.get("chatbot_tier") or ""),
         )
     return ProductCatalog(contract_set_version=version, entries=entries)
 
@@ -260,7 +275,14 @@ def _parse_contract(path: Path, raw: dict[str, Any], *, product_kind: str) -> Da
     model_name = ""
     source_table = ""
     published_path = ""
-    rules: tuple[dict[str, Any], ...]
+    rules: tuple[dict[str, Any], ...] = ()
+    grain = ""
+    ai_summary = ""
+    metrics: tuple[dict[str, Any], ...] = ()
+    example_questions: tuple[str, ...] = ()
+    join_keys: tuple[dict[str, Any], ...] = ()
+    not_recommended_for: tuple[str, ...] = ()
+    chatbot_tier = ""
     if product_kind == "dashboard_asset":
         asset = extension.get("dashboardAsset") or {}
         target = asset.get("dataset")
@@ -278,6 +300,13 @@ def _parse_contract(path: Path, raw: dict[str, Any], *, product_kind: str) -> Da
         model_name = str(product.get("model") or _unqualified_table_name(target))
         source_table = target
         rules = tuple(product.get("rules") or ())
+        grain = str(product.get("grain") or "")
+        ai_summary = str(extension.get("aiSummary") or "")
+        metrics = tuple(extension.get("metrics") or ())
+        example_questions = tuple(str(q) for q in extension.get("exampleQuestions") or ())
+        join_keys = tuple(extension.get("joinKeys") or ())
+        not_recommended_for = tuple(str(q) for q in extension.get("notRecommendedFor") or ())
+        chatbot_tier = str(extension.get("chatbotTier") or "")
     else:
         raise ContractValidationError(f"{path}: unknown product kind {product_kind}.")
 
@@ -306,6 +335,8 @@ def _parse_contract(path: Path, raw: dict[str, Any], *, product_kind: str) -> Da
             f'{path}: primary key references undeclared fields: {", ".join(missing_key_fields)}'
         )
 
+    info_description = str(info.get("description") or "")
+    model_description = str(model.get("description") or "") if isinstance(model, dict) else ""
     return DataProductContract(
         contract_id=contract_id,
         version=version,
@@ -319,6 +350,15 @@ def _parse_contract(path: Path, raw: dict[str, Any], *, product_kind: str) -> Da
         unique_key=unique_key,
         rules=rules,
         path=path,
+        info_description=info_description,
+        model_description=model_description,
+        grain=grain,
+        ai_summary=ai_summary,
+        metrics=metrics,
+        example_questions=example_questions,
+        join_keys=join_keys,
+        not_recommended_for=not_recommended_for,
+        chatbot_tier=chatbot_tier,
     )
 
 
@@ -326,12 +366,18 @@ def _parse_field_contract(name: str, spec: dict[str, Any]) -> FieldContract:
     required = bool(spec.get("required", False))
     nullable = bool(spec.get("nullable", not required))
     allow_empty = bool(spec.get("allowEmpty", False))
+    enum_raw = spec.get("enum")
+    enum: tuple[Any, ...] = tuple(enum_raw) if isinstance(enum_raw, list) else ()
     return FieldContract(
         name=name,
         type=str(spec.get("type", "string")),
         required=required,
         nullable=nullable,
         allow_empty=allow_empty,
+        description=str(spec.get("description") or ""),
+        enum=enum,
+        unit=str(spec.get("unit") or ""),
+        classification=str(spec.get("classification") or ""),
     )
 
 
@@ -517,6 +563,81 @@ def _as_number(value: Any) -> float | None:
     return None
 
 
+def validate_descriptions_present(
+    contracts: dict[str, GoldProductContract],
+    *,
+    require_tier: tuple[str, ...] = ("primary",),
+) -> list[str]:
+    """Return a list of human-readable problems for contracts missing semantic metadata.
+
+    Used by the ``--validate-descriptions`` CLI to gate contracts before the chatbot
+    layer. By default only contracts marked ``chatbotTier: primary`` are required to
+    have full metadata; pass ``require_tier=("primary","secondary")`` to widen.
+    """
+
+    problems: list[str] = []
+    for table_name, contract in contracts.items():
+        if contract.chatbot_tier and contract.chatbot_tier not in require_tier:
+            continue
+        if not contract.chatbot_tier:
+            # Untiered tables are not gated by this check.
+            continue
+        if not contract.info_description and not contract.model_description:
+            problems.append(f"{table_name}: missing info.description / model description")
+        if not contract.ai_summary:
+            problems.append(f"{table_name}: missing x-sc-analytics.aiSummary")
+        if not contract.example_questions:
+            problems.append(f"{table_name}: missing x-sc-analytics.exampleQuestions")
+        for field_name, field in contract.fields.items():
+            if not field.description:
+                problems.append(f"{table_name}.{field_name}: missing description")
+    return problems
+
+
+def _main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Validate sc-analytics data contracts.")
+    parser.add_argument(
+        "--validate-descriptions",
+        action="store_true",
+        help="Fail if any chatbotTier-primary contract is missing semantic metadata.",
+    )
+    parser.add_argument(
+        "--include-secondary",
+        action="store_true",
+        help="Also require descriptions on chatbotTier=secondary contracts.",
+    )
+    parser.add_argument(
+        "--list-tiers",
+        action="store_true",
+        help="Print the chatbotTier of every gold contract and exit.",
+    )
+    args = parser.parse_args(argv)
+
+    contracts = load_gold_product_contracts()
+
+    if args.list_tiers:
+        for name in sorted(contracts):
+            tier = contracts[name].chatbot_tier or "(unset)"
+            print(f"{tier:<10} {name}")
+        return 0
+
+    if args.validate_descriptions:
+        require = ("primary", "secondary") if args.include_secondary else ("primary",)
+        problems = validate_descriptions_present(contracts, require_tier=require)
+        if problems:
+            for line in problems:
+                print(line)
+            print(f"\n{len(problems)} description issues found.")
+            return 1
+        print(f"All chatbotTier={'/'.join(require)} contracts have required semantic metadata.")
+        return 0
+
+    parser.print_help()
+    return 0
+
+
 _ALLOWED_AST_NODES = (
     ast.Expression,
     ast.BoolOp,
@@ -569,3 +690,9 @@ def _safe_eval_bool(expression: str, context: dict[str, Any]) -> bool:
 
     compiled = compile(tree, "<data-product-contract>", "eval")
     return bool(eval(compiled, {"__builtins__": {}, "max": max, "min": min, "abs": abs}, context))
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(_main(sys.argv[1:]))

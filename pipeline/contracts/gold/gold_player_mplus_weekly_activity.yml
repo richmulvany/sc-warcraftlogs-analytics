@@ -20,54 +20,66 @@ models:
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       realm_slug:
+        description: "Realm slug"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       region:
+        description: "Raider.IO region"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       season:
+        description: "Season identifier"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       week_start:
+        description: "Week start date"
         type: date
         required: true
         nullable: false
       total_runs:
+        description: "Runs in week"
         type: integer
         required: true
         nullable: false
       timed_runs:
+        description: "Timed runs in week"
         type: integer
         required: true
         nullable: false
       untimed_runs:
+        description: "Untimed runs in week"
         type: integer
         required: true
         nullable: false
       highest_key_level:
+        description: "Highest key level completed that week"
         type: integer
         required: false
         nullable: true
       unique_dungeons:
+        description: "Distinct dungeons completed that week"
         type: integer
         required: true
         nullable: false
       most_common_key_level:
+        description: "Most common key level that week"
         type: integer
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_mplus_weekly_activity
     model: gold_player_mplus_weekly_activity

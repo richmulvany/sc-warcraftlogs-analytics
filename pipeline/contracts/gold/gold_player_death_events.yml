@@ -102,6 +102,7 @@ models:
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_death_events
     model: gold_player_death_events

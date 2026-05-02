@@ -2,12 +2,20 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.gold_player_survivability_rankings
 info:
   title: Gold Player Survivability Rankings
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Per-player survivability rank within a display scope (zone, boss,
+    difficulty), where rank 1 is the best (lowest deaths-per-kill). Use this
+    for "who has the best survival rate", "where does player X rank in
+    survivability", or "top 5 survival players this tier". Pair with
+    gold_wipe_survival_discipline for the wipe-discipline view (deaths on
+    wipes, defensives, healthstones).
 models:
   gold_player_survivability_rankings:
     type: table
+    description: One row per (player identity, dashboard scope) survivability rank.
     primaryKey:
     - player_identity_key
     - zone_name
@@ -15,68 +23,118 @@ models:
     - difficulty_label
     fields:
       player_identity_key:
+        description: "Lowercase player_name:player_class:realm identity key."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_class:
+        description: "WarcraftLogs class"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       zone_name:
+        description: "Raid zone, or `All`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       encounter_id:
+        description: "Encounter id when the display boss scope maps to one encounter; null for all-boss or ambiguous all-zone scopes"
         type: integer
         required: false
         nullable: true
       boss_name:
+        description: "Boss name, or `All`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       difficulty:
+        description: "Difficulty id when the display difficulty scope maps to one id; null for all-difficulty or ambiguous scopes"
         type: integer
         required: false
         nullable: true
       difficulty_label:
+        description: "Difficulty label, or `All`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       deaths:
+        description: "Death count in scope."
         type: integer
         required: true
         nullable: false
+        unit: count
       kills:
+        description: "Kill roster rows in scope."
         type: integer
         required: true
         nullable: false
+        unit: count
       deaths_per_kill:
+        description: "Deaths divided by kills; lower is better."
         type: number
         required: true
         nullable: false
+        unit: ratio
       survivability_rank:
+        description: "Rank in scope; 1 is best survivability."
         type: integer
         required: true
         nullable: false
       survivability_rank_total:
+        description: "Number of ranked players in scope."
         type: integer
         required: true
         nullable: false
+        unit: count
       survivability_rank_percentile:
+        description: "0-100 percentile derived from rank (100 = best)."
         type: number
         required: true
         nullable: false
+        unit: percent_0_100
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Player survivability leaderboard within a display scope. Rank 1 = best
+    (lowest deaths_per_kill); the percentile field is derived from rank. Filter
+    on (zone_name, boss_name, difficulty_label) to scope; use the literal
+    string `All` for cross-scope rows.
+  exampleQuestions:
+    - Who has the best survivability this tier?
+    - List the top 5 most survivable players on Mythic <boss>.
+    - Where does player X rank in survivability?
+    - Which players have the worst deaths-per-kill ratio?
+  metrics:
+    - name: deaths_per_kill
+      definition: deaths / max(kills, 1) within scope.
+      unit: ratio
+      caveats: A player with kills=0 will not appear in this table.
+    - name: survivability_rank_percentile
+      definition: 100 * (1 - (survivability_rank - 1) / max(survivability_rank_total - 1, 1)).
+      unit: percent_0_100
+      caveats: Higher is better; tied ranks share a percentile.
+  joinKeys:
+    - column: player_identity_key
+      joinsTo: gold_player_performance_summary.player_identity_key
+      cardinality: many-to-one
+    - column: encounter_id
+      joinsTo: gold_encounter_catalog.encounter_id
+      cardinality: many-to-one
+  notRecommendedFor:
+    - Wipe-side analysis — use gold_wipe_survival_discipline.
+    - Per-fight death events — use fact_player_events.
+    - Comparing scopes without a (zone_name, boss_name, difficulty_label) filter.
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_survivability_rankings
     model: gold_player_survivability_rankings

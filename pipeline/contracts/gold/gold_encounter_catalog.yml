@@ -2,39 +2,79 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.gold_encounter_catalog
 info:
   title: Gold Encounter Catalog
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Reference dimension of active raid encounters. One row per
+    (zone_id, encounter_id). Use to translate encounter_id ↔ encounter_name,
+    list bosses in a zone, or filter facts to current-tier encounters. Only
+    active (non-frozen) zones are included.
 models:
   gold_encounter_catalog:
     type: table
+    description: One row per active raid-zone encounter (boss).
     primaryKey:
     - zone_id
     - encounter_id
     fields:
       zone_id:
+        description: "WCL zone identifier."
         type: integer
         required: true
         nullable: false
       zone_name:
+        description: "Raid zone name."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       encounter_id:
+        description: "Stable WCL encounter identifier."
         type: integer
         required: true
         nullable: false
       encounter_name:
+        description: "Boss name."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       difficulty_names:
+        description: "Available difficulty names for this encounter (e.g. [Normal, Heroic, Mythic])."
         type: array
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Encounter dimension. Join on encounter_id to get the boss name when a fact
+    table only has encounter_id, or join on zone_id to filter to a specific
+    raid zone. Active zones only — old tier encounters are excluded.
+  exampleQuestions:
+    - List all bosses in the current raid zone.
+    - What is the boss name for encounter_id = X?
+    - Which encounters are available on Mythic difficulty?
+  metrics: []
+  joinKeys:
+    - column: encounter_id
+      joinsTo: fact_player_fight_performance.encounter_id
+      cardinality: one-to-many
+    - column: encounter_id
+      joinsTo: gold_boss_progression.encounter_id
+      cardinality: one-to-many
+    - column: encounter_id
+      joinsTo: gold_boss_wipe_analysis.encounter_id
+      cardinality: one-to-many
+    - column: encounter_id
+      joinsTo: gold_boss_mechanics.encounter_id
+      cardinality: one-to-many
+    - column: zone_id
+      joinsTo: fact_player_events.zone_id
+      cardinality: one-to-many
+  notRecommendedFor:
+    - Old tier / frozen encounter lookups — those are excluded.
+    - Difficulty-specific keys — difficulty is not part of the primary key here; join on encounter_id only.
   goldProduct:
     table: 03_gold.sc_analytics.gold_encounter_catalog
     model: gold_encounter_catalog

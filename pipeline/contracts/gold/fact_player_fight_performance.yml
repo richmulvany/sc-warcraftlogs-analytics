@@ -2,163 +2,243 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.fact_player_fight_performance
 info:
   title: Fact Player Fight Performance
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Primary fact table for raid performance analysis. One row per player per
+    boss-kill fight, joining WCL player performance, fight events, and player
+    rankings. Includes throughput, parse percentiles, item level, consumables,
+    and secondary stats. Wipe pulls are not included here — use
+    gold_boss_wipe_analysis or gold_wipe_survival_discipline for wipes.
 models:
   fact_player_fight_performance:
     type: table
+    description: One row per player per boss-kill fight.
     primaryKey:
     - report_code
     - fight_id
     - player_name
     fields:
       report_code:
+        description: "WCL report identifier"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       fight_id:
+        description: "Fight number within the report"
         type: integer
         required: true
         nullable: false
       encounter_id:
+        description: "Stable WCL encounter identifier"
         type: integer
         required: true
         nullable: false
       boss_name:
+        description: "Boss name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       zone_name:
+        description: "Raid zone name"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       difficulty:
+        description: "Difficulty integer (3=Normal, 4=Heroic, 5=Mythic)"
         type: integer
         required: false
         nullable: true
+        enum: [3, 4, 5]
       difficulty_label:
+        description: "Human-readable difficulty"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       raid_night_date:
+        description: "Date of the raid night"
         type: date
         required: false
         nullable: true
       is_kill:
+        description: "Always true (table filters to kills only)"
         type: boolean
         required: true
         nullable: false
       duration_seconds:
+        description: "Fight duration in seconds"
         type: number
         required: false
         nullable: true
+        unit: seconds
       player_name:
+        description: "Player character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_class:
+        description: "WoW class (from WCL actor data)"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       role:
+        description: "Player role for this fight."
         type: string
         required: false
         nullable: true
         allowEmpty: true
+        enum: [dps, healer, tank]
       spec:
+        description: "Specialisation name"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       avg_item_level:
+        description: "Average item level of equipped gear"
         type: number
         required: false
         nullable: true
       potion_use:
+        description: "Number of potions used (from combatantInfo)"
         type: integer
         required: true
         nullable: false
       combat_potion_casts:
+        description: "Number of damage/health combat-potion casts (DPS/healer combat usage signal)."
         type: integer
         required: false
         nullable: true
       combat_potion_names:
+        description: "Comma-separated list of combat-potion names cast (raw aura/cast names)."
         type: string
         required: false
         nullable: true
         allowEmpty: true
       healthstone_use:
+        description: "Number of healthstones used"
         type: integer
         required: false
         nullable: true
       has_food_buff:
+        description: "Whether a recognised raid food buff was active during the fight."
         type: boolean
         required: true
         nullable: false
       food_buff_names:
+        description: "Comma-separated raid food buff names that were active."
         type: string
         required: false
         nullable: true
         allowEmpty: true
       has_flask_or_phial_buff:
+        description: "Whether a flask or phial buff was active during the fight."
         type: boolean
         required: true
         nullable: false
       flask_or_phial_names:
+        description: "Comma-separated flask/phial buff names that were active."
         type: string
         required: false
         nullable: true
         allowEmpty: true
       has_weapon_enhancement:
+        description: "Whether a weapon enhancement (e.g. rune/stone/oil/imbue) was applied."
         type: boolean
         required: true
         nullable: false
       weapon_enhancement_names:
+        description: "Comma-separated weapon enhancement names that were applied."
         type: string
         required: false
         nullable: true
         allowEmpty: true
       crit_rating:
+        description: "Critical strike rating"
         type: integer
         required: false
         nullable: true
       haste_rating:
+        description: "Haste rating"
         type: integer
         required: false
         nullable: true
       mastery_rating:
+        description: "Mastery rating"
         type: integer
         required: false
         nullable: true
       versatility_rating:
+        description: "Versatility rating"
         type: integer
         required: false
         nullable: true
       throughput_per_second:
+        description: "Role-aware throughput from WCL rankings.amount: DPS for dps/tank rows, HPS for healer rows (nullable — null when no WCL ranking for this fight/player)"
         type: number
         required: false
         nullable: true
+        unit: per_second
       rank_percent:
+        description: "WCL parse percentile (0–100), role-aware (DPS parse for dps/tank, HPS parse for healer)"
         type: number
         required: false
         nullable: true
+        unit: percent_0_100
       bracket_percent:
+        description: "WCL bracket (item level bracket) percentile"
         type: number
         required: false
         nullable: true
+        unit: percent_0_100
       rank_string:
+        description: "Approximate rank position (e.g. \"~1265\")"
         type: string
         required: false
         nullable: true
         allowEmpty: true
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Per-player, per-kill performance facts. Use for "best players on boss X",
+    "parse percentiles", "throughput trends", "consumable coverage on kills".
+    For wipes / deaths / survival, use gold_boss_wipe_analysis or
+    gold_wipe_survival_discipline instead — this table only contains kill rows.
+  exampleQuestions:
+    - Which players have the best parse percentiles on Mythic <boss>?
+    - What is the average DPS per fight on heroic <boss> by player?
+    - Who is improving over time on <boss> by parse percentile?
+    - Which players consistently use flasks and food on kill fights?
+  metrics:
+    - name: throughput_per_second
+      definition: Role-aware DPS for dps/tank or HPS for healer, sourced from WCL rankings.amount.
+      unit: per_second
+      caveats: Null when WCL has no ranking entry for that player/fight.
+    - name: rank_percent
+      definition: WCL parse percentile (0–100), role-aware.
+      unit: percent_0_100
+      caveats: Often null for recent reports until rankings finalise; never bucket null as zero.
+  joinKeys:
+    - column: encounter_id
+      joinsTo: gold_encounter_catalog.encounter_id
+      cardinality: many-to-one
+    - column: player_name
+      joinsTo: dim_player.player_name
+      cardinality: many-to-one
+    - column: report_code
+      joinsTo: gold_raid_summary.report_code
+      cardinality: many-to-one
+  notRecommendedFor:
+    - Counting wipes — this table is filtered to kills (is_kill=true).
+    - Death analysis — use fact_player_events for deaths.
+    - Bucketing nullable parse fields as zero.
   goldProduct:
     table: 03_gold.sc_analytics.fact_player_fight_performance
     model: fact_player_fight_performance
