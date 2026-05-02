@@ -1,109 +1,416 @@
-contract_set_version: 0.1.0
+contract_set_version: 0.2.0
 products:
-  - id: preparation_readiness
-    gold_table: 03_gold.sc_analytics.gold_preparation_readiness
-    dashboard_dataset: preparation_readiness
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_preparation_readiness.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/preparation_readiness.yml
-    downstream_consumers:
-      - frontend/src/pages/Preparation.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
-  - id: wipe_survival_discipline
-    gold_table: 03_gold.sc_analytics.gold_wipe_survival_discipline
-    dashboard_dataset: wipe_survival_discipline
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_wipe_survival_discipline.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/wipe_survival_discipline.yml
-    downstream_consumers:
-      - frontend/src/features/wipe-analysis/index.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
-  - id: player_survivability_rankings
-    gold_table: 03_gold.sc_analytics.gold_player_survivability_rankings
-    dashboard_dataset: player_survivability_rankings
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_player_survivability_rankings.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/player_survivability_rankings.yml
-    downstream_consumers:
-      - frontend/src/features/player-detail/index.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
-  - id: player_mplus_summary
-    gold_table: 03_gold.sc_analytics.gold_player_mplus_summary
-    dashboard_dataset: player_mplus_summary
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_player_mplus_summary.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/player_mplus_summary.yml
-    downstream_consumers:
-      - frontend/src/pages/MythicPlus.tsx
-      - frontend/src/features/player-detail/sections/MplusSection.tsx
-    refresh_expectation: raiderio_snapshot_then_dashboard_asset_publish
-  - id: boss_kill_roster
-    gold_table: 03_gold.sc_analytics.gold_boss_kill_roster
-    dashboard_dataset: boss_kill_roster
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_boss_kill_roster.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/boss_kill_roster.yml
-    downstream_consumers:
-      - frontend/src/pages/Preparation.tsx
-      - frontend/src/features/player-detail/index.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
-  - id: raid_summary
-    gold_table: 03_gold.sc_analytics.gold_raid_summary
-    dashboard_dataset: raid_summary
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_raid_summary.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/raid_summary.yml
-    downstream_consumers:
-      - frontend/src/pages/Overview.tsx
-      - frontend/src/pages/Raids.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
-  - id: player_attendance
-    gold_table: 03_gold.sc_analytics.gold_player_attendance
-    dashboard_dataset: player_attendance
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_player_attendance.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/player_attendance.yml
-    downstream_consumers:
-      - frontend/src/pages/Attendance.tsx
-      - frontend/src/pages/Players.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
-  - id: player_performance_summary
-    gold_table: 03_gold.sc_analytics.gold_player_performance_summary
-    dashboard_dataset: player_performance_summary
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_player_performance_summary.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/player_performance_summary.yml
-    downstream_consumers:
-      - frontend/src/pages/Performance.tsx
-      - frontend/src/pages/Players.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
-  - id: boss_progression
-    gold_table: 03_gold.sc_analytics.gold_boss_progression
-    dashboard_dataset: boss_progression
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_boss_progression.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/boss_progression.yml
-    downstream_consumers:
-      - frontend/src/pages/Bosses.tsx
-      - frontend/src/pages/BossDetail.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
-  - id: best_kills
-    gold_table: 03_gold.sc_analytics.gold_best_kills
-    dashboard_dataset: best_kills
-    owner: richmulvany
-    lifecycle: active
-    gold_contract: pipeline/contracts/gold/gold_best_kills.yml
-    dashboard_contract: pipeline/contracts/dashboard_assets/best_kills.yml
-    downstream_consumers:
-      - frontend/src/pages/Bosses.tsx
-      - frontend/src/pages/BossDetail.tsx
-    refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+- id: dim_player
+  gold_table: 03_gold.sc_analytics.dim_player
+  owner: richmulvany
+  lifecycle: active
+  exposure: internal
+  gold_contract: pipeline/contracts/gold/dim_player.yml
+  downstream_consumers: []
+  refresh_expectation: daily_orchestrator
+- id: dim_guild_member
+  gold_table: 03_gold.sc_analytics.dim_guild_member
+  owner: richmulvany
+  lifecycle: active
+  exposure: internal
+  gold_contract: pipeline/contracts/gold/dim_guild_member.yml
+  downstream_consumers: []
+  refresh_expectation: daily_orchestrator
+- id: fact_player_fight_performance
+  gold_table: 03_gold.sc_analytics.fact_player_fight_performance
+  owner: richmulvany
+  lifecycle: active
+  exposure: internal
+  gold_contract: pipeline/contracts/gold/fact_player_fight_performance.yml
+  downstream_consumers: []
+  refresh_expectation: daily_orchestrator
+- id: fact_player_events
+  gold_table: 03_gold.sc_analytics.fact_player_events
+  owner: richmulvany
+  lifecycle: active
+  exposure: internal
+  gold_contract: pipeline/contracts/gold/fact_player_events.yml
+  downstream_consumers: []
+  refresh_expectation: daily_orchestrator
+- id: parse_completeness_daily
+  gold_table: 03_gold.sc_analytics.gold_parse_completeness_daily
+  owner: richmulvany
+  lifecycle: active
+  exposure: monitoring
+  gold_contract: pipeline/contracts/gold/gold_parse_completeness_daily.yml
+  downstream_consumers: []
+  refresh_expectation: daily_orchestrator_monitoring
+- id: raid_summary
+  gold_table: 03_gold.sc_analytics.gold_raid_summary
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_raid_summary.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: raid_summary
+  dashboard_contract: pipeline/contracts/dashboard_assets/raid_summary.yml
+- id: boss_progression
+  gold_table: 03_gold.sc_analytics.gold_boss_progression
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_boss_progression.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: boss_progression
+  dashboard_contract: pipeline/contracts/dashboard_assets/boss_progression.yml
+- id: best_kills
+  gold_table: 03_gold.sc_analytics.gold_best_kills
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_best_kills.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: best_kills
+  dashboard_contract: pipeline/contracts/dashboard_assets/best_kills.yml
+- id: boss_wipe_analysis
+  gold_table: 03_gold.sc_analytics.gold_boss_wipe_analysis
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_boss_wipe_analysis.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: boss_wipe_analysis
+  dashboard_contract: pipeline/contracts/dashboard_assets/boss_wipe_analysis.yml
+- id: progression_timeline
+  gold_table: 03_gold.sc_analytics.gold_progression_timeline
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_progression_timeline.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: progression_timeline
+  dashboard_contract: pipeline/contracts/dashboard_assets/progression_timeline.yml
+- id: boss_progress_history
+  gold_table: 03_gold.sc_analytics.gold_boss_progress_history
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_boss_progress_history.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: boss_progress_history
+  dashboard_contract: pipeline/contracts/dashboard_assets/boss_progress_history.yml
+- id: boss_pull_history
+  gold_table: 03_gold.sc_analytics.gold_boss_pull_history
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_boss_pull_history.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: boss_pull_history
+  dashboard_contract: pipeline/contracts/dashboard_assets/boss_pull_history.yml
+- id: encounter_catalog
+  gold_table: 03_gold.sc_analytics.gold_encounter_catalog
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_encounter_catalog.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: encounter_catalog
+  dashboard_contract: pipeline/contracts/dashboard_assets/encounter_catalog.yml
+- id: player_attendance
+  gold_table: 03_gold.sc_analytics.gold_player_attendance
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_attendance.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_attendance
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_attendance.yml
+- id: player_performance_summary
+  gold_table: 03_gold.sc_analytics.gold_player_performance_summary
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_performance_summary.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_performance_summary
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_performance_summary.yml
+- id: boss_kill_roster
+  gold_table: 03_gold.sc_analytics.gold_boss_kill_roster
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_boss_kill_roster.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: boss_kill_roster
+  dashboard_contract: pipeline/contracts/dashboard_assets/boss_kill_roster.yml
+- id: player_boss_performance
+  gold_table: 03_gold.sc_analytics.gold_player_boss_performance
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_boss_performance.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_boss_performance
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_boss_performance.yml
+- id: player_survivability
+  gold_table: 03_gold.sc_analytics.gold_player_survivability
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_survivability.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_survivability
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_survivability.yml
+- id: player_death_events
+  gold_table: 03_gold.sc_analytics.gold_player_death_events
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_death_events.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_death_events
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_death_events.yml
+- id: player_survivability_rankings
+  gold_table: 03_gold.sc_analytics.gold_player_survivability_rankings
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_survivability_rankings.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_survivability_rankings
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_survivability_rankings.yml
+- id: player_mplus_summary
+  gold_table: 03_gold.sc_analytics.gold_player_mplus_summary
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_mplus_summary.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: raiderio_snapshot_then_dashboard_asset_publish
+  dashboard_dataset: player_mplus_summary
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_mplus_summary.yml
+- id: player_mplus_score_history
+  gold_table: 03_gold.sc_analytics.gold_player_mplus_score_history
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_mplus_score_history.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: raiderio_snapshot_then_dashboard_asset_publish
+  dashboard_dataset: player_mplus_score_history
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_mplus_score_history.yml
+- id: player_mplus_run_history
+  gold_table: 03_gold.sc_analytics.gold_player_mplus_run_history
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_mplus_run_history.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: raiderio_snapshot_then_dashboard_asset_publish
+  dashboard_dataset: player_mplus_run_history
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_mplus_run_history.yml
+- id: player_mplus_weekly_activity
+  gold_table: 03_gold.sc_analytics.gold_player_mplus_weekly_activity
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_mplus_weekly_activity.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: raiderio_snapshot_then_dashboard_asset_publish
+  dashboard_dataset: player_mplus_weekly_activity
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_mplus_weekly_activity.yml
+- id: player_mplus_dungeon_breakdown
+  gold_table: 03_gold.sc_analytics.gold_player_mplus_dungeon_breakdown
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_mplus_dungeon_breakdown.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: raiderio_snapshot_then_dashboard_asset_publish
+  dashboard_dataset: player_mplus_dungeon_breakdown
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_mplus_dungeon_breakdown.yml
+- id: preparation_readiness
+  gold_table: 03_gold.sc_analytics.gold_preparation_readiness
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_preparation_readiness.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: preparation_readiness
+  dashboard_contract: pipeline/contracts/dashboard_assets/preparation_readiness.yml
+- id: live_raid_roster
+  gold_table: 03_gold.sc_analytics.gold_live_raid_roster
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_live_raid_roster.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: live_raid_roster
+  dashboard_contract: pipeline/contracts/dashboard_assets/live_raid_roster.yml
+- id: guild_roster
+  gold_table: 03_gold.sc_analytics.gold_guild_roster
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_guild_roster.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: guild_roster
+  dashboard_contract: pipeline/contracts/dashboard_assets/guild_roster.yml
+- id: raid_team
+  gold_table: 03_gold.sc_analytics.gold_raid_team
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_raid_team.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: raid_team
+  dashboard_contract: pipeline/contracts/dashboard_assets/raid_team.yml
+- id: guild_zone_ranks
+  gold_table: 03_gold.sc_analytics.gold_guild_zone_ranks
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_guild_zone_ranks.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: guild_zone_ranks
+  dashboard_contract: pipeline/contracts/dashboard_assets/guild_zone_ranks.yml
+- id: player_character_media
+  gold_table: 03_gold.sc_analytics.gold_player_character_media
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_character_media.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_character_media
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_character_media.yml
+- id: player_character_equipment
+  gold_table: 03_gold.sc_analytics.gold_player_character_equipment
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_character_equipment.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_character_equipment
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_character_equipment.yml
+- id: player_raid_achievements
+  gold_table: 03_gold.sc_analytics.gold_player_raid_achievements
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_raid_achievements.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_raid_achievements
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_raid_achievements.yml
+- id: boss_mechanics
+  gold_table: 03_gold.sc_analytics.gold_boss_mechanics
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_boss_mechanics.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: boss_mechanics
+  dashboard_contract: pipeline/contracts/dashboard_assets/boss_mechanics.yml
+- id: weekly_activity
+  gold_table: 03_gold.sc_analytics.gold_weekly_activity
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_weekly_activity.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: weekly_activity
+  dashboard_contract: pipeline/contracts/dashboard_assets/weekly_activity.yml
+- id: player_utility_by_pull
+  gold_table: 03_gold.sc_analytics.gold_player_utility_by_pull
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_player_utility_by_pull.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: player_utility_by_pull
+  dashboard_contract: pipeline/contracts/dashboard_assets/player_utility_by_pull.yml
+- id: wipe_survival_events
+  gold_table: 03_gold.sc_analytics.gold_wipe_survival_events
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_wipe_survival_events.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: wipe_survival_events
+  dashboard_contract: pipeline/contracts/dashboard_assets/wipe_survival_events.yml
+- id: wipe_cooldown_utilization
+  gold_table: 03_gold.sc_analytics.gold_wipe_cooldown_utilization
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_wipe_cooldown_utilization.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: wipe_cooldown_utilization
+  dashboard_contract: pipeline/contracts/dashboard_assets/wipe_cooldown_utilization.yml
+- id: wipe_survival_discipline
+  gold_table: 03_gold.sc_analytics.gold_wipe_survival_discipline
+  owner: richmulvany
+  lifecycle: active
+  exposure: dashboard
+  gold_contract: pipeline/contracts/gold/gold_wipe_survival_discipline.yml
+  downstream_consumers:
+  - frontend static dashboard
+  refresh_expectation: daily_orchestrator_then_dashboard_asset_publish
+  dashboard_dataset: wipe_survival_discipline
+  dashboard_contract: pipeline/contracts/dashboard_assets/wipe_survival_discipline.yml

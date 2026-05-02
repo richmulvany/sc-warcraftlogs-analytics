@@ -155,7 +155,11 @@ def test_export_query_dataset_validates_rows_before_writing(
         lambda *_args, **_kwargs: [{"id": 1}],
     )
 
-    def fail_validation(dataset_name: str, rows: list[dict[str, object]]) -> None:
+    def fail_validation(
+        dataset_name: str,
+        rows: list[dict[str, object]],
+        _contracts: object = None,
+    ) -> None:
         assert dataset_name == "contracted_dataset"
         assert rows == [{"id": 1}]
         raise RuntimeError("contract failed")

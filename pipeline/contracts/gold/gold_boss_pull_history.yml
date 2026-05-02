@@ -1,0 +1,91 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_boss_pull_history
+info:
+  title: Gold Boss Pull History
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_boss_pull_history:
+    type: table
+    primaryKey:
+    - report_code
+    - fight_id
+    fields:
+      encounter_id:
+        type: integer
+        required: true
+        nullable: false
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      difficulty:
+        type: integer
+        required: true
+        nullable: false
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      raid_night_date:
+        type: date
+        required: true
+        nullable: false
+      report_code:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      report_title:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      start_time_utc:
+        type: timestamp
+        required: false
+        nullable: true
+      end_time_utc:
+        type: timestamp
+        required: false
+        nullable: true
+      fight_id:
+        type: integer
+        required: true
+        nullable: false
+      is_kill:
+        type: boolean
+        required: true
+        nullable: false
+      boss_percentage:
+        type: number
+        required: false
+        nullable: true
+      boss_hp_remaining:
+        type: number
+        required: false
+        nullable: true
+      duration_seconds:
+        type: number
+        required: false
+        nullable: true
+      last_phase:
+        type: integer
+        required: false
+        nullable: true
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_boss_pull_history
+    model: gold_boss_pull_history
+    grain: One row per tracked boss pull.
+    downstream:
+      dashboardAssets:
+      - boss_pull_history

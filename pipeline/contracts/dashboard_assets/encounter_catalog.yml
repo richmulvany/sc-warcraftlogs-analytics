@@ -1,0 +1,44 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.encounter_catalog
+info:
+  title: Encounter Catalog Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  encounter_catalog:
+    type: table
+    primaryKey:
+    - zone_id
+    - encounter_id
+    fields:
+      zone_id:
+        type: integer
+        required: true
+        nullable: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      encounter_id:
+        type: integer
+        required: true
+        nullable: false
+      encounter_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      difficulty_names:
+        type: array
+        required: false
+        nullable: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: encounter_catalog
+    sourceTable: 03_gold.sc_analytics.gold_encounter_catalog
+    publishedPath: encounter_catalog.json
+    grain: One row per active raid-zone encounter reference.
+    consumers:
+    - frontend static dashboard

@@ -65,11 +65,12 @@ The table will be created on the next pipeline run. For immediate creation:
 
 ### 5. Add contracts
 
-If the table is consumed by the frontend or another governed downstream product, add:
+Every table in `03_gold.sc_analytics` is a governed data product. Add:
 
 - a Gold product contract in `pipeline/contracts/gold/`
 - a `pipeline/contracts/data_products.yml` catalog entry
-- a dashboard asset contract in `pipeline/contracts/dashboard_assets/` if the table is exported as static JSON
+- a dashboard asset contract in `pipeline/contracts/dashboard_assets/` if the
+  table is exported as static JSON
 
 Contract fields must distinguish missing, null, and empty string semantics:
 
@@ -77,6 +78,8 @@ Contract fields must distinguish missing, null, and empty string semantics:
 - use `nullable: true` only when `null` is meaningful and expected
 - use `allowEmpty: true` only when `""` is an intentional sentinel
 - keep primary key fields non-null and non-empty
+- include an `exposure` value in `data_products.yml`: `dashboard`, `chatbot`,
+  `internal`, or `monitoring`
 
 ### 6. Update the data dictionary
 

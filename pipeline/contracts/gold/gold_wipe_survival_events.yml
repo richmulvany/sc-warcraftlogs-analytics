@@ -1,0 +1,139 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_wipe_survival_events
+info:
+  title: Gold Wipe Survival Events
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_wipe_survival_events:
+    type: table
+    primaryKey:
+    - report_code
+    - fight_id
+    - player_identity_key
+    - death_timestamp_ms
+    fields:
+      report_code:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      fight_id:
+        type: integer
+        required: true
+        nullable: false
+      encounter_id:
+        type: integer
+        required: true
+        nullable: false
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_id:
+        type: integer
+        required: false
+        nullable: true
+      difficulty:
+        type: integer
+        required: true
+        nullable: false
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      raid_night_date:
+        type: date
+        required: false
+        nullable: true
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      realm:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      spec_id:
+        type: integer
+        required: false
+        nullable: true
+      death_timestamp_ms:
+        type: integer
+        required: true
+        nullable: false
+      fight_start_ms:
+        type: integer
+        required: false
+        nullable: true
+      killing_blow_name:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      killing_blow_id:
+        type: integer
+        required: false
+        nullable: true
+      defensive_active_at_death:
+        type: integer
+        required: true
+        nullable: false
+      defensive_available_at_death:
+        type: integer
+        required: true
+        nullable: false
+      available_defensive_unused_at_death:
+        type: integer
+        required: true
+        nullable: false
+      last_defensive_cast_before_death_ms:
+        type: integer
+        required: false
+        nullable: true
+      active_defensives:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      available_defensives:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      healthstone_before_death:
+        type: integer
+        required: true
+        nullable: false
+      health_potion_before_death:
+        type: integer
+        required: true
+        nullable: false
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_wipe_survival_events
+    model: gold_wipe_survival_events
+    grain: One row per player death on an instrumented wipe pull.
+    downstream:
+      dashboardAssets:
+      - wipe_survival_events

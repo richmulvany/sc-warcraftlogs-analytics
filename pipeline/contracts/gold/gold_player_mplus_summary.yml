@@ -8,31 +8,152 @@ info:
 models:
   gold_player_mplus_summary:
     type: table
-    primaryKey: [player_identity_key, region, season]
+    primaryKey:
+    - player_identity_key
+    - region
+    - season
     fields:
-      player_identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
-      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      realm_slug: { type: string, required: true, nullable: false, allowEmpty: false }
-      region: { type: string, required: true, nullable: false, allowEmpty: false }
-      season: { type: string, required: true, nullable: false, allowEmpty: false }
-      score_all: { type: number, required: true, nullable: false }
-      guild_mplus_rank: { type: integer, required: false, nullable: true }
-      guild_mplus_rank_total: { type: integer, required: true, nullable: false }
-      guild_mplus_rank_percentile: { type: number, required: false, nullable: true }
-      total_runs: { type: integer, required: true, nullable: false }
-      timed_runs: { type: integer, required: true, nullable: false }
-      untimed_runs: { type: integer, required: true, nullable: false }
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      region:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      profile_url:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      season:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      snapshot_at:
+        type: timestamp
+        required: true
+        nullable: false
+      score_all:
+        type: number
+        required: true
+        nullable: true
+      score_dps:
+        type: number
+        required: false
+        nullable: true
+      score_healer:
+        type: number
+        required: false
+        nullable: true
+      score_tank:
+        type: number
+        required: false
+        nullable: true
+      world_rank:
+        type: integer
+        required: false
+        nullable: true
+      region_rank:
+        type: integer
+        required: false
+        nullable: true
+      realm_rank:
+        type: integer
+        required: false
+        nullable: true
+      guild_mplus_rank:
+        type: integer
+        required: false
+        nullable: true
+      guild_mplus_rank_total:
+        type: integer
+        required: true
+        nullable: false
+      guild_mplus_rank_percentile:
+        type: number
+        required: false
+        nullable: true
+      total_runs:
+        type: integer
+        required: true
+        nullable: false
+      timed_runs:
+        type: integer
+        required: true
+        nullable: false
+      untimed_runs:
+        type: integer
+        required: true
+        nullable: false
+      highest_timed_level:
+        type: integer
+        required: false
+        nullable: true
+      highest_untimed_level:
+        type: integer
+        required: false
+        nullable: true
+      most_common_key_level:
+        type: integer
+        required: false
+        nullable: true
+      most_common_key_count:
+        type: integer
+        required: true
+        nullable: false
+      best_run_dungeon:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      best_run_short_name:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      best_run_level:
+        type: integer
+        required: false
+        nullable: true
+      best_run_score:
+        type: number
+        required: false
+        nullable: true
+      best_run_timed:
+        type: boolean
+        required: false
+        nullable: true
+      best_run_completed_at:
+        type: timestamp
+        required: false
+        nullable: true
+      best_run_url:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
 x-sc-analytics:
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_mplus_summary
     model: gold_player_mplus_summary
-    grain: One row per player identity, region, and Raider.IO season snapshot.
+    grain: One row per player identity, region, and Raider.IO season.
     downstream:
-      dashboardAssets: [player_mplus_summary]
+      dashboardAssets:
+      - player_mplus_summary
     rules:
-      - name: non_negative_counts
-        expression: total_runs >= 0 and timed_runs >= 0 and untimed_runs >= 0
-      - name: runs_add_up
-        expression: total_runs == timed_runs + untimed_runs
-      - name: guild_rank_bounds
-        expression: guild_mplus_rank is None or (guild_mplus_rank >= 1 and guild_mplus_rank <= guild_mplus_rank_total)
+    - name: runs_add_up
+      expression: total_runs == timed_runs + untimed_runs

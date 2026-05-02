@@ -194,6 +194,17 @@ def gold_player_death_events():
         F.col("fight_start_ms").alias("_fight_start_ms"),
     ).dropDuplicates(["_report_code", "_fight_id"])
 
+    death_key_window = Window.partitionBy(
+        "report_code",
+        "fight_id",
+        "player_identity_key",
+        "death_timestamp_ms",
+    ).orderBy(
+        F.col("killing_blow_id").asc_nulls_last(),
+        F.col("killing_blow_name").asc_nulls_last(),
+        F.col("overkill").asc_nulls_last(),
+    )
+
     return (
         _with_player_identity(deaths.drop("zone_name", "zone_id", "raid_night_date"), actors)
         .join(
@@ -204,7 +215,22 @@ def gold_player_death_events():
         )
         .drop("_report_code", "_fight_id")
         .filter(F.col("encounter_id").isNotNull() & (F.col("encounter_id") > 0))
+        .withColumn("_death_duplicate_ordinal", F.row_number().over(death_key_window))
+        .withColumn(
+            "death_event_key",
+            F.format_string(
+                "%016x",
+                F.xxhash64(
+                    F.col("report_code"),
+                    F.col("fight_id"),
+                    F.col("player_identity_key"),
+                    F.col("death_timestamp_ms"),
+                    F.col("_death_duplicate_ordinal"),
+                ),
+            ),
+        )
         .select(
+            "death_event_key",
             "report_code",
             "fight_id",
             "encounter_id",

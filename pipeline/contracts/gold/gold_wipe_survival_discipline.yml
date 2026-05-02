@@ -8,39 +8,225 @@ info:
 models:
   gold_wipe_survival_discipline:
     type: table
-    primaryKey: [player_identity_key, zone_name, boss_name, difficulty_label]
+    primaryKey:
+    - player_identity_key
+    - zone_name
+    - boss_name
+    - difficulty_label
     fields:
-      player_identity_key: { type: string, required: true, nullable: false, allowEmpty: false }
-      player_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      player_class: { type: string, required: true, nullable: false, allowEmpty: false }
-      realm: { type: string, required: true, nullable: false, allowEmpty: false }
-      zone_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      boss_name: { type: string, required: true, nullable: false, allowEmpty: false }
-      difficulty_label: { type: string, required: true, nullable: false, allowEmpty: false }
-      wipe_pulls_tracked: { type: integer, required: true, nullable: false }
-      wipe_deaths: { type: integer, required: true, nullable: false }
-      tracked_defensive_capacity: { type: integer, required: true, nullable: false }
-      defensive_casts: { type: integer, required: true, nullable: false }
-      defensive_usage_rate: { type: number, required: false, nullable: true }
-      defensive_component_score: { type: number, required: true, nullable: false }
-      healthstone_component_score: { type: number, required: true, nullable: false }
-      potion_component_score: { type: number, required: true, nullable: false }
-      survival_failure_score: { type: number, required: true, nullable: false }
-      survival_discipline_score: { type: number, required: true, nullable: false }
-      top_improvement_area: { type: string, required: true, nullable: false, allowEmpty: false }
-      defensive_tracking_status: { type: string, required: true, nullable: false, allowEmpty: false }
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      role:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      encounter_id:
+        type: integer
+        required: false
+        nullable: true
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      difficulty:
+        type: integer
+        required: false
+        nullable: true
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      wipe_pulls_tracked:
+        type: integer
+        required: true
+        nullable: false
+      wipe_deaths:
+        type: integer
+        required: true
+        nullable: false
+      first_deaths:
+        type: integer
+        required: true
+        nullable: false
+      early_deaths:
+        type: integer
+        required: true
+        nullable: false
+      kill_deaths:
+        type: integer
+        required: true
+        nullable: false
+      kills_tracked:
+        type: integer
+        required: true
+        nullable: false
+      deaths_per_kill:
+        type: number
+        required: false
+        nullable: true
+      deaths_per_wipe:
+        type: number
+        required: true
+        nullable: false
+      pulls_with_tracked_defensive_capacity:
+        type: integer
+        required: true
+        nullable: false
+      tracked_defensive_capacity:
+        type: integer
+        required: true
+        nullable: false
+      defensive_casts:
+        type: integer
+        required: true
+        nullable: false
+      defensive_missed_casts:
+        type: integer
+        required: true
+        nullable: false
+      healthstone_uses:
+        type: integer
+        required: true
+        nullable: false
+      potion_uses:
+        type: integer
+        required: true
+        nullable: false
+      no_healthstone_deaths:
+        type: integer
+        required: true
+        nullable: false
+      no_health_potion_deaths:
+        type: integer
+        required: true
+        nullable: false
+      defensive_usage_rate:
+        type: number
+        required: false
+        nullable: true
+      healthstone_usage_rate:
+        type: number
+        required: false
+        nullable: true
+      potion_usage_rate:
+        type: number
+        required: false
+        nullable: true
+      no_healthstone_pct:
+        type: number
+        required: true
+        nullable: false
+      no_health_potion_pct:
+        type: number
+        required: true
+        nullable: false
+      death_pressure_score:
+        type: number
+        required: true
+        nullable: false
+      defensive_component_score:
+        type: number
+        required: true
+        nullable: false
+      healthstone_component_score:
+        type: number
+        required: true
+        nullable: false
+      potion_component_score:
+        type: number
+        required: true
+        nullable: false
+      defensive_class_baseline_pct:
+        type: number
+        required: false
+        nullable: true
+      defensive_class_delta_pct:
+        type: number
+        required: false
+        nullable: true
+      weighted_failure_points:
+        type: number
+        required: true
+        nullable: false
+      survival_failure_score:
+        type: number
+        required: true
+        nullable: false
+      survival_discipline_score:
+        type: number
+        required: true
+        nullable: false
+      top_improvement_area:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      top_missing_category:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      defensive_tracking_status:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      has_defensive_capacity_tracked:
+        type: boolean
+        required: true
+        nullable: false
+      most_common_killing_blow:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: true
+      most_common_killing_blow_count:
+        type: integer
+        required: true
+        nullable: false
 x-sc-analytics:
   goldProduct:
     table: 03_gold.sc_analytics.gold_wipe_survival_discipline
     model: gold_wipe_survival_discipline
     grain: One row per player and stable Wipe Analysis dashboard scope.
     downstream:
-      dashboardAssets: [wipe_survival_discipline]
+      dashboardAssets:
+      - wipe_survival_discipline
     rules:
-      - name: valid_defensive_tracking_status
-        field: defensive_tracking_status
-        enum: [tracked_used, tracked_zero_usage, no_tracked_capacity, unknown]
-      - name: score_range
-        expression: survival_discipline_score >= 0 and survival_discipline_score <= 100 and survival_failure_score == survival_discipline_score
-      - name: defensive_zero_usage_semantics
-        expression: defensive_tracking_status != "tracked_zero_usage" or defensive_usage_rate == 0
+    - name: valid_defensive_tracking_status
+      field: defensive_tracking_status
+      enum:
+      - tracked_used
+      - tracked_zero_usage
+      - no_tracked_capacity
+      - unknown
+    - name: score_range
+      expression: survival_discipline_score >= 0 and survival_discipline_score <= 100 and survival_failure_score == survival_discipline_score
+    - name: defensive_zero_usage_semantics
+      expression: defensive_tracking_status != "tracked_zero_usage" or defensive_usage_rate == 0

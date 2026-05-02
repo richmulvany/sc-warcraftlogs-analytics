@@ -371,6 +371,7 @@ export interface PlayerSurvivabilityRanking {
 }
 
 export interface PlayerDeathEvent {
+  death_event_key: string
   report_code: string
   fight_id: string
   encounter_id: string

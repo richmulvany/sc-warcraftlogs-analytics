@@ -1,0 +1,100 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.gold.gold_player_utility_by_pull
+info:
+  title: Gold Player Utility By Pull
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  gold_player_utility_by_pull:
+    type: table
+    primaryKey:
+    - report_code
+    - fight_id
+    - player_identity_key
+    fields:
+      report_code:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      fight_id:
+        type: integer
+        required: true
+        nullable: false
+      encounter_id:
+        type: integer
+        required: true
+        nullable: false
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      difficulty:
+        type: integer
+        required: true
+        nullable: false
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      raid_night_date:
+        type: date
+        required: false
+        nullable: true
+      is_kill:
+        type: boolean
+        required: true
+        nullable: false
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      realm:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      health_potion_uses:
+        type: integer
+        required: true
+        nullable: false
+      healthstone_casts:
+        type: integer
+        required: true
+        nullable: false
+      defensive_casts:
+        type: integer
+        required: true
+        nullable: false
+      defensive_abilities:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+x-sc-analytics:
+  goldProduct:
+    table: 03_gold.sc_analytics.gold_player_utility_by_pull
+    model: gold_player_utility_by_pull
+    grain: One row per player on an instrumented pull with utility usage counts.
+    downstream:
+      dashboardAssets:
+      - player_utility_by_pull

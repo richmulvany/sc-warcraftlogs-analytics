@@ -1,0 +1,103 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_boss_performance
+info:
+  title: Player Boss Performance Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  player_boss_performance:
+    type: table
+    primaryKey:
+    - player_identity_key
+    - role
+    - encounter_id
+    - boss_name
+    - zone_name
+    - difficulty
+    - difficulty_label
+    fields:
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_class:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      role:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      encounter_id:
+        type: integer
+        required: true
+        nullable: false
+      boss_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      zone_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      difficulty:
+        type: integer
+        required: true
+        nullable: false
+      difficulty_label:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      kills_on_boss:
+        type: integer
+        required: true
+        nullable: false
+      avg_throughput_per_second:
+        type: number
+        required: false
+        nullable: true
+      best_throughput_per_second:
+        type: number
+        required: false
+        nullable: true
+      latest_throughput_per_second:
+        type: number
+        required: false
+        nullable: true
+      throughput_trend:
+        type: number
+        required: false
+        nullable: true
+      avg_rank_percent:
+        type: number
+        required: false
+        nullable: true
+      best_rank_percent:
+        type: number
+        required: false
+        nullable: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_boss_performance
+    sourceTable: 03_gold.sc_analytics.gold_player_boss_performance
+    publishedPath: player_boss_performance.json
+    grain: One row per player identity, role, boss encounter, zone, and difficulty across kill pulls.
+    consumers:
+    - frontend static dashboard

@@ -1,0 +1,90 @@
+dataContractSpecification: 0.9.2
+id: sc-analytics.dashboard_assets.player_mplus_score_history
+info:
+  title: Player Mythic Plus Score History Dashboard Asset
+  version: 0.1.0
+  status: active
+  owner: richmulvany
+models:
+  player_mplus_score_history:
+    type: table
+    primaryKey:
+    - player_identity_key
+    - region
+    - season
+    - snapshot_at
+    fields:
+      player_identity_key:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      player_name:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      realm_slug:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      region:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      profile_url:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      season:
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+      snapshot_at:
+        type: timestamp
+        required: true
+        nullable: false
+      snapshot_date:
+        type: date
+        required: true
+        nullable: false
+      score_all:
+        type: number
+        required: false
+        nullable: true
+      score_dps:
+        type: number
+        required: false
+        nullable: true
+      score_healer:
+        type: number
+        required: false
+        nullable: true
+      score_tank:
+        type: number
+        required: false
+        nullable: true
+      world_rank:
+        type: integer
+        required: false
+        nullable: true
+      region_rank:
+        type: integer
+        required: false
+        nullable: true
+      realm_rank:
+        type: integer
+        required: false
+        nullable: true
+x-sc-analytics:
+  dashboardAsset:
+    dataset: player_mplus_score_history
+    sourceTable: 03_gold.sc_analytics.gold_player_mplus_score_history
+    publishedPath: player_mplus_score_history.json
+    grain: One row per Raider.IO player score snapshot.
+    consumers:
+    - frontend static dashboard

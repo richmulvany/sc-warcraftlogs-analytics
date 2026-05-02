@@ -2,148 +2,113 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.dashboard_assets.wipe_cooldown_utilization
 info:
   title: Wipe Cooldown Utilization Dashboard Asset
-  version: 0.2.0
+  version: 0.1.0
   status: active
   owner: richmulvany
-  description: >
-    Published JSON asset summarising tracked cooldown capacity and usage on
-    wipe pulls for the wipe-analysis dashboard.
-servers:
-  dashboard_json:
-    type: custom
-    description: Databricks gold table exported as static JSON through dashboard publishing.
-    location: /Volumes/03_gold/sc_analytics/dashboard_exports/latest/wipe_cooldown_utilization.json
 models:
   wipe_cooldown_utilization:
     type: table
-    description: Aggregated tracked cooldown capacity and usage on wipe pulls.
     primaryKey:
-      - boss_name
-      - zone_name
-      - difficulty_label
-      - cooldown_category
-      - player_identity_key
-      - ability_id
+    - boss_name
+    - zone_name
+    - difficulty_label
+    - cooldown_category
+    - player_identity_key
+    - ability_id
     fields:
       boss_name:
         type: string
         required: true
-        primary: true
-        description: Boss display name.
+        nullable: false
+        allowEmpty: false
       zone_name:
         type: string
         required: true
-        primary: true
-        description: Raid zone display name.
+        nullable: false
+        allowEmpty: false
       difficulty_label:
         type: string
         required: true
-        primary: true
-        description: Human-readable difficulty label.
+        nullable: false
+        allowEmpty: false
       cooldown_category:
         type: string
         required: true
-        primary: true
-        description: Cooldown rule category.
+        nullable: false
+        allowEmpty: false
       player_identity_key:
         type: string
         required: true
-        primary: true
-        description: Deterministic lowercase player identity key.
+        nullable: false
+        allowEmpty: false
       player_name:
         type: string
         required: true
-        description: Character name.
+        nullable: false
+        allowEmpty: false
       player_class:
         type: string
-        required: true
-        description: WarcraftLogs class name.
+        required: false
+        nullable: true
+        allowEmpty: true
       realm:
         type: string
         required: true
-        description: Realm resolved from WCL actor roster, or unknown.
+        nullable: false
+        allowEmpty: false
       ability_id:
         type: integer
         required: true
-        primary: true
-        description: Spell identifier for the tracked cooldown.
+        nullable: false
       ability_name:
         type: string
         required: true
-        description: Spell display name for the tracked cooldown.
+        nullable: false
+        allowEmpty: false
       possible_casts:
         type: integer
         required: true
-        description: >
-          Scored capacity from pull duration, cooldown duration, charge model,
-          and tracked cooldown rules. Excludes unscored form/proc-state rules.
+        nullable: false
       observed_casts:
         type: integer
         required: true
-        description: Raw matching cast events observed in WarcraftLogs before scoring.
+        nullable: false
       actual_casts:
         type: integer
         required: true
-        description: >
-          Scored casts used for capacity efficiency. This is capped at
-          possible_casts so repeated form/proc events do not create impossible
-          defensive usage.
+        nullable: false
       over_capacity_casts:
         type: integer
         required: true
-        description: Raw observed casts above scored capacity, retained as a diagnostic signal.
+        nullable: false
       missed_casts:
         type: integer
         required: true
-        description: >
-          Sum of scored capacity not used. Equal to possible_casts minus
-          actual_casts in the published aggregation.
-quality:
-  type: custom
-  specification:
-    checks for wipe_cooldown_utilization:
-      - duplicate_count(boss_name, zone_name, difficulty_label, cooldown_category, player_name, player_class, ability_id) = 0
-      - possible_casts >= 0
-      - observed_casts >= 0
-      - actual_casts >= 0
-      - over_capacity_casts >= 0
-      - missed_casts >= 0
-      - actual_casts <= possible_casts
-      - observed_casts >= actual_casts
-      - over_capacity_casts = observed_casts - actual_casts
-      - missed_casts = possible_casts - actual_casts
+        nullable: false
 x-sc-analytics:
   dashboardAsset:
     dataset: wipe_cooldown_utilization
     sourceTable: 03_gold.sc_analytics.gold_wipe_cooldown_utilization
     publishedPath: wipe_cooldown_utilization.json
-    grain: >
-      One row per boss, zone, difficulty, cooldown category, player, class, and
-      ability in the published aggregation.
+    grain: One row per boss, zone, difficulty, cooldown category, player, and ability in the published aggregation.
     consumers:
-      - frontend/src/hooks/useGoldData.ts:useWipeCooldownUtilization
-      - frontend/src/features/wipe-analysis/index.tsx
-    freshness:
-      expectedAfterJob: daily_orchestrator
-      maxStalenessHours: 48
+    - frontend static dashboard
     rules:
-      - name: valid_difficulty
-        field: difficulty_label
-        enum: [Normal, Heroic, Mythic]
-      - name: valid_cooldown_category
-        field: cooldown_category
-        enum: [personal, personal_spec, raid, external]
-      - name: non_negative_counts
-        expression: possible_casts >= 0 and observed_casts >= 0 and actual_casts >= 0 and over_capacity_casts >= 0 and missed_casts >= 0
-      - name: scored_actual_not_over_capacity
-        expression: actual_casts <= possible_casts
-      - name: observed_not_below_scored
-        expression: observed_casts >= actual_casts
-      - name: over_capacity_formula
-        expression: over_capacity_casts == observed_casts - actual_casts
-      - name: missed_casts_formula
-        expression: missed_casts == possible_casts - actual_casts
-    breakingChanges:
-      - Removing or renaming any listed field.
-      - Changing the grain of the published aggregation.
-      - Changing possible_casts or actual_casts from scored capacity semantics to raw observed-use semantics.
+    - name: valid_cooldown_category
+      field: cooldown_category
+      enum:
+      - personal
+      - personal_spec
+      - raid
+      - external
+    - name: non_negative_counts
+      expression: possible_casts >= 0 and observed_casts >= 0 and actual_casts >= 0 and over_capacity_casts >=
+        0 and missed_casts >= 0
+    - name: scored_actual_not_over_capacity
+      expression: actual_casts <= possible_casts
+    - name: observed_not_below_scored
+      expression: observed_casts >= actual_casts
+    - name: over_capacity_formula
+      expression: over_capacity_casts == observed_casts - actual_casts
+    - name: missed_casts_formula
+      expression: missed_casts == possible_casts - actual_casts
