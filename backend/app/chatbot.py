@@ -21,7 +21,7 @@ from .schemas import ChatResponse
 from .semantic_registry import Registry, TableInfo, load_registry
 from .sql_guard import SqlGuardError, guard_sql
 
-MAX_SQL_ATTEMPTS = 2
+MAX_SQL_ATTEMPTS = 3
 MAX_PROMPT_TABLES = 12
 
 
@@ -57,18 +57,24 @@ def _table_columns_block(infos: list[TableInfo]) -> str:
     return "\n\n".join(blocks)
 
 
-def _build_system_prompt(registry: Registry) -> str:
+def _build_system_prompt(registry: Registry, relevant: list[TableInfo]) -> str:
     return (
         "You are a SQL assistant for the SC Analytics WarcraftLogs dashboard. "
-        "Answer using ONLY the listed tables. Output a single SELECT statement, "
-        "no commentary. Use Databricks SQL syntax. Always qualify tables as "
-        f"`{registry.catalog}.{registry.schema}.<table>`.\n\n"
-        f"Available tables:\n{_registry_overview(registry)}\n\n"
-        "Guardrails:\n"
-        "- Never write INSERT/UPDATE/DELETE/MERGE/DROP/ALTER/CREATE.\n"
-        "- Never query tables outside the list above.\n"
-        "- If you cannot answer with the listed tables, reply with the literal "
-        "string CANNOT_ANSWER.\n"
+        "Answer using ONLY the tables described below. Output a single SELECT "
+        "statement, no commentary, no markdown fences. Use Databricks SQL "
+        f"syntax. Always qualify tables as `{registry.catalog}.{registry.schema}.<table>`.\n\n"
+        "Tables you may query (full column list per table):\n\n"
+        f"{_table_columns_block(relevant)}\n\n"
+        "Other primary tables (summary only — request not in scope unless one of these obviously fits):\n"
+        f"{_registry_overview(registry)}\n\n"
+        "Hard rules:\n"
+        "- Never write INSERT/UPDATE/DELETE/MERGE/DROP/ALTER/CREATE/TRUNCATE.\n"
+        "- Never reference tables outside the lists above.\n"
+        "- Prefer the tables in the first (full-column) list when possible.\n"
+        "- If a question is genuinely unanswerable from these tables (e.g. "
+        "weather, real-life identity), reply with the single literal token "
+        "CANNOT_ANSWER and nothing else. Do not output CANNOT_ANSWER if any "
+        "listed table can plausibly answer the question.\n"
     )
 
 
@@ -159,16 +165,24 @@ def answer_question(
     llm = llm or _LLM(settings=settings)
 
     relevant = _select_relevant_tables(question, registry)
-    system_prompt = _build_system_prompt(registry) + "\n\n" + _table_columns_block(relevant)
+    system_prompt = _build_system_prompt(registry, relevant)
 
+    # Combined retry loop: the LLM is given a chance to fix both sql_guard
+    # rejections and Databricks execution errors. The latter handle the common
+    # case of hallucinated column names (e.g. `total_kills` when the column is
+    # actually `boss_kills`); we feed the database error back so it can correct.
     last_error: str | None = None
+    guarded = None
+    result = None
     for attempt in range(MAX_SQL_ATTEMPTS):
         prompt_user = (
             question
             if attempt == 0
             else (
-                f"{question}\n\nYour previous answer was rejected: {last_error}. "
-                "Return a corrected single SELECT statement."
+                f"{question}\n\nYour previous SQL was rejected with this error: "
+                f"{last_error}\n"
+                "Return a corrected single SELECT statement using only columns "
+                "that appear in the table column lists above."
             )
         )
         raw = llm.call(system_prompt, prompt_user)
@@ -181,25 +195,22 @@ def answer_question(
                 allowlist=registry.allowlist(),
                 default_limit=settings.sql_row_limit,
             )
-            break
         except SqlGuardError as exc:
-            last_error = str(exc)
+            last_error = f"sql_guard: {exc}"
+            continue
+        try:
+            result = execute_select(guarded.sql, settings=settings)
+            break
+        except Exception as exc:
+            last_error = f"databricks: {exc}"
             continue
     else:
         return ChatResponse(
-            answer="I could not produce a safe SQL query for that question.",
+            answer="I could not produce a working query for that question.",
+            sql=guarded.sql if guarded else None,
+            tables_used=list(guarded.tables_used) if guarded else [],
             error=last_error,
-            caveats=["The model was asked to retry but produced an invalid query twice."],
-        )
-
-    try:
-        result = execute_select(guarded.sql, settings=settings)
-    except Exception as exc:  # pragma: no cover - depends on warehouse
-        return ChatResponse(
-            answer="The query failed to execute against Databricks.",
-            sql=guarded.sql,
-            tables_used=list(guarded.tables_used),
-            error=str(exc),
+            caveats=["The model retried but the query still failed."],
         )
 
     rows = _rows_as_dicts(result)
