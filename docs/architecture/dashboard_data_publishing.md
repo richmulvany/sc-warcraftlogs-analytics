@@ -87,8 +87,10 @@ It:
 1. installs the Databricks CLI
 2. downloads `dbfs:/Volumes/03_gold/sc_analytics/dashboard_exports/latest`
 3. validates `manifest.json`
-4. prints a file size summary and fails if any single JSON file exceeds 25 MB
-5. fails if the downloaded `latest/` folder exceeds 125 MB
+4. prints a file size summary and fails if any single JSON file exceeds 25 MB,
+   except `player_death_events.json`, which follows the publisher's 40 MB
+   per-dataset override
+5. fails if the downloaded `latest/` folder exceeds 175 MB
 6. uploads only `latest/*` to Cloudflare R2
 7. uploads the current snapshot to `snapshots/<snapshot_id>/`
 

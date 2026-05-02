@@ -48,6 +48,11 @@ jobs:
           manifest = json.loads((latest / "manifest.json").read_text())
           json_files = sorted(latest.glob("*.json"))
           total_bytes = 0
+          default_file_limit = 25 * 1024 * 1024
+          file_limit_overrides = {
+              "player_death_events.json": 40 * 1024 * 1024,
+          }
+          total_limit = 175 * 1024 * 1024
 
           print("generated_at:", manifest["generated_at"])
           print("snapshot_id:", manifest["snapshot_id"])
@@ -58,13 +63,16 @@ jobs:
               size = path.stat().st_size
               total_bytes += size
               print(f"  {path.name}: {size} bytes")
-              if size > 25 * 1024 * 1024:
-                  print(f"ERROR: {path.name} exceeds 25 MB", file=sys.stderr)
+              file_limit = file_limit_overrides.get(path.name, default_file_limit)
+              if size > file_limit:
+                  limit_mb = file_limit // (1024 * 1024)
+                  print(f"ERROR: {path.name} exceeds {limit_mb} MB", file=sys.stderr)
                   sys.exit(1)
 
           print("total_bytes:", total_bytes)
-          if total_bytes > 125 * 1024 * 1024:
-              print("ERROR: latest/ exceeds 125 MB", file=sys.stderr)
+          if total_bytes > total_limit:
+              limit_mb = total_limit // (1024 * 1024)
+              print(f"ERROR: latest/ exceeds {limit_mb} MB", file=sys.stderr)
               sys.exit(1)
           PY
 
