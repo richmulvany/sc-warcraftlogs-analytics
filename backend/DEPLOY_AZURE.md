@@ -78,7 +78,7 @@ az containerapp create \
       DATABRICKS_WAREHOUSE_ID=YOUR_WAREHOUSE_ID \
       CHATBOT_DATABRICKS_CATALOG=03_gold \
       CHATBOT_DATABRICKS_SCHEMA=sc_analytics \
-      OPENAI_MODEL=gpt-4o \
+      OPENAI_MODEL=gpt-5.4-nano \
       SQL_ROW_LIMIT=500
 ```
 
@@ -128,15 +128,43 @@ publicly you should add:
    body or the rendered SQL — both can contain player names that count as
    guild-internal data.
 
-## CI / deploy automation (when ready)
+## CI / deploy automation
 
-The repo already has `.github/workflows/databricks-deploy.yml` for the
-pipeline. Add a parallel `chatbot-deploy.yml` that:
+The repo has a GitHub Actions workflow at
+`.github/workflows/chatbot-backend-deploy.yml`.
 
-- builds the image on every push to `main` that touches `backend/**` or
-  `pipeline/contracts/**`,
-- pushes to ACR,
-- runs `az containerapp update --image ...` to roll out a new revision.
+It runs on pushes that touch:
 
-Use OIDC federated credentials so no Azure secret needs to live in GitHub
-Actions.
+- `backend/**`
+- `pipeline/contracts/**`
+- `scripts/build_semantic_registry.py`
+- `scripts/dashboard_asset_contracts.py`
+- the workflow file itself
+
+Feature branches build the image as validation. Pushes to `main` build the
+image, push both `${GITHUB_SHA}` and `latest` tags to ACR, then update the
+Azure Container App to the SHA-tagged image.
+
+Configure these GitHub **production environment secrets** for OIDC login:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+Configure these GitHub **production environment variables**:
+
+- `ACR_NAME`, e.g. `scanalyticsacr`
+- `ACR_LOGIN_SERVER`, e.g. `scanalyticsacr.azurecr.io`
+- `AZURE_RESOURCE_GROUP`, e.g. `sc-analytics-rg`
+- `AZURE_CONTAINER_APP_NAME`, e.g. `sc-analytics-chatbot`
+
+The Azure identity used by GitHub needs:
+
+- `AcrPush` on the Azure Container Registry.
+- permission to update the Container App, for example `Contributor` scoped to
+  the resource group or a narrower custom role.
+
+Runtime secrets such as `OPENAI_API_KEY`, `DATABRICKS_TOKEN`, and
+`CHATBOT_BACKEND_API_KEY` remain configured on the Container App itself. The
+workflow only rolls the image; it does not overwrite runtime environment
+settings.

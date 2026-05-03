@@ -17,22 +17,23 @@
       "updated_at": "2026-05-03T00:00:00Z"
     },
     {
-      "id": "mem_f8992e9cdcc1392c",
-      "question": "Who is on the roster?",
-      "normalized_question": "who is on the roster",
-      "sql": "SELECT player_name FROM 03_gold.sc_analytics.dim_player LIMIT 10",
+      "id": "mem_c40b70642bd06b03",
+      "question": "Who dies most often on each boss?",
+      "normalized_question": "who dies most often on each boss",
+      "sql": "SELECT fpe.boss_name FROM 03_gold.sc_analytics.fact_player_events AS fpe LIMIT 10",
       "status": "rejected",
-      "source": "runtime",
+      "source": "runtime_error",
       "use_for_prompt": false,
       "allow_direct_reuse": false,
-      "positive_feedback": 1,
+      "positive_feedback": 0,
       "negative_feedback": 1,
       "tables_used": [
-        "03_gold.sc_analytics.dim_player"
+        "03_gold.sc_analytics.fact_player_events"
       ],
-      "notes": "Rejected by user feedback; excluded from prompt examples and direct reuse.",
-      "created_at": "2026-05-03T20:43:33Z",
-      "updated_at": "2026-05-03T20:43:33Z"
+      "last_error": "databricks: fpe.boss_name cannot be resolved",
+      "notes": "Automatically rejected after SQL validation or execution failed.",
+      "created_at": "2026-05-03T21:00:18Z",
+      "updated_at": "2026-05-03T21:00:18Z"
     }
   ]
 }

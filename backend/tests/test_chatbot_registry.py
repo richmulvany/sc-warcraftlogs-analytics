@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from backend.app.chatbot import _query_examples_block, _select_relevant_tables, answer_question
+from backend.app.chatbot import (
+    _query_examples_block,
+    _select_relevant_tables,
+    answer_question,
+)
 from backend.app.db import QueryResult
 from backend.app.semantic_registry import load_registry
 
@@ -109,3 +113,39 @@ LIMIT 500
     assert response.from_memory is False
     assert response.rows[0]["boss_name"] == "Plexus Sentinel"
     assert response.answer == "Plexus Sentinel: Cherven has 7 deaths on Mythic."
+
+
+def test_failed_sql_records_rejected_memory_and_returns_feedback_id(monkeypatch) -> None:
+    registry = load_registry()
+    rejected: list[tuple[str, str, str]] = []
+
+    def fake_record_rejected_query(question, sql, *, error, tables_used=None):
+        rejected.append((question, sql, error))
+        return "rejected-id"
+
+    class BadSqlLLM:
+        def call(self, system: str, user: str) -> str:
+            return (
+                "SELECT fpe.zone_name, fpe.player_name, fpe.boss_name, COUNT(*) AS death_count "
+                "FROM 03_gold.sc_analytics.fact_player_events AS fpe "
+                "GROUP BY fpe.zone_name, fpe.player_name, fpe.boss_name"
+            )
+
+    monkeypatch.setattr(
+        "backend.app.chatbot.execute_select",
+        lambda sql, settings=None: (_ for _ in ()).throw(
+            RuntimeError("fpe.boss_name cannot be resolved")
+        ),
+    )
+    monkeypatch.setattr("backend.app.chatbot.record_rejected_query", fake_record_rejected_query)
+
+    response = answer_question(
+        "Who dies most often on each boss?",
+        registry=registry,
+        llm=BadSqlLLM(),
+    )
+
+    assert response.error
+    assert response.response_id == "rejected-id"
+    assert rejected
+    assert "fpe.boss_name" in rejected[-1][1]

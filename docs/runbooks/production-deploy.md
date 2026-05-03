@@ -6,6 +6,8 @@ Deploy the Databricks bundle to the production target and keep the daily orchest
 
 ## CI path
 
+### Databricks bundle
+
 - feature branches run `databricks bundle validate --target development` and `--target production`
 - `main` runs `databricks bundle deploy --target production`
 - Free Edition production deploys run as `developer_user` because service
@@ -17,6 +19,31 @@ Workflow:
 
 - `sc-analytics-databricks-deploy`
   ([.github/workflows/databricks-deploy.yml](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/.github/workflows/databricks-deploy.yml))
+
+### Chatbot backend
+
+- pushes that touch `backend/**`, `pipeline/contracts/**`, or semantic-registry
+  build scripts run the chatbot backend workflow
+- feature branches build the container image as validation
+- `main` pushes the image to ACR and updates the Azure Container App revision
+
+Workflow:
+
+- `sc-analytics-chatbot-backend-deploy`
+  ([.github/workflows/chatbot-backend-deploy.yml](/Users/richardmulvany/vscode-projects/git-repos/sc-warcraftlogs-analytics/.github/workflows/chatbot-backend-deploy.yml))
+
+Required GitHub `production` environment secrets:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+
+Required GitHub `production` environment variables:
+
+- `ACR_NAME`
+- `ACR_LOGIN_SERVER`
+- `AZURE_RESOURCE_GROUP`
+- `AZURE_CONTAINER_APP_NAME`
 
 ## Target behavior
 

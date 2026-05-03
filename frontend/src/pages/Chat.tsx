@@ -447,10 +447,10 @@ function ResponseBlock({
           <p className="mt-1 break-words text-xs text-ctp-red">Error: {response.error}</p>
         )}
 
-        {response.sql && !response.error && (
+        {response.sql && (
           <div className="flex items-center gap-2 border-t border-ctp-surface1/70 pt-2">
             <span className="text-[10px] font-mono uppercase tracking-wide text-ctp-overlay0">
-              Was this SQL useful?
+              {response.error ? 'Was this bad SQL?' : 'Was this SQL useful?'}
             </span>
             <button
               type="button"

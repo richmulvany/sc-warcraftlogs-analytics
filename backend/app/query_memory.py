@@ -58,17 +58,19 @@ def _entry_id(question: str, sql: str) -> str:
     return f"mem_{digest[:16]}"
 
 
-def _read_raw(path: Path = DEFAULT_MEMORY_PATH) -> dict[str, Any]:
-    if not path.exists():
+def _read_raw(path: Path | None = None) -> dict[str, Any]:
+    target = path or DEFAULT_MEMORY_PATH
+    if not target.exists():
         return {"version": 1, "entries": []}
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
-def _write_raw(raw: dict[str, Any], path: Path = DEFAULT_MEMORY_PATH) -> None:
-    path.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
+def _write_raw(raw: dict[str, Any], path: Path | None = None) -> None:
+    target = path or DEFAULT_MEMORY_PATH
+    target.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
 
 
-def load_query_memory(path: Path = DEFAULT_MEMORY_PATH) -> list[QueryMemoryEntry]:
+def load_query_memory(path: Path | None = None) -> list[QueryMemoryEntry]:
     raw = _read_raw(path)
     entries: list[QueryMemoryEntry] = []
     for item in raw.get("entries", []):
@@ -132,6 +134,22 @@ def prompt_examples(question: str, registry: Registry, limit: int = 3) -> list[Q
     return candidates[:limit]
 
 
+def rejected_examples(question: str, registry: Registry, limit: int = 3) -> list[QueryMemoryEntry]:
+    candidates = [
+        entry
+        for entry in load_query_memory()
+        if entry.status == "rejected" and _valid_entry_sql(entry, registry)
+    ]
+    candidates.sort(
+        key=lambda entry: (
+            entry.normalized_question != normalize_question(question),
+            -_token_score(question, entry),
+            entry.question,
+        )
+    )
+    return candidates[:limit]
+
+
 def direct_reuse_entry(question: str, registry: Registry) -> QueryMemoryEntry | None:
     normalized = normalize_question(question)
     for entry in load_query_memory():
@@ -168,6 +186,51 @@ def record_candidate(question: str, sql: str, tables_used: list[str]) -> str:
             "negative_feedback": 0,
             "tables_used": tables_used,
             "notes": "Captured after a successful chatbot response; requires user feedback before reuse.",
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+    _write_raw(raw)
+    return entry_id
+
+
+def record_rejected_query(
+    question: str,
+    sql: str,
+    *,
+    error: str,
+    tables_used: list[str] | None = None,
+) -> str:
+    raw = _read_raw()
+    entries = raw.setdefault("entries", [])
+    entry_id = _entry_id(question, sql)
+    now = _now_iso()
+    for entry in entries:
+        if entry.get("id") == entry_id:
+            entry["status"] = "rejected"
+            entry["use_for_prompt"] = False
+            entry["allow_direct_reuse"] = False
+            entry["negative_feedback"] = int(entry.get("negative_feedback", 0)) + 1
+            entry["last_error"] = error
+            entry["notes"] = "Automatically rejected after SQL validation or execution failed."
+            entry["updated_at"] = now
+            _write_raw(raw)
+            return entry_id
+    entries.append(
+        {
+            "id": entry_id,
+            "question": question,
+            "normalized_question": normalize_question(question),
+            "sql": sql,
+            "status": "rejected",
+            "source": "runtime_error",
+            "use_for_prompt": False,
+            "allow_direct_reuse": False,
+            "positive_feedback": 0,
+            "negative_feedback": 1,
+            "tables_used": tables_used or [],
+            "last_error": error,
+            "notes": "Automatically rejected after SQL validation or execution failed.",
             "created_at": now,
             "updated_at": now,
         }
