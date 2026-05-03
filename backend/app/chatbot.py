@@ -49,6 +49,17 @@ def _table_columns_block(infos: list[TableInfo]) -> str:
             + (f" Unit: {c['unit']}." if c.get("unit") else "")
             for c in info.columns
         )
+        joins = ""
+        if info.join_keys:
+            bullets = "\n".join(
+                f"  - `{j.get('column')}` -> {j.get('joinsTo')}"
+                + (f" ({j['cardinality']})" if j.get("cardinality") else "")
+                for j in info.join_keys
+            )
+            joins = (
+                "\nCanonical joins (use ONLY these columns to join — do not add"
+                " extra equality conditions on columns not listed here):\n" + bullets
+            )
         avoid = ""
         if info.not_recommended_for:
             bullets = "\n".join(f"  - {item}" for item in info.not_recommended_for)
@@ -59,6 +70,7 @@ def _table_columns_block(infos: list[TableInfo]) -> str:
             f"Primary key: {', '.join(info.primary_key) or 'none'}.\n"
             f"Summary: {info.ai_summary or info.description or '—'}\n"
             f"Columns:\n{cols}"
+            f"{joins}"
             f"{avoid}"
         )
     return "\n\n".join(blocks)
@@ -80,6 +92,18 @@ def _build_system_prompt(registry: Registry, relevant: list[TableInfo]) -> str:
         "- Prefer the tables in the first (full-column) list when possible.\n"
         "- Use column names EXACTLY as listed under each table — do not invent "
         "or pluralise (e.g. it is `boss_kills`, not `total_kills`).\n"
+        "- Each column you reference must appear under the column list of the "
+        "table you are querying it from. Never copy a column from one table's "
+        "list into a SELECT/JOIN against a different table — the column lists "
+        "are authoritative and the tables are NOT interchangeable even when "
+        "they look related (e.g. gold_boss_wipe_analysis and gold_boss_mechanics "
+        "are separate tables; phase/duration buckets live only on gold_boss_mechanics).\n"
+        "- Before joining two tables, confirm BOTH tables actually list the join "
+        "column. Do not assume player-keyed tables carry zone_id, encounter_id, "
+        "report_code, or fight_id unless the column appears in that table's list.\n"
+        "- Prefer joining via the canonical fact tables (fact_player_events, "
+        "fact_player_fight_performance) when one side is a player rollup that "
+        "does not carry zone/encounter columns.\n"
         "- Honour each table's Avoid: list — those are anti-patterns from the contract.\n"
         "- For `who is worst at X` style questions, prefer ORDER BY <metric> ASC LIMIT N "
         "rather than a hard threshold filter; thresholds can return zero rows.\n"

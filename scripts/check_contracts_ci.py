@@ -35,6 +35,10 @@ CHECKS: list[tuple[str, list[str]]] = [
         "data dictionary up to date",
         ["python", "scripts/generate_data_dictionary.py", "--check"],
     ),
+    (
+        "registry columns exist in Databricks",
+        ["python", "scripts/check_registry_columns.py"],
+    ),
 ]
 
 

@@ -50,10 +50,6 @@ models:
         type: date
         required: false
         nullable: true
-      is_kill:
-        type: boolean
-        required: true
-        nullable: false
       player_identity_key:
         type: string
         required: true
@@ -108,6 +104,35 @@ models:
         type: integer
         required: true
         nullable: false
+      active_seconds:
+        type: number
+        required: false
+        nullable: true
+      duration_seconds:
+        type: number
+        required: false
+        nullable: true
+      cooldown_seconds:
+        type: number
+        required: false
+        nullable: true
+      max_charges:
+        type: integer
+        required: false
+        nullable: true
+      cast_efficiency_pct:
+        type: number
+        required: false
+        nullable: true
+      capacity_model:
+        type: string
+        required: false
+        nullable: true
+        allowEmpty: true
+      spec_id:
+        type: integer
+        required: false
+        nullable: true
 x-sc-analytics:
   chatbotTier: secondary
   goldProduct:

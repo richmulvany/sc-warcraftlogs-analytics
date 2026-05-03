@@ -1306,7 +1306,8 @@
       "not_recommended_for": [
         "Counting kills \u2014 this is wipe-only.",
         "Player-level analysis \u2014 no player columns.",
-        "Comparing absolute wipe counts across bosses with vastly different attempt counts (use ratios)."
+        "Comparing absolute wipe counts across bosses with vastly different attempt counts (use ratios).",
+        "Boss-HP-at-wipe statistics (avg_wipe_pct, best_wipe_pct, longest_wipe_seconds, raid_nights_attempted) \u2014 those columns live on gold_boss_wipe_analysis, NOT here. This table uses avg_boss_pct (current) and last_week_avg_boss_pct (recent) instead."
       ],
       "columns": [
         {
@@ -2064,7 +2065,9 @@
       "not_recommended_for": [
         "Counting kills \u2014 use gold_boss_progression.total_kills.",
         "Per-pull or per-player analysis \u2014 use gold_boss_pull_history or gold_wipe_survival_discipline.",
-        "Computing parse percentiles \u2014 wipes don't generate parses."
+        "Computing parse percentiles \u2014 wipes don't generate parses.",
+        "Phase or duration breakdowns (pct_wipes_phase_*, wipes_lt_1min, wipes_1_3min, etc.) \u2014 those columns live on gold_boss_mechanics, NOT here. This table has avg_wipe_pct/best_wipe_pct only.",
+        "Progress trend (last_week_avg_boss_pct, progress_trend) \u2014 those columns live on gold_boss_mechanics."
       ],
       "columns": [
         {
@@ -6084,15 +6087,6 @@
           "classification": null
         },
         {
-          "name": "is_kill",
-          "type": "boolean",
-          "nullable": false,
-          "description": "",
-          "enum": null,
-          "unit": null,
-          "classification": null
-        },
-        {
           "name": "player_identity_key",
           "type": "string",
           "nullable": false,
@@ -6195,6 +6189,69 @@
           "name": "missed_casts",
           "type": "integer",
           "nullable": false,
+          "description": "",
+          "enum": null,
+          "unit": null,
+          "classification": null
+        },
+        {
+          "name": "active_seconds",
+          "type": "number",
+          "nullable": true,
+          "description": "",
+          "enum": null,
+          "unit": null,
+          "classification": null
+        },
+        {
+          "name": "duration_seconds",
+          "type": "number",
+          "nullable": true,
+          "description": "",
+          "enum": null,
+          "unit": null,
+          "classification": null
+        },
+        {
+          "name": "cooldown_seconds",
+          "type": "number",
+          "nullable": true,
+          "description": "",
+          "enum": null,
+          "unit": null,
+          "classification": null
+        },
+        {
+          "name": "max_charges",
+          "type": "integer",
+          "nullable": true,
+          "description": "",
+          "enum": null,
+          "unit": null,
+          "classification": null
+        },
+        {
+          "name": "cast_efficiency_pct",
+          "type": "number",
+          "nullable": true,
+          "description": "",
+          "enum": null,
+          "unit": null,
+          "classification": null
+        },
+        {
+          "name": "capacity_model",
+          "type": "string",
+          "nullable": true,
+          "description": "",
+          "enum": null,
+          "unit": null,
+          "classification": null
+        },
+        {
+          "name": "spec_id",
+          "type": "integer",
+          "nullable": true,
           "description": "",
           "enum": null,
           "unit": null,

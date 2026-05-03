@@ -143,6 +143,8 @@ x-sc-analytics:
     - Counting kills — use gold_boss_progression.total_kills.
     - Per-pull or per-player analysis — use gold_boss_pull_history or gold_wipe_survival_discipline.
     - Computing parse percentiles — wipes don't generate parses.
+    - Phase or duration breakdowns (pct_wipes_phase_*, wipes_lt_1min, wipes_1_3min, etc.) — those columns live on gold_boss_mechanics, NOT here. This table has avg_wipe_pct/best_wipe_pct only.
+    - Progress trend (last_week_avg_boss_pct, progress_trend) — those columns live on gold_boss_mechanics.
   goldProduct:
     table: 03_gold.sc_analytics.gold_boss_wipe_analysis
     model: gold_boss_wipe_analysis

@@ -224,6 +224,7 @@ Per-(encounter, difficulty) wipe-mechanics breakdown. Reports the share of wipes
 - Counting kills — this is wipe-only.
 - Player-level analysis — no player columns.
 - Comparing absolute wipe counts across bosses with vastly different attempt counts (use ratios).
+- Boss-HP-at-wipe statistics (avg_wipe_pct, best_wipe_pct, longest_wipe_seconds, raid_nights_attempted) — those columns live on gold_boss_wipe_analysis, NOT here. This table uses avg_boss_pct (current) and last_week_avg_boss_pct (recent) instead.
 
 ---
 
@@ -316,6 +317,8 @@ Per-(encounter, difficulty) wipe rollup. Includes how many wipes, best (lowest r
 - Counting kills — use gold_boss_progression.total_kills.
 - Per-pull or per-player analysis — use gold_boss_pull_history or gold_wipe_survival_discipline.
 - Computing parse percentiles — wipes don't generate parses.
+- Phase or duration breakdowns (pct_wipes_phase_*, wipes_lt_1min, wipes_1_3min, etc.) — those columns live on gold_boss_mechanics, NOT here. This table has avg_wipe_pct/best_wipe_pct only.
+- Progress trend (last_week_avg_boss_pct, progress_trend) — those columns live on gold_boss_mechanics.
 
 ---
 
@@ -1296,7 +1299,6 @@ Per-(player, scope) wipe-discipline diagnosis. Each row evaluates a player on on
 | `difficulty` | integer |  |
 | `difficulty_label` | string |  |
 | `raid_night_date` | date | (nullable) |
-| `is_kill` | boolean |  |
 | `player_identity_key` | string |  |
 | `player_name` | string |  |
 | `player_class` | string | (nullable) |
@@ -1309,6 +1311,13 @@ Per-(player, scope) wipe-discipline diagnosis. Each row evaluates a player on on
 | `actual_casts` | integer |  |
 | `over_capacity_casts` | integer |  |
 | `missed_casts` | integer |  |
+| `active_seconds` | number | (nullable) |
+| `duration_seconds` | number | (nullable) |
+| `cooldown_seconds` | number | (nullable) |
+| `max_charges` | integer | (nullable) |
+| `cast_efficiency_pct` | number | (nullable) |
+| `capacity_model` | string | (nullable) |
+| `spec_id` | integer | (nullable) |
 
 ---
 

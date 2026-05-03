@@ -149,6 +149,7 @@ x-sc-analytics:
     - Counting kills — this is wipe-only.
     - Player-level analysis — no player columns.
     - Comparing absolute wipe counts across bosses with vastly different attempt counts (use ratios).
+    - Boss-HP-at-wipe statistics (avg_wipe_pct, best_wipe_pct, longest_wipe_seconds, raid_nights_attempted) — those columns live on gold_boss_wipe_analysis, NOT here. This table uses avg_boss_pct (current) and last_week_avg_boss_pct (recent) instead.
   goldProduct:
     table: 03_gold.sc_analytics.gold_boss_mechanics
     model: gold_boss_mechanics
