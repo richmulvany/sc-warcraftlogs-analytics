@@ -340,7 +340,7 @@ function TurnMessage({
   const [feedbackBusy, setFeedbackBusy] = useState(false)
 
   async function handleFeedback(effective: boolean) {
-    if (!turn.response?.response_id || feedbackBusy) return
+    if (!turn.response?.sql || feedbackBusy) return
     setFeedbackBusy(true)
     try {
       await onFeedback(turn.id, effective)
@@ -447,7 +447,7 @@ function ResponseBlock({
           <p className="mt-1 break-words text-xs text-ctp-red">Error: {response.error}</p>
         )}
 
-        {response.response_id && response.sql && !response.error && (
+        {response.sql && !response.error && (
           <div className="flex items-center gap-2 border-t border-ctp-surface1/70 pt-2">
             <span className="text-[10px] font-mono uppercase tracking-wide text-ctp-overlay0">
               Was this SQL useful?
