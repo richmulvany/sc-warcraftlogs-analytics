@@ -19,6 +19,12 @@ export interface ChatSession {
   turns: ChatTurn[]
 }
 
+interface AskProgressState {
+  progress: number
+  completeFlash: boolean
+  loading: boolean
+}
+
 interface ChatContextValue {
   sessions: ChatSession[]
   activeSession: ChatSession
@@ -26,6 +32,7 @@ interface ChatContextValue {
   pendingCount: number
   oldestPendingStartedAt?: number
   lastSettledAt?: number
+  askProgress: AskProgressState
   setActiveSessionId: (id: string) => void
   startNewSession: () => string
   deleteSession: (id: string) => void
@@ -98,6 +105,11 @@ function errorMessageFor(err: unknown): string {
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<ChatSession[]>(() => normaliseStoredSessions(localStorage.getItem(STORAGE_KEY)))
   const [activeSessionId, setActiveSessionId] = useState(() => sessions[0]?.id ?? createSession().id)
+  const [askProgress, setAskProgress] = useState<AskProgressState>({
+    progress: 0,
+    completeFlash: false,
+    loading: false,
+  })
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions))
@@ -178,8 +190,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const target = sessions
       .flatMap(session => session.turns)
       .find(turn => turn.id === turnId)
-    const responseId = target?.response?.response_id
-    if (!target || !responseId) return
+    const responseId = target?.response?.response_id ?? turnId
+    if (!target?.response?.sql) return
 
     await postChatFeedback({
       responseId,
@@ -218,6 +230,40 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     ? Math.max(...settledTurns.map(turn => turn.endedAt ?? 0))
     : undefined
 
+  useEffect(() => {
+    if (pendingCount > 0 && oldestPendingStartedAt) {
+      const tick = () => {
+        const elapsed = Date.now() - oldestPendingStartedAt
+        const eased = 18 + (1 - Math.exp(-elapsed / 42000)) * 74
+        setAskProgress({
+          progress: Math.min(92, eased),
+          completeFlash: false,
+          loading: true,
+        })
+      }
+
+      tick()
+      const timer = window.setInterval(tick, 650)
+      return () => window.clearInterval(timer)
+    }
+
+    setAskProgress(current => {
+      if (current.loading) {
+        return {
+          progress: 100,
+          completeFlash: true,
+          loading: false,
+        }
+      }
+      return current.completeFlash ? current : { progress: 0, completeFlash: false, loading: false }
+    })
+
+    const timer = window.setTimeout(() => {
+      setAskProgress({ progress: 0, completeFlash: false, loading: false })
+    }, 1250)
+    return () => window.clearTimeout(timer)
+  }, [oldestPendingStartedAt, pendingCount])
+
   const value = useMemo<ChatContextValue>(() => ({
     sessions,
     activeSession,
@@ -225,12 +271,13 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     pendingCount,
     oldestPendingStartedAt,
     lastSettledAt,
+    askProgress,
     setActiveSessionId,
     startNewSession,
     deleteSession,
     ask,
     submitFeedback,
-  }), [activeSession, ask, deleteSession, lastSettledAt, oldestPendingStartedAt, pendingCount, sessions, startNewSession, submitFeedback])
+  }), [activeSession, ask, askProgress, deleteSession, lastSettledAt, oldestPendingStartedAt, pendingCount, sessions, startNewSession, submitFeedback])
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Users, Skull, Swords, CalendarDays, Shield, Eye, ChevronDown, AlertTriangle, Beaker, KeyRound, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
@@ -38,48 +38,6 @@ function formatManifestDate(value?: string): string {
   })
 }
 
-function useAskNavProgress(pendingCount: number) {
-  const [progress, setProgress] = useState(0)
-  const [completeFlash, setCompleteFlash] = useState(false)
-  const pendingRef = useRef(false)
-  const startedAtRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (pendingCount > 0) {
-      pendingRef.current = true
-      startedAtRef.current = startedAtRef.current ?? Date.now()
-      setCompleteFlash(false)
-
-      const tick = () => {
-        const elapsed = Date.now() - (startedAtRef.current ?? Date.now())
-        const eased = 18 + (1 - Math.exp(-elapsed / 42000)) * 74
-        setProgress(Math.min(92, eased))
-      }
-
-      tick()
-      const timer = window.setInterval(tick, 650)
-      return () => window.clearInterval(timer)
-    }
-
-    startedAtRef.current = null
-    if (pendingRef.current) {
-      pendingRef.current = false
-      setProgress(100)
-      setCompleteFlash(true)
-      const timer = window.setTimeout(() => {
-        setProgress(0)
-        setCompleteFlash(false)
-      }, 1250)
-      return () => window.clearTimeout(timer)
-    }
-
-    setProgress(0)
-    return undefined
-  }, [pendingCount])
-
-  return { progress, completeFlash, loading: pendingCount > 0 }
-}
-
 type Variant = 'full' | 'rail' | 'drawer'
 
 interface Props {
@@ -89,10 +47,9 @@ interface Props {
 
 export function Sidebar({ variant = 'full', onNavClick }: Props) {
   const { mode, setMode } = useColourBlind()
-  const { pendingCount } = useChat()
+  const { askProgress } = useChat()
   const { manifest } = useManifest()
   const [cbOpen, setCbOpen] = useState(false)
-  const askProgress = useAskNavProgress(pendingCount)
 
   const isRail = variant === 'rail'
 
