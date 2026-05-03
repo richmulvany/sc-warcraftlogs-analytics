@@ -70,6 +70,7 @@ models:
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_guild_roster
     model: gold_guild_roster

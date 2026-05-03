@@ -28,8 +28,10 @@ jobs:
         run: ruff format --check ingestion/ pipeline/ scripts/
       - name: Type check with mypy
         run: mypy ingestion/src
+      - name: Validate data contracts
+        run: python scripts/check_contracts_ci.py
       - name: Run tests
-        run: pytest ingestion/tests pipeline/tests --cov=ingestion/src --cov=pipeline --cov-report=xml -q
+        run: pytest ingestion/tests pipeline/tests backend/tests --cov=ingestion/src --cov=pipeline --cov-report=xml -q
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         if: always()

@@ -38,7 +38,7 @@ import { CHART_TICK_STYLE, CHART_TICK_STYLE_LIGHT } from '../../utils/chartStyle
 import { DIFFS, WA_SECTIONS, toWipeRoleKey, CLASS_ROLE_FALLBACK } from './constants'
 import {
   quantile, isKillRow, sectionTotal,
-  gradeForRelativeDisciplineScore, gradeClassName,
+  gradeClassName,
   clampPct, shortDateLabel,
 } from './utils'
 import type { SortDirection, WipeSurvivalSortKey, WipeSurvivalFailureRow, CooldownCapacityRow, ScopedSurvivabilityRow, DeathTimingSummary, ProgressSnapshotDatum } from './types'
@@ -515,7 +515,7 @@ export function WipeAnalysis() {
         weighted_failure_points: toFiniteNumber(row.weighted_failure_points) ?? 0,
         survival_failure_score: disciplineScore,
         survival_discipline_score: disciplineScore,
-        survival_grade: 'S' as const,
+        survival_grade: ((row.survival_grade as WipeSurvivalFailureRow['survival_grade']) ?? 'S'),
         top_improvement_area: row.top_improvement_area || row.top_missing_category || '—',
         top_missing_category: row.top_missing_category || row.top_improvement_area || '—',
         defensive_tracking_status: defensiveStatus,
@@ -525,17 +525,7 @@ export function WipeAnalysis() {
       } satisfies WipeSurvivalFailureRow
     })
 
-    const distinctScoresAscending = [...new Set(goldRows.map(row => row.survival_failure_score))]
-      .sort((a, b) => a - b)
-
     return goldRows
-      .map(row => ({
-        ...row,
-        survival_grade: gradeForRelativeDisciplineScore(
-          row.survival_failure_score,
-          distinctScoresAscending
-        ),
-      }))
       .sort((a, b) => {
         return (
           b.survival_failure_score - a.survival_failure_score ||

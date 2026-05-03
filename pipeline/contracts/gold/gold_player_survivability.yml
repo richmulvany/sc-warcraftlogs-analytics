@@ -32,23 +32,28 @@ models:
         nullable: false
         allowEmpty: false
       total_deaths:
+        description: "Deaths across all raids"
         type: integer
         required: true
         nullable: false
       kills_tracked:
+        description: "Kill fights player participated in"
         type: integer
         required: true
         nullable: false
       deaths_per_kill:
+        description: "total_deaths / kills_tracked"
         type: number
         required: true
         nullable: false
       most_common_killing_blow:
+        description: "Ability that killed this player most"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       most_common_killing_blow_count:
+        description: "How many times"
         type: integer
         required: false
         nullable: true
@@ -66,6 +71,7 @@ models:
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_survivability
     model: gold_player_survivability

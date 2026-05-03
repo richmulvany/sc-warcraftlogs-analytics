@@ -686,6 +686,7 @@ QUERY_EXPORTS: dict[str, tuple[str, str]] = {
                 "has_defensive_capacity_tracked",
                 "most_common_killing_blow",
                 "most_common_killing_blow_count",
+                "survival_grade",
             ],
         ),
     ),

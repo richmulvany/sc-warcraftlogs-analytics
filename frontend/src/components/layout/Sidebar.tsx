@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { LayoutDashboard, Users, Skull, Swords, CalendarDays, Shield, Eye, ChevronDown, AlertTriangle, Beaker, KeyRound } from 'lucide-react'
+import { LayoutDashboard, Users, Skull, Swords, CalendarDays, Shield, Eye, ChevronDown, AlertTriangle, Beaker, KeyRound, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { useColourBlind } from '../../context/ColourBlindContext'
 import { type ColourBlindMode, MODE_LABELS } from '../../constants/palettes'
@@ -19,6 +19,7 @@ const SECONDARY = [
   { to: '/attendance',  label: 'Attendance',  Icon: CalendarDays },
   { to: '/roster',      label: 'Roster',      Icon: Shield },
   { to: '/preparation', label: 'Preparation', Icon: Beaker },
+  { to: '/chat',        label: 'Ask (beta)',  Icon: Sparkles },
 ]
 
 const CB_MODES: ColourBlindMode[] = ['normal', 'deuteranopia', 'protanopia', 'tritanopia']

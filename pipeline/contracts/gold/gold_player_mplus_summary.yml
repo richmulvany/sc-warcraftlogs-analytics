@@ -2,151 +2,230 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.gold_player_mplus_summary
 info:
   title: Gold Player Mythic Plus Summary
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Per-player current Mythic+ snapshot derived from Raider.IO. One row per
+    (player_identity_key, region, season). Includes overall and role scores,
+    world/region/realm/guild ranks, run counts (timed and untimed), highest
+    key levels, and a single "best run" highlight. For score-over-time use
+    gold_player_mplus_score_history; for per-dungeon coverage use
+    gold_player_mplus_dungeon_breakdown; for full run logs use
+    gold_player_mplus_run_history.
 models:
   gold_player_mplus_summary:
     type: table
+    description: One row per (player identity, region, season) Mythic+ snapshot.
     primaryKey:
     - player_identity_key
     - region
     - season
     fields:
       player_identity_key:
+        description: "Lowercase player_name:unknown:realm_slug identity key (Mythic+ has no class context)."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       realm_slug:
+        description: "Realm slug"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       region:
+        description: "Raider.IO region code."
         type: string
         required: true
         nullable: false
         allowEmpty: false
+        enum: [eu, us, kr, tw]
       profile_url:
+        description: "Raider.IO character profile URL"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       season:
+        description: "Raider.IO season identifier"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       snapshot_at:
+        description: "Ingestion timestamp for the latest score snapshot"
         type: timestamp
         required: true
         nullable: false
       score_all:
+        description: "Overall Raider.IO score"
         type: number
         required: true
         nullable: true
+        unit: score
       score_dps:
+        description: "DPS role score"
         type: number
         required: false
         nullable: true
+        unit: score
       score_healer:
+        description: "Healer role score"
         type: number
         required: false
         nullable: true
+        unit: score
       score_tank:
+        description: "Tank role score"
         type: number
         required: false
         nullable: true
+        unit: score
       world_rank:
+        description: "Overall world rank if returned by Raider.IO"
         type: integer
         required: false
         nullable: true
       region_rank:
+        description: "Overall region rank"
         type: integer
         required: false
         nullable: true
       realm_rank:
+        description: "Overall realm rank"
         type: integer
         required: false
         nullable: true
       guild_mplus_rank:
+        description: "Guild rank by current-season overall score"
         type: integer
         required: false
         nullable: true
       guild_mplus_rank_total:
+        description: "Number of guild players with non-zero current-season score"
         type: integer
         required: true
         nullable: false
       guild_mplus_rank_percentile:
+        description: "0-100 percentile derived from guild rank"
         type: number
         required: false
         nullable: true
       total_runs:
+        description: "Deduped recent/best runs exported for this character"
         type: integer
         required: true
         nullable: false
       timed_runs:
+        description: "Runs completed in time"
         type: integer
         required: true
         nullable: false
       untimed_runs:
+        description: "Runs not completed in time"
         type: integer
         required: true
         nullable: false
       highest_timed_level:
+        description: "Highest timed key level"
         type: integer
         required: false
         nullable: true
       highest_untimed_level:
+        description: "Highest untimed key level"
         type: integer
         required: false
         nullable: true
       most_common_key_level:
+        description: "Most common key level in exported run payload"
         type: integer
         required: false
         nullable: true
       most_common_key_count:
+        description: "Count at the most common key level"
         type: integer
         required: true
         nullable: false
       best_run_dungeon:
+        description: "Dungeon for the selected best run"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       best_run_short_name:
+        description: "Short dungeon name"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       best_run_level:
+        description: "Key level for the selected best run"
         type: integer
         required: false
         nullable: true
       best_run_score:
+        description: "Raider.IO run score"
         type: number
         required: false
         nullable: true
       best_run_timed:
+        description: "Whether the selected best run was timed"
         type: boolean
         required: false
         nullable: true
       best_run_completed_at:
+        description: "Completion timestamp"
         type: timestamp
         required: false
         nullable: true
       best_run_url:
+        description: "Raider.IO run URL"
         type: string
         required: false
         nullable: true
         allowEmpty: true
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Per-player current Mythic+ scoreboard from Raider.IO. Use for "who has the
+    highest M+ score", "guild M+ ranking", or per-role score comparisons.
+    Filter to non-zero score_all to scope to active players. For trend questions
+    use gold_player_mplus_score_history.
+  exampleQuestions:
+    - Who has the highest current Mythic+ score?
+    - List the guild Mythic+ ranking by overall score.
+    - Which players have the highest tank role score?
+    - What is the best timed key level recorded by any guild member?
+  metrics:
+    - name: score_all
+      definition: Overall Raider.IO season score for the character.
+      unit: score
+      caveats: Null/zero for inactive characters; filter `score_all > 0` to scope to active.
+    - name: highest_timed_level
+      definition: Highest key level the character timed in this season.
+      unit: count
+      caveats: Untimed runs do not contribute; see highest_untimed_level for a separate signal.
+  joinKeys:
+    - column: player_identity_key
+      joinsTo: gold_player_mplus_score_history.player_identity_key
+      cardinality: one-to-many
+    - column: player_identity_key
+      joinsTo: gold_player_mplus_dungeon_breakdown.player_identity_key
+      cardinality: one-to-many
+    - column: player_identity_key
+      joinsTo: gold_player_mplus_weekly_activity.player_identity_key
+      cardinality: one-to-many
+  notRecommendedFor:
+    - Joining to raid facts on player_name alone — Mythic+ identity uses (player_name, realm_slug).
+    - Score trend over time — use gold_player_mplus_score_history.
+    - Per-dungeon coverage — use gold_player_mplus_dungeon_breakdown.
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_mplus_summary
     model: gold_player_mplus_summary

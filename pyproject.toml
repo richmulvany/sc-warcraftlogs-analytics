@@ -28,6 +28,7 @@ dev = [
     "pre-commit>=3.7.0",
     "responses>=0.25.0",    # HTTP mocking for tests
     "freezegun>=1.5.0",     # Time mocking for tests
+    "sqlglot>=23",          # backend/sql_guard parser (pure-python)
 ]
 
 [tool.setuptools.packages.find]

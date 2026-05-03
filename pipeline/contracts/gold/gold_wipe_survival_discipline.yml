@@ -2,12 +2,22 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.gold_wipe_survival_discipline
 info:
   title: Gold Wipe Survival Discipline
-  version: 0.1.0
+  version: 0.3.0
   status: active
   owner: richmulvany
+  description: >-
+    Per-(player, scope) wipe-discipline diagnosis. Each row evaluates a player
+    on one stable scope (typically all-zones, a specific zone, or a specific
+    (zone, boss, difficulty)). It scores how often the player dies on wipes,
+    whether they used personal defensives, healthstones, and combat health
+    potions, and combines those into a 0–100 survival_discipline_score.
+    Use this to answer "who is dying most on wipes", "who has poor cooldown
+    discipline", "what should player X improve". For raid-team unused
+    cooldown capacity (raid CDs / externals) use gold_wipe_cooldown_utilization.
 models:
   gold_wipe_survival_discipline:
     type: table
+    description: One row per (player identity, dashboard scope) survival diagnosis.
     primaryKey:
     - player_identity_key
     - zone_name
@@ -15,202 +25,310 @@ models:
     - difficulty_label
     fields:
       player_identity_key:
+        description: "Lowercase player_name:player_class:realm identity key."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_class:
+        description: "WarcraftLogs class"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       realm:
+        description: "Realm resolved from WCL actor roster, or `unknown`."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       role:
+        description: "Latest known kill-role when available."
         type: string
         required: false
         nullable: true
         allowEmpty: true
+        enum: [dps, healer, tank]
       zone_name:
+        description: "Raid zone, or `All`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       encounter_id:
+        description: "Encounter id; null for all-boss scopes"
         type: integer
         required: false
         nullable: true
       boss_name:
+        description: "Boss name, or `All`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       difficulty:
+        description: "WCL difficulty; null for all-difficulty scopes"
         type: integer
         required: false
         nullable: true
       difficulty_label:
+        description: "Difficulty label, or `All`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       wipe_pulls_tracked:
+        description: "Instrumented wipe pulls where the player was present"
         type: integer
         required: true
         nullable: false
       wipe_deaths:
+        description: "Player deaths on tracked wipe pulls"
         type: integer
         required: true
         nullable: false
       first_deaths:
+        description: "Wipe deaths that were first in the pull"
         type: integer
         required: true
         nullable: false
       early_deaths:
+        description: "Wipe deaths within the first minute"
         type: integer
         required: true
         nullable: false
       kill_deaths:
+        description: "Player deaths on kill pulls in scope"
         type: integer
         required: true
         nullable: false
       kills_tracked:
+        description: "Kill pulls where the player was present"
         type: integer
         required: true
         nullable: false
       deaths_per_kill:
+        description: "`kill_deaths / kills_tracked`; null when no kills are tracked"
         type: number
         required: false
         nullable: true
       deaths_per_wipe:
+        description: "`wipe_deaths / wipe_pulls_tracked`"
         type: number
         required: true
         nullable: false
       pulls_with_tracked_defensive_capacity:
+        description: "Wipe pulls with scored personal defensive capacity"
         type: integer
         required: true
         nullable: false
       tracked_defensive_capacity:
+        description: "Scored possible personal defensive casts"
         type: integer
         required: true
         nullable: false
       defensive_casts:
+        description: "Scored personal defensive casts used"
         type: integer
         required: true
         nullable: false
       defensive_missed_casts:
+        description: "Scored possible defensive casts left unused"
         type: integer
         required: true
         nullable: false
       healthstone_uses:
+        description: "Wipe deaths with healthstone use before death"
         type: integer
         required: true
         nullable: false
       potion_uses:
+        description: "Wipe deaths with health potion use before death"
         type: integer
         required: true
         nullable: false
       no_healthstone_deaths:
+        description: "Wipe deaths where the player did NOT use a healthstone before dying."
         type: integer
         required: true
         nullable: false
+        unit: count
       no_health_potion_deaths:
+        description: "Wipe deaths where the player did NOT use a health potion before dying."
         type: integer
         required: true
         nullable: false
+        unit: count
       defensive_usage_rate:
+        description: "`defensive_casts / tracked_defensive_capacity * 100`; null when no defensive capacity is tracked"
         type: number
         required: false
         nullable: true
       healthstone_usage_rate:
+        description: "`healthstone_uses / wipe_deaths * 100`; null when no wipe deaths exist"
         type: number
         required: false
         nullable: true
       potion_usage_rate:
+        description: "`potion_uses / wipe_deaths * 100`; null when no wipe deaths exist"
         type: number
         required: false
         nullable: true
       no_healthstone_pct:
+        description: "no_healthstone_deaths / max(wipe_deaths, 1) * 100."
         type: number
         required: true
         nullable: false
+        unit: percent_0_100
       no_health_potion_pct:
+        description: "no_health_potion_deaths / max(wipe_deaths, 1) * 100."
         type: number
         required: true
         nullable: false
+        unit: percent_0_100
       death_pressure_score:
+        description: "0–100 component score for avoiding wipe deaths"
         type: number
         required: true
         nullable: false
       defensive_component_score:
+        description: "0–100 class-baselined defensive component; unknown and no-capacity states receive a neutral component while `defensive_tracking_status` preserves the distinction"
         type: number
         required: true
         nullable: false
       healthstone_component_score:
+        description: "0–100 healthstone discipline component"
         type: number
         required: true
         nullable: false
       potion_component_score:
+        description: "0–100 potion discipline component"
         type: number
         required: true
         nullable: false
       defensive_class_baseline_pct:
+        description: "Scope/class median defensive usage rate for tracked-capacity players"
         type: number
         required: false
         nullable: true
       defensive_class_delta_pct:
+        description: "Player's defensive_usage_rate minus the class baseline; positive = above class median."
         type: number
         required: false
         nullable: true
+        unit: percent_0_100
       weighted_failure_points:
+        description: "Internal weighted sum of survival failure components used to derive survival_discipline_score; lower is better."
         type: number
         required: true
         nullable: false
       survival_failure_score:
+        description: "Back-compatible alias for `survival_discipline_score`"
         type: number
         required: true
         nullable: false
       survival_discipline_score:
+        description: "Absolute 0–100 consistency score; higher is better"
         type: number
         required: true
         nullable: false
       top_improvement_area:
+        description: "Lowest component label, or `—` when all components are strong"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       top_missing_category:
+        description: "Component label most responsible for the failure score (e.g. defensives, healthstones, potions, deaths)."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       defensive_tracking_status:
+        description: "`tracked_used`, `tracked_zero_usage`, `no_tracked_capacity`, or `unknown`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       has_defensive_capacity_tracked:
+        description: "True when the player has scoreable defensive capacity for this scope; false when class/spec has no tracked defensives or no pulls had capacity tracking."
         type: boolean
         required: true
         nullable: false
       most_common_killing_blow:
+        description: "Most frequent killing-blow ability against this player on wipes in scope (empty when no wipe deaths)."
         type: string
         required: true
         nullable: false
         allowEmpty: true
       most_common_killing_blow_count:
+        description: "Count for most_common_killing_blow."
         type: integer
         required: true
         nullable: false
+        unit: count
+      survival_grade:
+        description: "Per-scope relative letter grade derived from survival_discipline_score within the same (zone_name, boss_name, difficulty_label) partition; S = best, F = worst."
+        type: string
+        required: true
+        nullable: false
+        allowEmpty: false
+        enum: [S, A, B, C, D, E, F]
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Player-side wipe diagnosis with a 0–100 survival_discipline_score (higher
+    is better). Use for "who has the worst survival discipline", "who is not
+    using defensives", "what should player X improve". Pair with
+    fact_player_events for raw death detail and with gold_wipe_cooldown_utilization
+    for raid-team-level cooldown coverage.
+  exampleQuestions:
+    - Who has the worst survival discipline this tier?
+    - Which players never use healthstones on wipes?
+    - What is player X's top improvement area?
+    - Who has poor defensive cooldown usage relative to their class?
+    - Which abilities most often kill player X on wipes?
+  metrics:
+    - name: survival_discipline_score
+      definition: 0–100 composite of personal defensives, healthstones, potions, and death pressure on wipes; higher is better.
+      unit: score
+      caveats: Class-baselined for defensives; presence-normalised. Null/zero capacity is handled via defensive_tracking_status.
+    - name: deaths_per_wipe
+      definition: wipe_deaths / wipe_pulls_tracked.
+      unit: ratio
+      caveats: Sensitive to small samples; check wipe_pulls_tracked before drawing conclusions.
+    - name: defensive_usage_rate
+      definition: defensive_casts / tracked_defensive_capacity * 100.
+      unit: percent_0_100
+      caveats: Null when no tracked capacity for class/spec.
+    - name: survival_grade
+      definition: >-
+        S/A/B/C/D/E/F letter grade for survival_discipline_score within the
+        same (zone_name, boss_name, difficulty_label) partition. Computed as a
+        dense-rank-based relative bucketing — single-distinct-score partitions
+        receive S; otherwise the highest distinct score gets S, the lowest F,
+        and the middle ranks are bucketed by middle_relative = (rank-2)/(n-3)
+        with thresholds 0.8/0.6/0.4/0.2 mapping to A/B/C/D, else E.
+      unit: ordinal
+      caveats: Identical scores share a grade; small partitions (n_distinct <= 3) collapse the middle to A only.
+  joinKeys:
+    - column: player_identity_key
+      joinsTo: gold_player_performance_summary.player_identity_key
+      cardinality: many-to-one
+    - column: encounter_id
+      joinsTo: gold_encounter_catalog.encounter_id
+      cardinality: many-to-one
+  notRecommendedFor:
+    - Counting kills — this is wipe-discipline, not kill performance.
+    - Raid-team cooldown coverage — use gold_wipe_cooldown_utilization.
+    - Per-pull death events — use fact_player_events.
+    - Comparing across all-scope and specific-scope rows in the same query without a scope filter.
   goldProduct:
     table: 03_gold.sc_analytics.gold_wipe_survival_discipline
     model: gold_wipe_survival_discipline

@@ -71,6 +71,7 @@ models:
         nullable: false
         allowEmpty: false
       kills_on_boss:
+        description: "Number of kills included"
         type: integer
         required: true
         nullable: false
@@ -83,10 +84,12 @@ models:
         required: false
         nullable: true
       latest_throughput_per_second:
+        description: "Most recent kill performance"
         type: number
         required: false
         nullable: true
       throughput_trend:
+        description: "(latest − avg) / avg × 100. Positive = improving"
         type: number
         required: false
         nullable: true
@@ -111,6 +114,7 @@ models:
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_boss_performance
     model: gold_player_boss_performance

@@ -2,61 +2,105 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.dim_player
 info:
   title: Dim Player
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Canonical per-character dimension. One row per player_name observed in WCL
+    logs, enriched with Blizzard guild rank when the character matches the
+    guild roster. Use this as the join target for any fact table that has only
+    a player_name. For Mythic+ identity (which keys on realm) use the
+    player_identity_key on the Mythic+ products instead.
 models:
   dim_player:
     type: table
+    description: One row per canonical character name observed in raid logs.
     primaryKey:
     - player_name
     fields:
       player_name:
+        description: "Character name (from WCL actor data)"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_class:
+        description: "WoW class (from actor roster; falls back to performance data)"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       realm:
+        description: "Realm name"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       is_guild_member:
+        description: "Whether matched in Blizzard guild roster"
         type: boolean
         required: true
         nullable: false
       rank:
+        description: "Guild rank ID (null for non-guild players)"
         type: integer
         required: false
         nullable: true
+        enum: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
       rank_label:
+        description: "Human-readable rank (Guild Master, Officer, etc.)"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       rank_category:
+        description: "Rank group (GM, Officer, Raider, etc.)"
         type: string
         required: false
         nullable: true
         allowEmpty: true
+        enum: [GM, Officer, Raider, "Raider Alt", Bestie, Trial, Social]
       is_raid_team:
+        description: "Whether rank is in the active raid team (ranks 0–5, 8)"
         type: boolean
         required: true
         nullable: false
       first_seen_date:
+        description: "First attendance record date"
         type: date
         required: false
         nullable: true
       last_seen_date:
+        description: "Most recent attendance record date"
         type: date
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Player identity dimension. Use to filter to guild members
+    (`is_guild_member = true`) or the active raid team (`is_raid_team = true`)
+    and to look up rank labels for display. Joins to almost every fact table
+    on `player_name`.
+  exampleQuestions:
+    - Who is on the active raid team?
+    - List all guild members and their ranks.
+    - Which characters first appeared in raid logs after a given date?
+    - How many players are in each rank category?
+  metrics: []
+  joinKeys:
+    - column: player_name
+      joinsTo: fact_player_fight_performance.player_name
+      cardinality: one-to-many
+    - column: player_name
+      joinsTo: fact_player_events.player_name
+      cardinality: one-to-many
+    - column: player_name
+      joinsTo: gold_player_performance_summary.player_name
+      cardinality: one-to-one
+  notRecommendedFor:
+    - Mythic+ joins — Mythic+ products use `player_identity_key`, not `player_name` alone.
+    - Counting raid attendance — use `gold_player_attendance` (presence-aware) instead.
   goldProduct:
     table: 03_gold.sc_analytics.dim_player
     model: dim_player

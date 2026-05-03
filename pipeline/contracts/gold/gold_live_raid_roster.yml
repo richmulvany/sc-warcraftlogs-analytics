@@ -41,6 +41,7 @@ models:
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: secondary
   goldProduct:
     table: 03_gold.sc_analytics.gold_live_raid_roster
     model: gold_live_raid_roster

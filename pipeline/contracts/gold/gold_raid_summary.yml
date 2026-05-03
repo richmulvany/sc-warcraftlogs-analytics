@@ -2,76 +2,133 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.gold_raid_summary
 info:
   title: Gold Raid Summary
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Per-raid-night rollup. One row per WCL report — covers report timing, zone,
+    primary difficulty, total pulls, kills, wipes, and unique bosses engaged.
+    Use this for "what happened on raid night X" or weekly activity questions.
+    For per-encounter progression use gold_boss_progression; for per-week
+    rollups use gold_weekly_activity.
 models:
   gold_raid_summary:
     type: table
+    description: One row per WarcraftLogs report (raid night).
     primaryKey:
     - report_code
     fields:
       report_code:
+        description: "WCL report identifier."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       report_title:
+        description: "Report title as set in WCL."
         type: string
         required: true
         nullable: false
         allowEmpty: true
       start_time_utc:
+        description: "Report start time in UTC."
         type: timestamp
         required: false
         nullable: true
       end_time_utc:
+        description: "Report end time in UTC."
         type: timestamp
         required: false
         nullable: true
       zone_id:
+        description: "WCL zone identifier."
         type: integer
         required: false
         nullable: true
       zone_name:
+        description: "Raid zone name."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       raid_night_date:
+        description: "Date the raid took place (UTC)."
         type: date
         required: true
         nullable: false
       primary_difficulty:
+        description: "Most-attempted difficulty on this report."
         type: string
         required: false
         nullable: true
         allowEmpty: true
+        enum: [Normal, Heroic, Mythic]
       total_pulls:
+        description: "Total pulls (kills + wipes) on this report."
         type: integer
         required: true
         nullable: false
+        unit: count
       boss_kills:
+        description: "Number of successful boss kills on this report."
         type: integer
         required: true
         nullable: false
+        unit: count
       total_wipes:
+        description: "Number of wipes on this report."
         type: integer
         required: true
         nullable: false
+        unit: count
       total_fight_seconds:
+        description: "Sum of active fight durations across all pulls."
         type: number
         required: true
         nullable: false
+        unit: seconds
       unique_bosses_engaged:
+        description: "Distinct bosses pulled on this report."
         type: integer
         required: true
         nullable: false
+        unit: count
       unique_bosses_killed:
+        description: "Distinct bosses killed on this report."
         type: integer
         required: true
         nullable: false
+        unit: count
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Raid-night summary table. Use to ask "how did raid go on date X", "how many
+    pulls did we do this week", or "what's our kill count over time". Joins to
+    fact_player_fight_performance and fact_player_events on report_code.
+  exampleQuestions:
+    - How many pulls did we do last raid night?
+    - Show kill count by raid night for the last month.
+    - Which raid night had the most wipes?
+    - How many unique bosses did we engage this week?
+  metrics:
+    - name: kills_per_pull
+      definition: boss_kills / max(total_pulls, 1).
+      unit: ratio
+      caveats: A blunt efficiency signal; depends heavily on which bosses were attempted.
+  joinKeys:
+    - column: report_code
+      joinsTo: fact_player_fight_performance.report_code
+      cardinality: one-to-many
+    - column: report_code
+      joinsTo: fact_player_events.report_code
+      cardinality: one-to-many
+    - column: zone_id
+      joinsTo: gold_encounter_catalog.zone_id
+      cardinality: many-to-one
+  notRecommendedFor:
+    - Per-encounter progression — use gold_boss_progression.
+    - Player-level analysis — this table has no player columns.
+    - Weekly rollups — use gold_weekly_activity for ISO-week aggregation.
   goldProduct:
     table: 03_gold.sc_analytics.gold_raid_summary
     model: gold_raid_summary

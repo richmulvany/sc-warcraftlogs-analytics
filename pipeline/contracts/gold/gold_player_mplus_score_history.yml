@@ -2,12 +2,19 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.gold_player_mplus_score_history
 info:
   title: Gold Player Mythic Plus Score History
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Time series of Raider.IO score snapshots per character. One row per
+    nightly snapshot per (player_identity_key, region, season). History
+    starts at the first successful ingestion — it is NOT season-start history
+    unless ingestion began at season start. Use this for score-trend questions;
+    for the latest snapshot only, use gold_player_mplus_summary.
 models:
   gold_player_mplus_score_history:
     type: table
+    description: One Raider.IO score snapshot per character per ingestion run.
     primaryKey:
     - player_identity_key
     - region
@@ -15,76 +22,120 @@ models:
     - snapshot_at
     fields:
       player_identity_key:
+        description: "Lowercase player_name:unknown:realm_slug identity key."
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       realm_slug:
+        description: "Realm slug"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       region:
+        description: "Raider.IO region code."
         type: string
         required: true
         nullable: false
         allowEmpty: false
+        enum: [eu, us, kr, tw]
       profile_url:
+        description: "Raider.IO character profile URL"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       season:
+        description: "Raider.IO season identifier"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       snapshot_at:
+        description: "Ingestion timestamp"
         type: timestamp
         required: true
         nullable: false
       snapshot_date:
+        description: "Snapshot date"
         type: date
         required: true
         nullable: false
       score_all:
+        description: "Overall Raider.IO score at this snapshot."
         type: number
         required: false
         nullable: true
+        unit: score
       score_dps:
+        description: "DPS role score at this snapshot."
         type: number
         required: false
         nullable: true
+        unit: score
       score_healer:
+        description: "Healer role score at this snapshot."
         type: number
         required: false
         nullable: true
+        unit: score
       score_tank:
+        description: "Tank role score at this snapshot."
         type: number
         required: false
         nullable: true
+        unit: score
       world_rank:
+        description: "Overall world rank"
         type: integer
         required: false
         nullable: true
       region_rank:
+        description: "Overall region rank"
         type: integer
         required: false
         nullable: true
       realm_rank:
+        description: "Overall realm rank"
         type: integer
         required: false
         nullable: true
       raiderio_last_crawled_at:
+        description: "Raider.IO crawl timestamp from the source payload"
         type: timestamp
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Mythic+ score time series. Use for "who is improving in M+", "score trend
+    for player X", or "rate of score change over the last N days". Snapshots
+    are nightly when ingestion runs.
+  exampleQuestions:
+    - Who has the largest M+ score gain in the last 30 days?
+    - Show player X's score trend this season.
+    - Which players have stopped improving (no score change in two weeks)?
+    - When did player X first cross 3000 score?
+  metrics:
+    - name: score_delta
+      definition: score_all minus the prior snapshot's score_all for the same (player_identity_key, season).
+      unit: score
+      caveats: Computed at query time via window functions; a flat history may indicate Raider.IO crawl failure rather than no progress.
+  joinKeys:
+    - column: player_identity_key
+      joinsTo: gold_player_mplus_summary.player_identity_key
+      cardinality: many-to-one
+  notRecommendedFor:
+    - "Latest snapshot lookups — use gold_player_mplus_summary which already filters to latest."
+    - "Run-level analysis — this is score-only; for runs use gold_player_mplus_run_history."
+    - "Treating start-of-history as start-of-season — history begins at first ingestion."
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_mplus_score_history
     model: gold_player_mplus_score_history

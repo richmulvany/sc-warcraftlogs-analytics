@@ -1,0 +1,42 @@
+# Files outside backend/ are added explicitly via the Dockerfile COPY commands;
+# this ignore file applies to anything still in the build context.
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local secrets and overrides
+.env
+backend/.env
+*.env.local
+
+# Editor / OS junk
+.vscode/
+.idea/
+.DS_Store
+
+# Ephemeral repo artefacts
+.git/
+.venv/
+venv/
+node_modules/
+
+# Eval transcript and tasks output
+backend/EVAL.md
+backend/EVAL_*.md
+
+# Frontend build output isn't needed in the backend image
+frontend/dist/
+frontend/node_modules/
+
+# Test fixtures
+ingestion/tests/
+pipeline/tests/

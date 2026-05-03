@@ -2,75 +2,127 @@ dataContractSpecification: 0.9.2
 id: sc-analytics.gold.gold_player_performance_summary
 info:
   title: Gold Player Performance Summary
-  version: 0.1.0
+  version: 0.2.0
   status: active
   owner: richmulvany
+  description: >-
+    Per-player, per-role aggregate of all kill fights tracked. Use this for
+    "best throughput by player", "average parse for player X", and ranked
+    leaderboards. The grain is (player_identity_key, role) — players who
+    raid as multiple roles will have one row per role.
 models:
   gold_player_performance_summary:
     type: table
+    description: One row per (player identity, role) summarising all kill fights.
     primaryKey:
     - player_identity_key
     - role
     fields:
       player_identity_key:
+        description: "Lowercase `player_name:player_class:realm` identity fingerprint"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Character name"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_class:
+        description: "WoW class"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       realm:
+        description: "Realm resolved from WCL actor roster, or `unknown`"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       role:
+        description: "Player role for this row."
         type: string
         required: false
         nullable: true
         allowEmpty: true
+        enum: [dps, healer, tank]
       primary_spec:
+        description: "Most frequently played spec"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       kills_tracked:
+        description: "Number of kill fights included"
         type: integer
         required: true
         nullable: false
       avg_throughput_per_second:
+        description: "Average role-aware throughput (DPS for dps/tank, HPS for healer); null when WCL ranking amount is unavailable"
         type: number
         required: true
         nullable: true
+        unit: per_second
       best_throughput_per_second:
+        description: "Single-fight best role-aware throughput (DPS for dps/tank, HPS for healer); null when WCL ranking amount is unavailable"
         type: number
         required: true
         nullable: true
+        unit: per_second
       avg_rank_percent:
+        description: "Average WCL parse percentile, role-aware (DPS parse / HPS parse)"
         type: number
         required: false
         nullable: true
+        unit: percent_0_100
       best_rank_percent:
+        description: "Highest single-fight parse, role-aware (DPS parse / HPS parse)"
         type: number
         required: false
         nullable: true
+        unit: percent_0_100
       avg_item_level:
+        description: "Average equipped item level"
         type: number
         required: false
         nullable: true
       last_seen_date:
+        description: "Most recent kill date"
         type: date
         required: false
         nullable: true
 x-sc-analytics:
+  chatbotTier: primary
+  aiSummary: >-
+    Aggregate per-player throughput and parse leaderboard. Use for "best DPS
+    overall", "average parse for player X", or "top healers by HPS". For
+    per-boss leaderboards, prefer gold_player_boss_performance. For per-fight
+    detail, use fact_player_fight_performance directly.
+  exampleQuestions:
+    - Who has the best average parse percentile this tier?
+    - List the top 10 DPS by best single-fight throughput.
+    - What is player X's average HPS across all kill fights?
+    - Which healers have the highest average rank percent?
+  metrics:
+    - name: avg_throughput_per_second
+      definition: Mean of role-aware per-second throughput across all kill fights for this (player, role).
+      unit: per_second
+      caveats: Null when WCL had no ranking entry. Don't bucket null as zero.
+    - name: avg_rank_percent
+      definition: Mean WCL parse percentile (0–100) across kill fights.
+      unit: percent_0_100
+      caveats: Recent reports may be missing parse data; the value lags ingestion.
+  joinKeys:
+    - column: player_name
+      joinsTo: dim_player.player_name
+      cardinality: many-to-one
+  notRecommendedFor:
+    - Per-fight analysis — this is already aggregated, use fact_player_fight_performance for fights.
+    - Counting attendance — use gold_player_attendance.
+    - Comparing players across roles directly — DPS and HPS are not interchangeable.
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_performance_summary
     model: gold_player_performance_summary

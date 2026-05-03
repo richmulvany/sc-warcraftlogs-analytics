@@ -47,26 +47,6 @@ export function pct(numerator: number, denominator: number) {
   return denominator > 0 ? (numerator / denominator) * 100 : 0
 }
 
-export function gradeForRelativeDisciplineScore(
-  score: number,
-  distinctScoresAscending: number[]
-): WipeSurvivalFailureRow['survival_grade'] {
-  if (distinctScoresAscending.length <= 1) return 'S'
-
-  const index = distinctScoresAscending.findIndex(candidate => candidate === score)
-  if (index === distinctScoresAscending.length - 1) return 'S'
-  if (index === 0) return 'F'
-
-  if (distinctScoresAscending.length <= 3) return 'A'
-
-  const middleRelative = (index - 1) / (distinctScoresAscending.length - 3)
-  if (middleRelative >= 0.8) return 'A'
-  if (middleRelative >= 0.6) return 'B'
-  if (middleRelative >= 0.4) return 'C'
-  if (middleRelative >= 0.2) return 'D'
-  return 'E'
-}
-
 export function gradeClassName(grade: WipeSurvivalFailureRow['survival_grade']) {
   switch (grade) {
     case 'S': return 'border-ctp-green/30 bg-ctp-green/10 text-ctp-green'

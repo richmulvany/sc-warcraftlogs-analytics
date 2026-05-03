@@ -831,8 +831,9 @@ def gold_wipe_survival_discipline():
                 )
               ) AS survival_discipline_score
           FROM component_scores
-        )
-        SELECT
+        ),
+        final_rows AS (
+          SELECT
           player_identity_key,
           player_name,
           player_class,
@@ -909,5 +910,52 @@ def gold_wipe_survival_discipline():
           most_common_killing_blow_count
         FROM scored
         WHERE wipe_pulls_tracked > 0 OR wipe_deaths > 0
+        ),
+        ranked AS (
+          /* Per-scope relative survival grade. Mirrors the legacy frontend
+             gradeForRelativeDisciplineScore so the UI can read survival_grade
+             directly without recomputing. Higher score = better grade.
+
+             dense_rank ASC gives 1-based rank with 1 = lowest distinct score
+             (worst). The maximum rank within a partition equals the count of
+             distinct scores, which we expose as _grade_n_distinct in the
+             graded CTE. Bucketing rule:
+               n_distinct <= 1                 → S
+               rank == n_distinct (highest)    → S
+               rank == 1 (lowest)              → F
+               n_distinct <= 3                 → A (only middle bucket exists)
+               middle_relative = (rank - 2) / (n_distinct - 3):
+                 >= 0.8 → A,  >= 0.6 → B,  >= 0.4 → C,  >= 0.2 → D,  else → E
+          */
+          SELECT
+            *,
+            DENSE_RANK() OVER (
+              PARTITION BY zone_name, boss_name, difficulty_label
+              ORDER BY survival_discipline_score ASC
+            ) AS _grade_rank
+          FROM final_rows
+        ),
+        graded AS (
+          SELECT
+            *,
+            MAX(_grade_rank) OVER (
+              PARTITION BY zone_name, boss_name, difficulty_label
+            ) AS _grade_n_distinct
+          FROM ranked
+        )
+        SELECT
+          * EXCEPT (_grade_rank, _grade_n_distinct),
+          CASE
+            WHEN _grade_n_distinct <= 1 THEN 'S'
+            WHEN _grade_rank = _grade_n_distinct THEN 'S'
+            WHEN _grade_rank = 1 THEN 'F'
+            WHEN _grade_n_distinct <= 3 THEN 'A'
+            WHEN (_grade_rank - 2) / CAST(_grade_n_distinct - 3 AS DOUBLE) >= 0.8 THEN 'A'
+            WHEN (_grade_rank - 2) / CAST(_grade_n_distinct - 3 AS DOUBLE) >= 0.6 THEN 'B'
+            WHEN (_grade_rank - 2) / CAST(_grade_n_distinct - 3 AS DOUBLE) >= 0.4 THEN 'C'
+            WHEN (_grade_rank - 2) / CAST(_grade_n_distinct - 3 AS DOUBLE) >= 0.2 THEN 'D'
+            ELSE 'E'
+          END AS survival_grade
+        FROM graded
         """
     )
