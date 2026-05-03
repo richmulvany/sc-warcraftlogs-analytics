@@ -35,8 +35,9 @@ COPY pipeline/contracts /app/pipeline/contracts
 
 # Regenerate the semantic registry from the current contracts. This guarantees
 # the bundled JSON matches the YAML — no chance of stale manifests in prod.
-ENV PYTHONPATH=/app
-RUN /install/bin/python /app/scripts/build_semantic_registry.py
+# Use the prefix install via PYTHONPATH so build-time deps are visible.
+ENV PYTHONPATH=/app:/install/lib/python3.12/site-packages
+RUN python /app/scripts/build_semantic_registry.py
 
 
 FROM python:3.12-slim AS runtime
