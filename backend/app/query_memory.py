@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -26,6 +27,7 @@ from .semantic_registry import Registry
 from .sql_guard import SqlGuardError, guard_sql
 
 DEFAULT_MEMORY_PATH = Path(__file__).with_name("query_memory.json")
+DEFAULT_R2_OBJECT_KEY = "chatbot/query_memory.json"
 
 
 @dataclass(frozen=True)
@@ -59,6 +61,8 @@ def _entry_id(question: str, sql: str) -> str:
 
 
 def _read_raw(path: Path | None = None) -> dict[str, Any]:
+    if path is None and _r2_enabled():
+        return _read_r2_raw()
     target = path or DEFAULT_MEMORY_PATH
     if not target.exists():
         return {"version": 1, "entries": []}
@@ -66,8 +70,73 @@ def _read_raw(path: Path | None = None) -> dict[str, Any]:
 
 
 def _write_raw(raw: dict[str, Any], path: Path | None = None) -> None:
+    if path is None and _r2_enabled():
+        _write_r2_raw(raw)
+        return
     target = path or DEFAULT_MEMORY_PATH
     target.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
+
+
+def _r2_enabled() -> bool:
+    return os.getenv("QUERY_MEMORY_BACKEND", "").lower() in {"r2", "s3"}
+
+
+def _r2_client():
+    try:
+        import boto3
+    except ImportError as exc:
+        raise RuntimeError(
+            "boto3 is required for QUERY_MEMORY_BACKEND=r2; install backend requirements."
+        ) from exc
+
+    endpoint_url = os.getenv("QUERY_MEMORY_R2_ENDPOINT_URL")
+    account_id = os.getenv("QUERY_MEMORY_R2_ACCOUNT_ID")
+    if not endpoint_url and account_id:
+        endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
+    if not endpoint_url:
+        raise RuntimeError(
+            "QUERY_MEMORY_R2_ENDPOINT_URL or QUERY_MEMORY_R2_ACCOUNT_ID is required for R2 query memory."
+        )
+
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=os.getenv("QUERY_MEMORY_R2_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("QUERY_MEMORY_R2_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("QUERY_MEMORY_R2_REGION", "auto"),
+    )
+
+
+def _r2_location() -> tuple[str, str]:
+    bucket = os.getenv("QUERY_MEMORY_R2_BUCKET", "")
+    key = os.getenv("QUERY_MEMORY_R2_OBJECT_KEY", DEFAULT_R2_OBJECT_KEY)
+    if not bucket:
+        raise RuntimeError("QUERY_MEMORY_R2_BUCKET is required for R2 query memory.")
+    return bucket, key
+
+
+def _read_r2_raw() -> dict[str, Any]:
+    bucket, key = _r2_location()
+    client = _r2_client()
+    try:
+        response = client.get_object(Bucket=bucket, Key=key)
+    except Exception as exc:
+        code = getattr(exc, "response", {}).get("Error", {}).get("Code")
+        if code in {"NoSuchKey", "404", "NoSuchBucket"}:
+            return {"version": 1, "entries": []}
+        raise
+    body = response["Body"].read().decode("utf-8")
+    return json.loads(body)
+
+
+def _write_r2_raw(raw: dict[str, Any]) -> None:
+    bucket, key = _r2_location()
+    _r2_client().put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=(json.dumps(raw, indent=2) + "\n").encode("utf-8"),
+        ContentType="application/json",
+    )
 
 
 def load_query_memory(path: Path | None = None) -> list[QueryMemoryEntry]:

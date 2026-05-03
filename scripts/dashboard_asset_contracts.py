@@ -332,7 +332,7 @@ def _parse_contract(path: Path, raw: dict[str, Any], *, product_kind: str) -> Da
     missing_key_fields = sorted(set(unique_key) - set(fields))
     if missing_key_fields:
         raise ContractValidationError(
-            f'{path}: primary key references undeclared fields: {", ".join(missing_key_fields)}'
+            f"{path}: primary key references undeclared fields: {', '.join(missing_key_fields)}"
         )
 
     info_description = str(info.get("description") or "")

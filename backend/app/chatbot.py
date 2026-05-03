@@ -27,6 +27,7 @@ from .query_memory import (
 from .schemas import ChatResponse
 from .semantic_registry import Registry, TableInfo, load_registry
 from .sql_guard import SqlGuardError, guard_sql
+from .sql_registry_validator import validate_sql_columns
 
 MAX_SQL_ATTEMPTS = 3
 MAX_PROMPT_TABLES = 12
@@ -376,17 +377,20 @@ def answer_question(
                 allowlist=registry.allowlist(),
                 default_limit=settings.sql_row_limit,
             )
+            validate_sql_columns(guarded.sql, registry)
         except SqlGuardError as exc:
             last_error = f"sql_guard: {exc}"
-            last_bad_sql = sql
+            last_bad_sql = guarded.sql if guarded else sql
             last_response_id = record_rejected_query(
                 question,
-                sql,
+                last_bad_sql,
                 error=last_error,
+                tables_used=list(guarded.tables_used) if guarded else None,
             )
             continue
         try:
             result = execute_select(guarded.sql, settings=settings)
+            last_error = None
             break
         except Exception as exc:
             last_error = f"databricks: {exc}"

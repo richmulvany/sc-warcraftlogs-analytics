@@ -149,3 +149,46 @@ def test_failed_sql_records_rejected_memory_and_returns_feedback_id(monkeypatch)
     assert response.response_id == "rejected-id"
     assert rejected
     assert "fpe.boss_name" in rejected[-1][1]
+
+
+def test_column_validation_retries_before_databricks(monkeypatch) -> None:
+    registry = load_registry()
+    calls: list[str] = []
+
+    class FixingLLM:
+        def call(self, system: str, user: str) -> str:
+            calls.append(user)
+            if len(calls) == 1:
+                return "SELECT fpe.boss_name " "FROM 03_gold.sc_analytics.fact_player_events AS fpe"
+            if len(calls) == 2:
+                assert "Column `fpe.boss_name` does not exist" in user
+                return (
+                    "SELECT gpde.boss_name, gpde.player_name, COUNT(*) AS death_count "
+                    "FROM 03_gold.sc_analytics.gold_player_death_events AS gpde "
+                    "GROUP BY gpde.boss_name, gpde.player_name"
+                )
+            return "Boss death counts are available."
+
+    def fake_execute_select(sql, settings=None):
+        assert "gold_player_death_events" in sql
+        assert "fact_player_events" not in sql
+        return QueryResult(
+            columns=("boss_name", "player_name", "death_count"),
+            rows=(("Plexus Sentinel", "Cherven", 7),),
+        )
+
+    monkeypatch.setattr("backend.app.chatbot.execute_select", fake_execute_select)
+    monkeypatch.setattr("backend.app.chatbot.record_rejected_query", lambda *a, **k: "bad-id")
+    monkeypatch.setattr(
+        "backend.app.chatbot.record_candidate", lambda question, sql, tables_used: "good-id"
+    )
+
+    response = answer_question(
+        "Who dies most often on each boss?",
+        registry=registry,
+        llm=FixingLLM(),
+    )
+
+    assert response.response_id == "good-id"
+    assert response.rows[0]["player_name"] == "Cherven"
+    assert len(calls) == 3

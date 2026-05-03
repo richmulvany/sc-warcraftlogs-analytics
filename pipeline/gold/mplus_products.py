@@ -284,22 +284,28 @@ def gold_player_mplus_weekly_activity():
         )
     )
 
-    return weekly.join(
-        most_common_key, ["player_name", "realm_slug", "region", "season", "week_start"], "left"
-    ).select(
-        F.coalesce("player_identity_key", _mplus_player_identity_key()).alias("player_identity_key"),
-        "player_name",
-        "realm_slug",
-        "region",
-        "season",
-        "week_start",
-        "total_runs",
-        "timed_runs",
-        "untimed_runs",
-        "highest_key_level",
-        "unique_dungeons",
-        "most_common_key_level",
-    ).orderBy("player_name", "week_start")
+    return (
+        weekly.join(
+            most_common_key, ["player_name", "realm_slug", "region", "season", "week_start"], "left"
+        )
+        .select(
+            F.coalesce("player_identity_key", _mplus_player_identity_key()).alias(
+                "player_identity_key"
+            ),
+            "player_name",
+            "realm_slug",
+            "region",
+            "season",
+            "week_start",
+            "total_runs",
+            "timed_runs",
+            "untimed_runs",
+            "highest_key_level",
+            "unique_dungeons",
+            "most_common_key_level",
+        )
+        .orderBy("player_name", "week_start")
+    )
 
 
 @dlt.table(
@@ -355,7 +361,9 @@ def gold_player_mplus_dungeon_breakdown():
     return (
         agg.join(best_runs, ["player_name", "realm_slug", "region", "season", "dungeon"], "left")
         .select(
-            F.coalesce("player_identity_key", _mplus_player_identity_key()).alias("player_identity_key"),
+            F.coalesce("player_identity_key", _mplus_player_identity_key()).alias(
+                "player_identity_key"
+            ),
             "player_name",
             "realm_slug",
             "region",

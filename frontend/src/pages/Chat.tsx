@@ -448,21 +448,21 @@ function ResponseBlock({
         )}
 
         {response.sql && (
-          <div className="flex items-center gap-2 border-t border-ctp-surface1/70 pt-2">
+          <div className="flex flex-wrap items-center gap-2 border-t border-ctp-surface1/70 pt-2">
             <span className="text-[10px] font-mono uppercase tracking-wide text-ctp-overlay0">
-              {response.error ? 'Was this bad SQL?' : 'Was this SQL useful?'}
+              Was this answer helpful?
             </span>
             <button
               type="button"
               onClick={() => onFeedback(true)}
               disabled={feedbackBusy}
-              aria-label="Mark SQL useful"
-              title="Mark SQL useful"
+              aria-label="Mark answer helpful"
+              title="Mark answer helpful"
               className={clsx(
-                'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
+                'flex h-7 w-7 items-center justify-center rounded-lg border transition-colors',
                 response.feedback === 'effective'
-                  ? 'bg-ctp-green/15 text-ctp-green'
-                  : 'text-ctp-overlay1 hover:bg-ctp-surface1 hover:text-ctp-green',
+                  ? 'border-ctp-green/40 bg-ctp-green/20 text-ctp-green ring-1 ring-ctp-green/30'
+                  : 'border-transparent text-ctp-overlay1 hover:bg-ctp-surface1 hover:text-ctp-green',
                 feedbackBusy && 'cursor-wait opacity-60'
               )}
             >
@@ -472,18 +472,28 @@ function ResponseBlock({
               type="button"
               onClick={() => onFeedback(false)}
               disabled={feedbackBusy}
-              aria-label="Mark SQL not useful"
-              title="Mark SQL not useful"
+              aria-label="Mark answer not helpful"
+              title="Mark answer not helpful"
               className={clsx(
-                'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
+                'flex h-7 w-7 items-center justify-center rounded-lg border transition-colors',
                 response.feedback === 'ineffective'
-                  ? 'bg-ctp-red/15 text-ctp-red'
-                  : 'text-ctp-overlay1 hover:bg-ctp-surface1 hover:text-ctp-red',
+                  ? 'border-ctp-red/40 bg-ctp-red/20 text-ctp-red ring-1 ring-ctp-red/30'
+                  : 'border-transparent text-ctp-overlay1 hover:bg-ctp-surface1 hover:text-ctp-red',
                 feedbackBusy && 'cursor-wait opacity-60'
               )}
             >
               <ThumbsDown className="h-3.5 w-3.5" />
             </button>
+            {response.feedback && (
+              <span className={clsx(
+                'rounded-full px-2 py-1 text-[10px] font-mono uppercase tracking-wide',
+                response.feedback === 'effective'
+                  ? 'bg-ctp-green/10 text-ctp-green'
+                  : 'bg-ctp-red/10 text-ctp-red'
+              )}>
+                Feedback accepted
+              </span>
+            )}
             {response.from_memory && (
               <span className="ml-auto text-[10px] font-mono text-ctp-teal">memory</span>
             )}

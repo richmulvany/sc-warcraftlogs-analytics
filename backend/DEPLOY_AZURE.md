@@ -168,3 +168,37 @@ Runtime secrets such as `OPENAI_API_KEY`, `DATABRICKS_TOKEN`, and
 `CHATBOT_BACKEND_API_KEY` remain configured on the Container App itself. The
 workflow only rolls the image; it does not overwrite runtime environment
 settings.
+
+## Query memory storage
+
+By default, the chatbot reads seed query-memory examples from
+`backend/app/query_memory.json`. That file is baked into the container image,
+so runtime feedback is not durable across container revisions unless you
+configure a live store.
+
+For production, use Cloudflare R2 via its S3-compatible API:
+
+```bash
+az containerapp secret set \
+  --name sc-analytics-chatbot \
+  --resource-group sc-analytics-rg \
+  --secrets \
+      query-memory-r2-access-key-id="$QUERY_MEMORY_R2_ACCESS_KEY_ID" \
+      query-memory-r2-secret-access-key="$QUERY_MEMORY_R2_SECRET_ACCESS_KEY"
+
+az containerapp update \
+  --name sc-analytics-chatbot \
+  --resource-group sc-analytics-rg \
+  --set-env-vars \
+      QUERY_MEMORY_BACKEND=r2 \
+      QUERY_MEMORY_R2_ACCOUNT_ID=YOUR_CLOUDFLARE_ACCOUNT_ID \
+      QUERY_MEMORY_R2_BUCKET=sc-analytics-query-memory \
+      QUERY_MEMORY_R2_OBJECT_KEY=chatbot/query_memory.json \
+      QUERY_MEMORY_R2_ACCESS_KEY_ID=secretref:query-memory-r2-access-key-id \
+      QUERY_MEMORY_R2_SECRET_ACCESS_KEY=secretref:query-memory-r2-secret-access-key
+```
+
+Create the R2 API token with object read/write access to only that bucket.
+With those variables set, good/bad answer feedback is written to R2 and shared
+by all backend revisions. Without them, feedback is written only to the
+container filesystem and should be treated as ephemeral.
