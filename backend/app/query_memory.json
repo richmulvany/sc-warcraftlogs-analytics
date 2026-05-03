@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "seed_boss_death_leaders_v1",
+      "question": "Who dies most often on each boss?",
+      "normalized_question": "who dies most often on each boss",
+      "sql": "WITH latest_zone AS (\n  SELECT zone_name\n  FROM 03_gold.sc_analytics.gold_player_death_events\n  WHERE boss_name IS NOT NULL\n    AND zone_name IS NOT NULL\n    AND raid_night_date IS NOT NULL\n  GROUP BY zone_name\n  ORDER BY MAX(raid_night_date) DESC\n  LIMIT 1\n), boss_difficulty_scope AS (\n  SELECT\n    d.zone_name,\n    d.boss_name,\n    MAX(d.difficulty) AS difficulty\n  FROM 03_gold.sc_analytics.gold_player_death_events AS d\n  INNER JOIN latest_zone AS z\n    ON d.zone_name = z.zone_name\n  WHERE d.boss_name IS NOT NULL\n    AND d.difficulty IS NOT NULL\n  GROUP BY d.zone_name, d.boss_name\n), death_counts AS (\n  SELECT\n    d.zone_name,\n    d.boss_name,\n    d.difficulty_label,\n    d.player_name,\n    d.player_class,\n    COUNT(*) AS death_count,\n    MAX(d.raid_night_date) AS last_death_date\n  FROM 03_gold.sc_analytics.gold_player_death_events AS d\n  INNER JOIN boss_difficulty_scope AS scope\n    ON d.zone_name = scope.zone_name\n   AND d.boss_name = scope.boss_name\n   AND d.difficulty = scope.difficulty\n  GROUP BY\n    d.zone_name,\n    d.boss_name,\n    d.difficulty_label,\n    d.player_name,\n    d.player_class\n), ranked AS (\n  SELECT\n    *,\n    ROW_NUMBER() OVER (\n      PARTITION BY zone_name, boss_name, difficulty_label\n      ORDER BY death_count DESC, player_name ASC\n    ) AS death_rank\n  FROM death_counts\n)\nSELECT\n  zone_name,\n  boss_name,\n  difficulty_label,\n  player_name,\n  player_class,\n  death_count,\n  last_death_date\nFROM ranked\nWHERE death_rank = 1\nORDER BY boss_name ASC\nLIMIT 500",
+      "status": "approved",
+      "source": "seed",
+      "use_for_prompt": true,
+      "allow_direct_reuse": false,
+      "positive_feedback": 0,
+      "negative_feedback": 0,
+      "notes": "Teaches the LLM that boss-scoped death-leader questions must use gold_player_death_events and rank death_count within each boss.",
+      "created_at": "2026-05-03T00:00:00Z",
+      "updated_at": "2026-05-03T00:00:00Z"
+    },
+    {
+      "id": "mem_f8992e9cdcc1392c",
+      "question": "Who is on the roster?",
+      "normalized_question": "who is on the roster",
+      "sql": "SELECT player_name FROM 03_gold.sc_analytics.dim_player LIMIT 10",
+      "status": "rejected",
+      "source": "runtime",
+      "use_for_prompt": false,
+      "allow_direct_reuse": false,
+      "positive_feedback": 1,
+      "negative_feedback": 1,
+      "tables_used": [
+        "03_gold.sc_analytics.dim_player"
+      ],
+      "notes": "Rejected by user feedback; excluded from prompt examples and direct reuse.",
+      "created_at": "2026-05-03T20:43:33Z",
+      "updated_at": "2026-05-03T20:43:33Z"
+    }
+  ]
+}

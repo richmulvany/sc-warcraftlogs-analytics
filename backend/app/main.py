@@ -9,7 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .chatbot import answer_question
 from .config import get_settings
-from .schemas import ChatRequest, ChatResponse
+from .query_memory import apply_feedback
+from .schemas import ChatFeedbackRequest, ChatFeedbackResponse, ChatRequest, ChatResponse
 from .semantic_registry import load_registry
 
 app = FastAPI(title="SC Analytics Chatbot", version="0.1.0")
@@ -56,3 +57,24 @@ def chat(request: ChatRequest) -> ChatResponse:
     except RuntimeError as exc:
         # Misconfiguration (missing creds / SDK) — surface a 503 rather than 500.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.post(
+    "/chat/feedback", response_model=ChatFeedbackResponse, dependencies=[Depends(require_api_key)]
+)
+def chat_feedback(request: ChatFeedbackRequest) -> ChatFeedbackResponse:
+    try:
+        entry = apply_feedback(
+            response_id=request.response_id,
+            effective=request.effective,
+            question=request.question,
+            sql=request.sql,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Unknown response_id.") from exc
+    return ChatFeedbackResponse(
+        response_id=entry.id,
+        status=entry.status,
+        use_for_prompt=entry.use_for_prompt,
+        allow_direct_reuse=entry.allow_direct_reuse,
+    )

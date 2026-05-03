@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { ChatbotConfigError, postChat, type ChatResponse } from '../lib/chatbotClient'
+import { ChatbotConfigError, postChat, postChatFeedback, type ChatResponse } from '../lib/chatbotClient'
 
 export interface ChatTurn {
   id: string
@@ -30,6 +30,7 @@ interface ChatContextValue {
   startNewSession: () => string
   deleteSession: (id: string) => void
   ask: (text: string, sessionId?: string) => Promise<void>
+  submitFeedback: (turnId: string, effective: boolean) => Promise<void>
 }
 
 const STORAGE_KEY = 'sc-analytics-chat-sessions-v1'
@@ -173,6 +174,36 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeSessionId])
 
+  const submitFeedback = useCallback(async (turnId: string, effective: boolean) => {
+    const target = sessions
+      .flatMap(session => session.turns)
+      .find(turn => turn.id === turnId)
+    const responseId = target?.response?.response_id
+    if (!target || !responseId) return
+
+    await postChatFeedback({
+      responseId,
+      effective,
+      question: target.question,
+      sql: target.response?.sql,
+    })
+
+    setSessions(prev => prev.map(session => ({
+      ...session,
+      turns: session.turns.map(turn => (
+        turn.id === turnId && turn.response
+          ? {
+              ...turn,
+              response: {
+                ...turn.response,
+                feedback: effective ? 'effective' : 'ineffective',
+              },
+            }
+          : turn
+      )),
+    })))
+  }, [sessions])
+
   const activeSession = sessions.find(session => session.id === activeSessionId) ?? sessions[0] ?? createSession()
   const pendingCount = sessions.reduce(
     (count, session) => count + session.turns.filter(turn => turn.pending).length,
@@ -198,7 +229,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     startNewSession,
     deleteSession,
     ask,
-  }), [activeSession, ask, deleteSession, lastSettledAt, oldestPendingStartedAt, pendingCount, sessions, startNewSession])
+    submitFeedback,
+  }), [activeSession, ask, deleteSession, lastSettledAt, oldestPendingStartedAt, pendingCount, sessions, startNewSession, submitFeedback])
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>
 }
