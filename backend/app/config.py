@@ -40,6 +40,8 @@ class Settings:
     sql_row_limit: int
     sql_timeout_seconds: int
     semantic_registry_path: Path
+    api_key: str
+    cors_allow_origins: tuple[str, ...]
 
 
 @lru_cache(maxsize=1)
@@ -69,5 +71,16 @@ def get_settings() -> Settings:
                 "SEMANTIC_REGISTRY_PATH",
                 str(Path(__file__).resolve().parent / "semantic_registry.json"),
             )
+        ),
+        # Auth: shared-secret API key. The frontend sends it as the X-API-Key
+        # header. Both CHATBOT_BACKEND_API_KEY (Azure-naming) and CHATBOT_API_KEY
+        # are accepted so existing deployments keep working.
+        api_key=os.getenv("CHATBOT_BACKEND_API_KEY", "") or os.getenv("CHATBOT_API_KEY", ""),
+        # CORS: comma-separated list. Default "*" for local dev; production
+        # MUST set this to the public frontend origin(s) only.
+        cors_allow_origins=tuple(
+            origin.strip()
+            for origin in os.getenv("CHATBOT_CORS_ORIGINS", "*").split(",")
+            if origin.strip()
         ),
     )
