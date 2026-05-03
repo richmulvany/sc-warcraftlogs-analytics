@@ -17,13 +17,28 @@ from typing import Any
 
 from .config import Settings, get_settings
 from .db import QueryResult, execute_select
-from .query_memory import direct_reuse_entry, prompt_examples, record_candidate
+from .query_memory import (
+    direct_reuse_entry,
+    prompt_examples,
+    record_candidate,
+    record_rejected_query,
+    rejected_examples,
+)
 from .schemas import ChatResponse
 from .semantic_registry import Registry, TableInfo, load_registry
 from .sql_guard import SqlGuardError, guard_sql
+from .sql_registry_validator import validate_sql_columns
 
 MAX_SQL_ATTEMPTS = 3
 MAX_PROMPT_TABLES = 12
+
+
+def _is_boss_death_leader_question(question: str) -> bool:
+    q = question.lower()
+    asks_deaths = any(word in q for word in ("death", "deaths", "die", "dies", "died"))
+    asks_most = any(phrase in q for phrase in ("most often", "most", "highest", "top"))
+    asks_boss_scope = "boss" in q and any(word in q for word in ("each", "every", "per", "by"))
+    return asks_deaths and asks_most and asks_boss_scope
 
 
 def _registry_overview(registry: Registry) -> str:
@@ -52,6 +67,22 @@ def _query_examples_block(question: str, registry: Registry) -> str:
     ]
     for idx, example in enumerate(examples, start=1):
         blocks.append(f"Example {idx}\n" f"Question: {example.question}\n" f"SQL:\n{example.sql}")
+    return "\n\n".join(blocks)
+
+
+def _rejected_examples_block(question: str, registry: Registry) -> str:
+    examples = rejected_examples(question, registry)
+    if not examples:
+        return ""
+    blocks: list[str] = [
+        "Known bad SQL patterns from previous failed attempts. Do NOT repeat "
+        "these mistakes. Pay special attention to table aliases and column "
+        "ownership."
+    ]
+    for idx, example in enumerate(examples, start=1):
+        blocks.append(
+            f"Bad example {idx}\n" f"Question: {example.question}\n" f"Do not write:\n{example.sql}"
+        )
     return "\n\n".join(blocks)
 
 
@@ -124,7 +155,10 @@ def _build_system_prompt(registry: Registry, relevant: list[TableInfo]) -> str:
         "each boss`, prefer `gold_player_death_events` because it already has "
         "`boss_name`, `player_name`, and one row per death. Do not select "
         "`boss_name` from `fact_player_events`; that column is not present "
-        "there.\n"
+        "there. The expected shape is: aggregate `COUNT(*) AS death_count` by "
+        "`boss_name`, `difficulty_label`, `player_name`, and `player_class`, "
+        "then use `ROW_NUMBER() OVER (PARTITION BY boss_name, difficulty_label "
+        "ORDER BY death_count DESC, player_name ASC)` and keep `death_rank = 1`.\n"
         "- Honour each table's Avoid: list — those are anti-patterns from the contract.\n"
         "- For `who is worst at X` style questions, prefer ORDER BY <metric> ASC LIMIT N "
         "rather than a hard threshold filter; thresholds can return zero rows.\n"
@@ -166,7 +200,14 @@ def _select_relevant_tables(question: str, registry: Registry) -> list[TableInfo
     scored.sort(key=lambda pair: (-pair[0], pair[1].chatbot_tier != "primary"))
     if not scored:
         return registry.primary()[:MAX_PROMPT_TABLES]
-    return [info for _, info in scored[:MAX_PROMPT_TABLES]]
+    selected = [info for _, info in scored[:MAX_PROMPT_TABLES]]
+    if _is_boss_death_leader_question(question):
+        death_events = registry.tables.get("gold_player_death_events")
+        if death_events:
+            selected = [death_events] + [
+                info for info in selected if info.model != death_events.model
+            ]
+    return selected[:MAX_PROMPT_TABLES]
 
 
 @dataclass
@@ -298,15 +339,20 @@ def answer_question(
         )
 
     examples = _query_examples_block(question, registry)
+    rejected = _rejected_examples_block(question, registry)
     system_prompt = _build_system_prompt(registry, relevant)
     if examples:
         system_prompt = f"{system_prompt}\n\n{examples}\n"
+    if rejected:
+        system_prompt = f"{system_prompt}\n\n{rejected}\n"
 
     # Combined retry loop: the LLM is given a chance to fix both sql_guard
     # rejections and Databricks execution errors. The latter handle the common
     # case of hallucinated column names (e.g. `total_kills` when the column is
     # actually `boss_kills`); we feed the database error back so it can correct.
     last_error: str | None = None
+    last_bad_sql: str | None = None
+    last_response_id: str | None = None
     guarded = None
     result = None
     for attempt in range(MAX_SQL_ATTEMPTS):
@@ -316,6 +362,7 @@ def answer_question(
             else (
                 f"{question}\n\nYour previous SQL was rejected with this error: "
                 f"{last_error}\n"
+                f"Previous SQL to avoid:\n{last_bad_sql or '(not available)'}\n"
                 "Return a corrected single SELECT statement using only columns "
                 "that appear in the table column lists above."
             )
@@ -330,14 +377,30 @@ def answer_question(
                 allowlist=registry.allowlist(),
                 default_limit=settings.sql_row_limit,
             )
+            validate_sql_columns(guarded.sql, registry)
         except SqlGuardError as exc:
             last_error = f"sql_guard: {exc}"
+            last_bad_sql = guarded.sql if guarded else sql
+            last_response_id = record_rejected_query(
+                question,
+                last_bad_sql,
+                error=last_error,
+                tables_used=list(guarded.tables_used) if guarded else None,
+            )
             continue
         try:
             result = execute_select(guarded.sql, settings=settings)
+            last_error = None
             break
         except Exception as exc:
             last_error = f"databricks: {exc}"
+            last_bad_sql = guarded.sql
+            last_response_id = record_rejected_query(
+                question,
+                guarded.sql,
+                error=last_error,
+                tables_used=list(guarded.tables_used),
+            )
             continue
     else:
         return ChatResponse(
@@ -346,6 +409,7 @@ def answer_question(
             tables_used=list(guarded.tables_used) if guarded else [],
             error=last_error,
             caveats=["The model retried but the query still failed."],
+            response_id=last_response_id,
         )
 
     rows = _rows_as_dicts(result)

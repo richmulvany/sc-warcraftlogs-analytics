@@ -1,0 +1,92 @@
+name: sc-analytics-chatbot-backend-deploy
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "backend/**"
+      - "pipeline/contracts/**"
+      - "scripts/build_semantic_registry.py"
+      - "scripts/dashboard_asset_contracts.py"
+      - ".github/workflows/chatbot-backend-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: sc-analytics-chatbot-backend-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: sc-analytics-chatbot
+
+jobs:
+  build-and-deploy:
+    name: sc-analytics-chatbot-backend
+    runs-on: ubuntu-latest
+    environment: production
+    if: github.repository == 'richmulvany/sc-warcraftlogs-analytics'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Azure configuration
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ACR_NAME: ${{ vars.ACR_NAME }}
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME }}
+        run: |
+          missing=0
+          for name in AZURE_CLIENT_ID AZURE_TENANT_ID AZURE_SUBSCRIPTION_ID ACR_NAME ACR_LOGIN_SERVER AZURE_RESOURCE_GROUP AZURE_CONTAINER_APP_NAME; do
+            if [ -z "${!name}" ]; then
+              echo "::error title=Missing configuration::$name is required for chatbot backend deployment."
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Build chatbot image
+        env:
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+        run: |
+          docker build \
+            -f backend/Dockerfile \
+            -t "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}" \
+            -t "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest" \
+            .
+
+      - name: Azure login
+        if: github.ref == 'refs/heads/main'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Push image to ACR
+        if: github.ref == 'refs/heads/main'
+        env:
+          ACR_NAME: ${{ vars.ACR_NAME }}
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+        run: |
+          az acr login --name "$ACR_NAME"
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:latest"
+
+      - name: Deploy Azure Container App revision
+        if: github.ref == 'refs/heads/main'
+        env:
+          ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+          AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+          AZURE_CONTAINER_APP_NAME: ${{ vars.AZURE_CONTAINER_APP_NAME }}
+        run: |
+          az extension add --name containerapp --upgrade
+          az containerapp update \
+            --name "$AZURE_CONTAINER_APP_NAME" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "$ACR_LOGIN_SERVER/$IMAGE_NAME:${{ github.sha }}"

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -26,6 +27,7 @@ from .semantic_registry import Registry
 from .sql_guard import SqlGuardError, guard_sql
 
 DEFAULT_MEMORY_PATH = Path(__file__).with_name("query_memory.json")
+DEFAULT_R2_OBJECT_KEY = "chatbot/query_memory.json"
 
 
 @dataclass(frozen=True)
@@ -58,17 +60,86 @@ def _entry_id(question: str, sql: str) -> str:
     return f"mem_{digest[:16]}"
 
 
-def _read_raw(path: Path = DEFAULT_MEMORY_PATH) -> dict[str, Any]:
-    if not path.exists():
+def _read_raw(path: Path | None = None) -> dict[str, Any]:
+    if path is None and _r2_enabled():
+        return _read_r2_raw()
+    target = path or DEFAULT_MEMORY_PATH
+    if not target.exists():
         return {"version": 1, "entries": []}
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(target.read_text(encoding="utf-8"))
 
 
-def _write_raw(raw: dict[str, Any], path: Path = DEFAULT_MEMORY_PATH) -> None:
-    path.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
+def _write_raw(raw: dict[str, Any], path: Path | None = None) -> None:
+    if path is None and _r2_enabled():
+        _write_r2_raw(raw)
+        return
+    target = path or DEFAULT_MEMORY_PATH
+    target.write_text(json.dumps(raw, indent=2) + "\n", encoding="utf-8")
 
 
-def load_query_memory(path: Path = DEFAULT_MEMORY_PATH) -> list[QueryMemoryEntry]:
+def _r2_enabled() -> bool:
+    return os.getenv("QUERY_MEMORY_BACKEND", "").lower() in {"r2", "s3"}
+
+
+def _r2_client():
+    try:
+        import boto3
+    except ImportError as exc:
+        raise RuntimeError(
+            "boto3 is required for QUERY_MEMORY_BACKEND=r2; install backend requirements."
+        ) from exc
+
+    endpoint_url = os.getenv("QUERY_MEMORY_R2_ENDPOINT_URL")
+    account_id = os.getenv("QUERY_MEMORY_R2_ACCOUNT_ID")
+    if not endpoint_url and account_id:
+        endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
+    if not endpoint_url:
+        raise RuntimeError(
+            "QUERY_MEMORY_R2_ENDPOINT_URL or QUERY_MEMORY_R2_ACCOUNT_ID is required for R2 query memory."
+        )
+
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=os.getenv("QUERY_MEMORY_R2_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("QUERY_MEMORY_R2_SECRET_ACCESS_KEY"),
+        region_name=os.getenv("QUERY_MEMORY_R2_REGION", "auto"),
+    )
+
+
+def _r2_location() -> tuple[str, str]:
+    bucket = os.getenv("QUERY_MEMORY_R2_BUCKET", "")
+    key = os.getenv("QUERY_MEMORY_R2_OBJECT_KEY", DEFAULT_R2_OBJECT_KEY)
+    if not bucket:
+        raise RuntimeError("QUERY_MEMORY_R2_BUCKET is required for R2 query memory.")
+    return bucket, key
+
+
+def _read_r2_raw() -> dict[str, Any]:
+    bucket, key = _r2_location()
+    client = _r2_client()
+    try:
+        response = client.get_object(Bucket=bucket, Key=key)
+    except Exception as exc:
+        code = getattr(exc, "response", {}).get("Error", {}).get("Code")
+        if code in {"NoSuchKey", "404", "NoSuchBucket"}:
+            return {"version": 1, "entries": []}
+        raise
+    body = response["Body"].read().decode("utf-8")
+    return json.loads(body)
+
+
+def _write_r2_raw(raw: dict[str, Any]) -> None:
+    bucket, key = _r2_location()
+    _r2_client().put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=(json.dumps(raw, indent=2) + "\n").encode("utf-8"),
+        ContentType="application/json",
+    )
+
+
+def load_query_memory(path: Path | None = None) -> list[QueryMemoryEntry]:
     raw = _read_raw(path)
     entries: list[QueryMemoryEntry] = []
     for item in raw.get("entries", []):
@@ -132,6 +203,22 @@ def prompt_examples(question: str, registry: Registry, limit: int = 3) -> list[Q
     return candidates[:limit]
 
 
+def rejected_examples(question: str, registry: Registry, limit: int = 3) -> list[QueryMemoryEntry]:
+    candidates = [
+        entry
+        for entry in load_query_memory()
+        if entry.status == "rejected" and _valid_entry_sql(entry, registry)
+    ]
+    candidates.sort(
+        key=lambda entry: (
+            entry.normalized_question != normalize_question(question),
+            -_token_score(question, entry),
+            entry.question,
+        )
+    )
+    return candidates[:limit]
+
+
 def direct_reuse_entry(question: str, registry: Registry) -> QueryMemoryEntry | None:
     normalized = normalize_question(question)
     for entry in load_query_memory():
@@ -168,6 +255,51 @@ def record_candidate(question: str, sql: str, tables_used: list[str]) -> str:
             "negative_feedback": 0,
             "tables_used": tables_used,
             "notes": "Captured after a successful chatbot response; requires user feedback before reuse.",
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+    _write_raw(raw)
+    return entry_id
+
+
+def record_rejected_query(
+    question: str,
+    sql: str,
+    *,
+    error: str,
+    tables_used: list[str] | None = None,
+) -> str:
+    raw = _read_raw()
+    entries = raw.setdefault("entries", [])
+    entry_id = _entry_id(question, sql)
+    now = _now_iso()
+    for entry in entries:
+        if entry.get("id") == entry_id:
+            entry["status"] = "rejected"
+            entry["use_for_prompt"] = False
+            entry["allow_direct_reuse"] = False
+            entry["negative_feedback"] = int(entry.get("negative_feedback", 0)) + 1
+            entry["last_error"] = error
+            entry["notes"] = "Automatically rejected after SQL validation or execution failed."
+            entry["updated_at"] = now
+            _write_raw(raw)
+            return entry_id
+    entries.append(
+        {
+            "id": entry_id,
+            "question": question,
+            "normalized_question": normalize_question(question),
+            "sql": sql,
+            "status": "rejected",
+            "source": "runtime_error",
+            "use_for_prompt": False,
+            "allow_direct_reuse": False,
+            "positive_feedback": 0,
+            "negative_feedback": 1,
+            "tables_used": tables_used or [],
+            "last_error": error,
+            "notes": "Automatically rejected after SQL validation or execution failed.",
             "created_at": now,
             "updated_at": now,
         }

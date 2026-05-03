@@ -39,8 +39,11 @@ def _with_player_identity(dataframe, actors):
         )
         .drop("_actor_report_code", "_player_name_lower", "_player_class_lower")
         .withColumn("realm", F.coalesce(F.col("realm"), F.lit("unknown")))
-        .withColumn("player_identity_key", _player_identity_key("player_name", "player_class", "realm"))
+        .withColumn(
+            "player_identity_key", _player_identity_key("player_name", "player_class", "realm")
+        )
     )
+
 
 # ── Player Survivability ───────────────────────────────────────────────────────
 # Per-player death statistics derived from fact_player_events (death events) and
