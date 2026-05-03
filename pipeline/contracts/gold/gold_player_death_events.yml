@@ -5,6 +5,11 @@ info:
   version: 0.1.0
   status: active
   owner: richmulvany
+  description: >-
+    One row per player death event enriched with boss, encounter, difficulty,
+    and raid-night context. Use this table for boss-scoped death questions such
+    as "who dies most often on each boss", "death counts by player on boss X",
+    and "most common killing blows on a boss".
 models:
   gold_player_death_events:
     type: table
@@ -12,97 +17,153 @@ models:
     - death_event_key
     fields:
       death_event_key:
+        description: "Stable unique key for this player death event"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       report_code:
+        description: "WCL report identifier"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       fight_id:
+        description: "Fight number within the WCL report"
         type: integer
         required: true
         nullable: false
       encounter_id:
+        description: "Stable WCL encounter identifier"
         type: integer
         required: true
         nullable: false
       boss_name:
+        description: "Boss encounter name for the fight where the death occurred"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       zone_name:
+        description: "Raid zone name"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       zone_id:
+        description: "WCL zone identifier"
         type: integer
         required: false
         nullable: true
       difficulty:
+        description: "Difficulty integer (3=Normal, 4=Heroic, 5=Mythic)"
         type: integer
         required: false
         nullable: true
       difficulty_label:
+        description: "Human-readable difficulty label"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       raid_night_date:
+        description: "Date of the raid night"
         type: date
         required: false
         nullable: true
       is_kill:
+        description: "Whether the fight ended in a kill"
         type: boolean
         required: false
         nullable: true
       player_identity_key:
+        description: "Canonical player identity key after roster/alt resolution"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_name:
+        description: "Player character name that died"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       player_class:
+        description: "Player's WoW class"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       realm:
+        description: "Player realm"
         type: string
         required: true
         nullable: false
         allowEmpty: false
       death_timestamp_ms:
+        description: "Fight-relative timestamp of the death in milliseconds"
         type: integer
         required: true
         nullable: false
       fight_start_ms:
+        description: "Absolute WCL fight start timestamp in milliseconds when available"
         type: integer
         required: false
         nullable: true
       overkill:
+        description: "Overkill damage amount on the killing blow"
         type: number
         required: false
         nullable: true
       killing_blow_name:
+        description: "Ability or event name that killed the player; null when WCL did not identify one"
         type: string
         required: false
         nullable: true
         allowEmpty: true
       killing_blow_id:
+        description: "Spell or ability ID for the killing blow when available"
         type: integer
         required: false
         nullable: true
 x-sc-analytics:
-  chatbotTier: secondary
+  chatbotTier: primary
+  aiSummary: >-
+    Boss-context player death fact. Each row is a single player death and this
+    table already includes boss_name, encounter_id, difficulty_label,
+    player_name, killing_blow_name, and raid_night_date. Prefer this table over
+    fact_player_events whenever the question asks for deaths by boss,
+    difficulty, encounter, raid night, or kill/wipe state. For "who dies most
+    often on each boss", group by boss_name and player_name, count rows, then
+    rank players inside each boss partition by death_count descending.
+  exampleQuestions:
+    - Who dies most often on each boss?
+    - Show death counts per player on Mythic <boss>.
+    - Which abilities killed players the most on each boss?
+    - Who had the most deaths on wipe pulls by boss?
+  metrics:
+    - name: death_count
+      definition: Count of death-event rows in the selected boss/player scope.
+      unit: count
+      caveats: A player can die more than once in the same fight after combat resurrection.
+    - name: most_common_killing_blow
+      definition: killing_blow_name with the highest death-event count in scope.
+      unit: ability_name
+      caveats: Null killing_blow_name means WCL did not identify an enemy killing blow; exclude or label as unknown.
+  joinKeys:
+    - column: encounter_id
+      joinsTo: gold_encounter_catalog.encounter_id
+      cardinality: many-to-one
+    - column: player_name
+      joinsTo: dim_player.player_name
+      cardinality: many-to-one
+    - column: report_code
+      joinsTo: gold_raid_summary.report_code
+      cardinality: many-to-one
+  notRecommendedFor:
+    - Parse percentile or throughput analysis — use fact_player_fight_performance.
+    - Raid-level wipe counts without player deaths — use gold_boss_wipe_analysis.
+    - Questions that do not need boss context and only need raw death events — fact_player_events is smaller.
   goldProduct:
     table: 03_gold.sc_analytics.gold_player_death_events
     model: gold_player_death_events

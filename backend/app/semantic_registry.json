@@ -3206,23 +3206,61 @@
       "table": "03_gold.sc_analytics.gold_player_death_events",
       "model": "gold_player_death_events",
       "version": "0.1.0",
-      "chatbot_tier": "secondary",
+      "chatbot_tier": "primary",
       "grain": "One row per player death joined to boss fight context.",
       "primary_key": [
         "death_event_key"
       ],
-      "description": "",
-      "ai_summary": "",
-      "example_questions": [],
-      "metrics": [],
-      "join_keys": [],
-      "not_recommended_for": [],
+      "description": "One row per player death event enriched with boss, encounter, difficulty, and raid-night context. Use this table for boss-scoped death questions such as \"who dies most often on each boss\", \"death counts by player on boss X\", and \"most common killing blows on a boss\".",
+      "ai_summary": "Boss-context player death fact. Each row is a single player death and this table already includes boss_name, encounter_id, difficulty_label, player_name, killing_blow_name, and raid_night_date. Prefer this table over fact_player_events whenever the question asks for deaths by boss, difficulty, encounter, raid night, or kill/wipe state. For \"who dies most often on each boss\", group by boss_name and player_name, count rows, then rank players inside each boss partition by death_count descending.",
+      "example_questions": [
+        "Who dies most often on each boss?",
+        "Show death counts per player on Mythic <boss>.",
+        "Which abilities killed players the most on each boss?",
+        "Who had the most deaths on wipe pulls by boss?"
+      ],
+      "metrics": [
+        {
+          "name": "death_count",
+          "definition": "Count of death-event rows in the selected boss/player scope.",
+          "unit": "count",
+          "caveats": "A player can die more than once in the same fight after combat resurrection."
+        },
+        {
+          "name": "most_common_killing_blow",
+          "definition": "killing_blow_name with the highest death-event count in scope.",
+          "unit": "ability_name",
+          "caveats": "Null killing_blow_name means WCL did not identify an enemy killing blow; exclude or label as unknown."
+        }
+      ],
+      "join_keys": [
+        {
+          "column": "encounter_id",
+          "joinsTo": "gold_encounter_catalog.encounter_id",
+          "cardinality": "many-to-one"
+        },
+        {
+          "column": "player_name",
+          "joinsTo": "dim_player.player_name",
+          "cardinality": "many-to-one"
+        },
+        {
+          "column": "report_code",
+          "joinsTo": "gold_raid_summary.report_code",
+          "cardinality": "many-to-one"
+        }
+      ],
+      "not_recommended_for": [
+        "Parse percentile or throughput analysis \u2014 use fact_player_fight_performance.",
+        "Raid-level wipe counts without player deaths \u2014 use gold_boss_wipe_analysis.",
+        "Questions that do not need boss context and only need raw death events \u2014 fact_player_events is smaller."
+      ],
       "columns": [
         {
           "name": "death_event_key",
           "type": "string",
           "nullable": false,
-          "description": "",
+          "description": "Stable unique key for this player death event",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3231,7 +3269,7 @@
           "name": "report_code",
           "type": "string",
           "nullable": false,
-          "description": "",
+          "description": "WCL report identifier",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3240,7 +3278,7 @@
           "name": "fight_id",
           "type": "integer",
           "nullable": false,
-          "description": "",
+          "description": "Fight number within the WCL report",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3249,7 +3287,7 @@
           "name": "encounter_id",
           "type": "integer",
           "nullable": false,
-          "description": "",
+          "description": "Stable WCL encounter identifier",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3258,7 +3296,7 @@
           "name": "boss_name",
           "type": "string",
           "nullable": true,
-          "description": "",
+          "description": "Boss encounter name for the fight where the death occurred",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3267,7 +3305,7 @@
           "name": "zone_name",
           "type": "string",
           "nullable": true,
-          "description": "",
+          "description": "Raid zone name",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3276,7 +3314,7 @@
           "name": "zone_id",
           "type": "integer",
           "nullable": true,
-          "description": "",
+          "description": "WCL zone identifier",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3285,7 +3323,7 @@
           "name": "difficulty",
           "type": "integer",
           "nullable": true,
-          "description": "",
+          "description": "Difficulty integer (3=Normal, 4=Heroic, 5=Mythic)",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3294,7 +3332,7 @@
           "name": "difficulty_label",
           "type": "string",
           "nullable": true,
-          "description": "",
+          "description": "Human-readable difficulty label",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3303,7 +3341,7 @@
           "name": "raid_night_date",
           "type": "date",
           "nullable": true,
-          "description": "",
+          "description": "Date of the raid night",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3312,7 +3350,7 @@
           "name": "is_kill",
           "type": "boolean",
           "nullable": true,
-          "description": "",
+          "description": "Whether the fight ended in a kill",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3321,7 +3359,7 @@
           "name": "player_identity_key",
           "type": "string",
           "nullable": false,
-          "description": "",
+          "description": "Canonical player identity key after roster/alt resolution",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3330,7 +3368,7 @@
           "name": "player_name",
           "type": "string",
           "nullable": false,
-          "description": "",
+          "description": "Player character name that died",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3339,7 +3377,7 @@
           "name": "player_class",
           "type": "string",
           "nullable": true,
-          "description": "",
+          "description": "Player's WoW class",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3348,7 +3386,7 @@
           "name": "realm",
           "type": "string",
           "nullable": false,
-          "description": "",
+          "description": "Player realm",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3357,7 +3395,7 @@
           "name": "death_timestamp_ms",
           "type": "integer",
           "nullable": false,
-          "description": "",
+          "description": "Fight-relative timestamp of the death in milliseconds",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3366,7 +3404,7 @@
           "name": "fight_start_ms",
           "type": "integer",
           "nullable": true,
-          "description": "",
+          "description": "Absolute WCL fight start timestamp in milliseconds when available",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3375,7 +3413,7 @@
           "name": "overkill",
           "type": "number",
           "nullable": true,
-          "description": "",
+          "description": "Overkill damage amount on the killing blow",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3384,7 +3422,7 @@
           "name": "killing_blow_name",
           "type": "string",
           "nullable": true,
-          "description": "",
+          "description": "Ability or event name that killed the player; null when WCL did not identify one",
           "enum": null,
           "unit": null,
           "classification": null
@@ -3393,7 +3431,7 @@
           "name": "killing_blow_id",
           "type": "integer",
           "nullable": true,
-          "description": "",
+          "description": "Spell or ability ID for the killing blow when available",
           "enum": null,
           "unit": null,
           "classification": null

@@ -10,9 +10,10 @@ interface Props {
   nav?: React.ReactNode
   hideHeader?: boolean
   wide?: boolean
+  fullBleed?: boolean
 }
 
-export function AppLayout({ children, title, subtitle, actions, nav, hideHeader = false, wide = false }: Props) {
+export function AppLayout({ children, title, subtitle, actions, nav, hideHeader = false, wide = false, fullBleed = false }: Props) {
   const maxW = wide
     ? 'xl:max-w-[1600px] 2xl:max-w-[1920px]'
     : 'xl:max-w-[1400px] 2xl:max-w-[1600px]'
@@ -62,7 +63,11 @@ export function AppLayout({ children, title, subtitle, actions, nav, hideHeader 
 
         {/* Scrollable page body */}
         <main className="flex-1 overflow-y-auto animate-fade-in motion-reduce:animate-none">
-          <div className={`mx-auto w-full max-w-none ${maxW} px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-7 space-y-6 md:space-y-7`}>
+          <div className={
+            fullBleed
+              ? 'w-full h-full min-h-0'
+              : `mx-auto w-full max-w-none ${maxW} px-4 py-4 md:px-6 md:py-6 lg:px-8 lg:py-7 space-y-6 md:space-y-7`
+          }>
             {children}
           </div>
         </main>

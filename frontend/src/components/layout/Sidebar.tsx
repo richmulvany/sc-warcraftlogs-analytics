@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { LayoutDashboard, Users, Skull, Swords, CalendarDays, Shield, Eye, ChevronDown, AlertTriangle, Beaker, KeyRound, Sparkles } from 'lucide-react'
 import clsx from 'clsx'
 import { useColourBlind } from '../../context/ColourBlindContext'
+import { useChat } from '../../context/ChatContext'
 import { type ColourBlindMode, MODE_LABELS } from '../../constants/palettes'
 import { useManifest } from '../../hooks/useManifest'
 
@@ -15,11 +16,12 @@ const NAV = [
   { to: '/mythic-plus',    label: 'Mythic+',          Icon: KeyRound },
 ]
 
+const ASK_NAV = { to: '/chat', label: 'Ask (beta)', Icon: Sparkles }
+
 const SECONDARY = [
   { to: '/attendance',  label: 'Attendance',  Icon: CalendarDays },
   { to: '/roster',      label: 'Roster',      Icon: Shield },
   { to: '/preparation', label: 'Preparation', Icon: Beaker },
-  { to: '/chat',        label: 'Ask (beta)',  Icon: Sparkles },
 ]
 
 const CB_MODES: ColourBlindMode[] = ['normal', 'deuteranopia', 'protanopia', 'tritanopia']
@@ -36,6 +38,48 @@ function formatManifestDate(value?: string): string {
   })
 }
 
+function useAskNavProgress(pendingCount: number) {
+  const [progress, setProgress] = useState(0)
+  const [completeFlash, setCompleteFlash] = useState(false)
+  const pendingRef = useRef(false)
+  const startedAtRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (pendingCount > 0) {
+      pendingRef.current = true
+      startedAtRef.current = startedAtRef.current ?? Date.now()
+      setCompleteFlash(false)
+
+      const tick = () => {
+        const elapsed = Date.now() - (startedAtRef.current ?? Date.now())
+        const eased = 18 + (1 - Math.exp(-elapsed / 42000)) * 74
+        setProgress(Math.min(92, eased))
+      }
+
+      tick()
+      const timer = window.setInterval(tick, 650)
+      return () => window.clearInterval(timer)
+    }
+
+    startedAtRef.current = null
+    if (pendingRef.current) {
+      pendingRef.current = false
+      setProgress(100)
+      setCompleteFlash(true)
+      const timer = window.setTimeout(() => {
+        setProgress(0)
+        setCompleteFlash(false)
+      }, 1250)
+      return () => window.clearTimeout(timer)
+    }
+
+    setProgress(0)
+    return undefined
+  }, [pendingCount])
+
+  return { progress, completeFlash, loading: pendingCount > 0 }
+}
+
 type Variant = 'full' | 'rail' | 'drawer'
 
 interface Props {
@@ -45,14 +89,16 @@ interface Props {
 
 export function Sidebar({ variant = 'full', onNavClick }: Props) {
   const { mode, setMode } = useColourBlind()
+  const { pendingCount } = useChat()
   const { manifest } = useManifest()
   const [cbOpen, setCbOpen] = useState(false)
+  const askProgress = useAskNavProgress(pendingCount)
 
   const isRail = variant === 'rail'
 
   /* ── Rail variant: icon-only strip ── */
   if (isRail) {
-    const allNav = [...NAV, ...SECONDARY]
+    const allNav = [ASK_NAV, ...NAV, ...SECONDARY]
     return (
       <aside className="flex-shrink-0 w-16 flex flex-col bg-ctp-mantle border-r border-ctp-surface0 overflow-hidden">
         <div className="px-2 pt-4 pb-3 border-b border-ctp-surface0 flex justify-center flex-shrink-0">
@@ -69,14 +115,26 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
               title={label}
               className={({ isActive }) =>
                 clsx(
-                  'w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-150',
+                  'relative w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-150 overflow-hidden',
                   isActive
-                    ? 'bg-ctp-surface0 text-ctp-mauve'
-                    : 'text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0/70'
+                    ? to === ASK_NAV.to
+                      ? 'bg-ctp-surface0 text-ctp-teal'
+                      : 'bg-ctp-surface0 text-ctp-mauve'
+                    : to === ASK_NAV.to
+                      ? 'text-ctp-teal hover:text-ctp-text hover:bg-ctp-teal/10'
+                      : 'text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-surface0/70',
+                  to === ASK_NAV.to && askProgress.completeFlash && 'ask-nav-complete'
                 )
               }
             >
-              <Icon className="w-4 h-4" />
+              {to === ASK_NAV.to && (
+                <span
+                  className="absolute inset-x-0 bottom-0 h-full origin-left bg-ctp-teal/20 transition-all duration-700 ease-out"
+                  style={{ transform: `scaleX(${askProgress.progress / 100})` }}
+                  aria-hidden="true"
+                />
+              )}
+              <Icon className="relative z-10 w-4 h-4" />
             </NavLink>
           ))}
         </nav>
@@ -107,6 +165,38 @@ export function Sidebar({ variant = 'full', onNavClick }: Props) {
 
       {/* Primary nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <NavLink
+          to={ASK_NAV.to}
+          onClick={onNavClick}
+          className={({ isActive }) =>
+            clsx(
+              'relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm 2xl:text-[15px] font-medium transition-all duration-150 mb-4 overflow-hidden',
+              isActive
+                ? 'bg-ctp-teal/10 text-ctp-text ring-1 ring-ctp-teal/20'
+                : 'text-ctp-subtext0 hover:text-ctp-text hover:bg-ctp-teal/10',
+              askProgress.completeFlash && 'ask-nav-complete'
+            )
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <span
+                className="absolute inset-y-0 left-0 bg-ctp-teal/20 transition-all duration-700 ease-out"
+                style={{ width: `${askProgress.progress}%` }}
+                aria-hidden="true"
+              />
+              <ASK_NAV.Icon className={clsx(
+                'relative z-10 w-4 h-4 flex-shrink-0 transition-opacity',
+                isActive || askProgress.loading ? 'text-ctp-teal opacity-100' : 'text-ctp-teal opacity-70'
+              )} />
+              <span className="relative z-10">{ASK_NAV.label}</span>
+              {askProgress.loading && (
+                <span className="relative z-10 ml-auto h-1.5 w-1.5 rounded-full bg-ctp-teal animate-pulse" />
+              )}
+            </>
+          )}
+        </NavLink>
+
         <p className="section-label px-2 mb-3">Analytics</p>
         {NAV.map(({ to, label, Icon }) => (
           <NavLink

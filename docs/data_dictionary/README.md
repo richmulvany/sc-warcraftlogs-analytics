@@ -351,6 +351,56 @@ Reference dimension of active raid encounters. One row per (zone_id, encounter_i
 
 ---
 
+### gold_player_death_events
+
+One row per player death event enriched with boss, encounter, difficulty, and raid-night context. Use this table for boss-scoped death questions such as "who dies most often on each boss", "death counts by player on boss X", and "most common killing blows on a boss".
+
+**Grain**: One row per player death joined to boss fight context.
+
+**Primary key**: `death_event_key`
+
+**Summary**: Boss-context player death fact. Each row is a single player death and this table already includes boss_name, encounter_id, difficulty_label, player_name, killing_blow_name, and raid_night_date. Prefer this table over fact_player_events whenever the question asks for deaths by boss, difficulty, encounter, raid night, or kill/wipe state. For "who dies most often on each boss", group by boss_name and player_name, count rows, then rank players inside each boss partition by death_count descending.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `death_event_key` | string | Stable unique key for this player death event |
+| `report_code` | string | WCL report identifier |
+| `fight_id` | integer | Fight number within the WCL report |
+| `encounter_id` | integer | Stable WCL encounter identifier |
+| `boss_name` | string | Boss encounter name for the fight where the death occurred (nullable) |
+| `zone_name` | string | Raid zone name (nullable) |
+| `zone_id` | integer | WCL zone identifier (nullable) |
+| `difficulty` | integer | Difficulty integer (3=Normal, 4=Heroic, 5=Mythic) (nullable) |
+| `difficulty_label` | string | Human-readable difficulty label (nullable) |
+| `raid_night_date` | date | Date of the raid night (nullable) |
+| `is_kill` | boolean | Whether the fight ended in a kill (nullable) |
+| `player_identity_key` | string | Canonical player identity key after roster/alt resolution |
+| `player_name` | string | Player character name that died |
+| `player_class` | string | Player's WoW class (nullable) |
+| `realm` | string | Player realm |
+| `death_timestamp_ms` | integer | Fight-relative timestamp of the death in milliseconds |
+| `fight_start_ms` | integer | Absolute WCL fight start timestamp in milliseconds when available (nullable) |
+| `overkill` | number | Overkill damage amount on the killing blow (nullable) |
+| `killing_blow_name` | string | Ability or event name that killed the player; null when WCL did not identify one (nullable) |
+| `killing_blow_id` | integer | Spell or ability ID for the killing blow when available (nullable) |
+
+**Metrics**:
+- `death_count` — Count of death-event rows in the selected boss/player scope.
+- `most_common_killing_blow` — killing_blow_name with the highest death-event count in scope.
+
+**Example questions**:
+- Who dies most often on each boss?
+- Show death counts per player on Mythic <boss>.
+- Which abilities killed players the most on each boss?
+- Who had the most deaths on wipe pulls by boss?
+
+**Avoid using for**:
+- Parse percentile or throughput analysis — use fact_player_fight_performance.
+- Raid-level wipe counts without player deaths — use gold_boss_wipe_analysis.
+- Questions that do not need boss context and only need raw death events — fact_player_events is smaller.
+
+---
+
 ### gold_player_mplus_score_history
 
 Time series of Raider.IO score snapshots per character. One row per nightly snapshot per (player_identity_key, region, season). History starts at the first successful ingestion — it is NOT season-start history unless ingestion began at season start. Use this for score-trend questions; for the latest snapshot only, use gold_player_mplus_summary.
@@ -1037,37 +1087,6 @@ Per-(player, scope) wipe-discipline diagnosis. Each row evaluates a player on on
 | `inset_url` | string | (nullable) |
 | `main_url` | string | (nullable) |
 | `main_raw_url` | string | (nullable) |
-
----
-
-### gold_player_death_events
-
-**Grain**: One row per player death joined to boss fight context.
-
-**Primary key**: `death_event_key`
-
-| Column | Type | Description |
-|--------|------|-------------|
-| `death_event_key` | string |  |
-| `report_code` | string |  |
-| `fight_id` | integer |  |
-| `encounter_id` | integer |  |
-| `boss_name` | string | (nullable) |
-| `zone_name` | string | (nullable) |
-| `zone_id` | integer | (nullable) |
-| `difficulty` | integer | (nullable) |
-| `difficulty_label` | string | (nullable) |
-| `raid_night_date` | date | (nullable) |
-| `is_kill` | boolean | (nullable) |
-| `player_identity_key` | string |  |
-| `player_name` | string |  |
-| `player_class` | string | (nullable) |
-| `realm` | string |  |
-| `death_timestamp_ms` | integer |  |
-| `fight_start_ms` | integer | (nullable) |
-| `overkill` | number | (nullable) |
-| `killing_blow_name` | string | (nullable) |
-| `killing_blow_id` | integer | (nullable) |
 
 ---
 
