@@ -11,6 +11,7 @@ import { Roster }        from './pages/Roster'
 import { Preparation }   from './pages/Preparation'
 // Legacy pages kept but accessible via guild nav
 import { Performance }   from './pages/Performance'
+import { Chat }          from './pages/Chat'
 
 const PlayerDetail  = lazy(() => import('./features/player-detail'))
 const MythicPlus    = lazy(() => import('./pages/MythicPlus').then(m => ({ default: m.MythicPlus })))
@@ -35,4 +36,5 @@ export const router = createBrowserRouter([
   { path: '/preparation',            element: <Preparation />  },
   { path: '/mythic-plus',            element: <Lazy><MythicPlus /></Lazy> },
   { path: '/performance',            element: <Performance />  },
+  { path: '/chat',                   element: <Chat />         },
 ])

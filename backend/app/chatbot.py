@@ -45,14 +45,21 @@ def _table_columns_block(infos: list[TableInfo]) -> str:
     for info in infos:
         cols = "\n".join(
             f"  - `{c['name']}` ({c['type']}): {c.get('description') or 'no description'}"
+            + (f" Allowed: {', '.join(map(str, c['enum']))}." if c.get("enum") else "")
+            + (f" Unit: {c['unit']}." if c.get("unit") else "")
             for c in info.columns
         )
+        avoid = ""
+        if info.not_recommended_for:
+            bullets = "\n".join(f"  - {item}" for item in info.not_recommended_for)
+            avoid = f"\nAvoid:\n{bullets}"
         blocks.append(
             f"### {info.table}\n"
             f"Grain: {info.grain or 'unspecified'}.\n"
             f"Primary key: {', '.join(info.primary_key) or 'none'}.\n"
             f"Summary: {info.ai_summary or info.description or '—'}\n"
             f"Columns:\n{cols}"
+            f"{avoid}"
         )
     return "\n\n".join(blocks)
 
@@ -71,6 +78,13 @@ def _build_system_prompt(registry: Registry, relevant: list[TableInfo]) -> str:
         "- Never write INSERT/UPDATE/DELETE/MERGE/DROP/ALTER/CREATE/TRUNCATE.\n"
         "- Never reference tables outside the lists above.\n"
         "- Prefer the tables in the first (full-column) list when possible.\n"
+        "- Use column names EXACTLY as listed under each table — do not invent "
+        "or pluralise (e.g. it is `boss_kills`, not `total_kills`).\n"
+        "- Honour each table's Avoid: list — those are anti-patterns from the contract.\n"
+        "- For `who is worst at X` style questions, prefer ORDER BY <metric> ASC LIMIT N "
+        "rather than a hard threshold filter; thresholds can return zero rows.\n"
+        "- For `most common <thing>` questions, exclude null values of that field "
+        "(or label them `unknown`) when the contract says null means missing/unknown.\n"
         "- If a question is genuinely unanswerable from these tables (e.g. "
         "weather, real-life identity), reply with the single literal token "
         "CANNOT_ANSWER and nothing else. Do not output CANNOT_ANSWER if any "

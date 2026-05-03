@@ -207,9 +207,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     out.append("")
 
-    out_path = Path(args.output)
+    out_path = Path(args.output).resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text("\n".join(out), encoding="utf-8")
-    print(f"\nWrote {out_path.relative_to(REPO_ROOT)}")
+    try:
+        display = out_path.relative_to(REPO_ROOT)
+    except ValueError:
+        display = out_path
+    print(f"\nWrote {display}")
     return 0
 
 

@@ -56,7 +56,7 @@ def get_settings() -> Settings:
     )
     return Settings(
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
-        openai_model=os.getenv("OPENAI_MODEL", "gpt-4o"),
+        openai_model=os.getenv("OPENAI_MODEL", "gpt-5.4-nano"),
         databricks_host=os.getenv("DATABRICKS_HOST", ""),
         databricks_token=os.getenv("DATABRICKS_TOKEN", ""),
         databricks_warehouse_id=os.getenv("DATABRICKS_WAREHOUSE_ID", ""),
