@@ -17,6 +17,7 @@ from typing import Any
 
 from .config import Settings, get_settings
 from .db import QueryResult, execute_select
+from .query_memory import direct_reuse_entry, prompt_examples, record_candidate
 from .schemas import ChatResponse
 from .semantic_registry import Registry, TableInfo, load_registry
 from .sql_guard import SqlGuardError, guard_sql
@@ -38,6 +39,20 @@ def _registry_overview(registry: Registry) -> str:
         if info.example_questions:
             lines.append(f"    e.g. {info.example_questions[0]}")
     return "\n".join(lines)
+
+
+def _query_examples_block(question: str, registry: Registry) -> str:
+    examples = prompt_examples(question, registry)
+    if not examples:
+        return ""
+    blocks: list[str] = [
+        "Approved SQL examples from query memory. Use these as patterns when "
+        "they match the user's intent, but still write the final SQL yourself "
+        "using the current table/column contracts."
+    ]
+    for idx, example in enumerate(examples, start=1):
+        blocks.append(f"Example {idx}\n" f"Question: {example.question}\n" f"SQL:\n{example.sql}")
+    return "\n\n".join(blocks)
 
 
 def _table_columns_block(infos: list[TableInfo]) -> str:
@@ -77,6 +92,7 @@ def _table_columns_block(infos: list[TableInfo]) -> str:
 
 
 def _build_system_prompt(registry: Registry, relevant: list[TableInfo]) -> str:
+    # Query memory examples are added later because they are question-specific.
     return (
         "You are a SQL assistant for the SC Analytics WarcraftLogs dashboard. "
         "Answer using ONLY the tables described below. Output a single SELECT "
@@ -202,6 +218,55 @@ def _rows_as_dicts(result: QueryResult) -> list[dict[str, Any]]:
     return [dict(zip(result.columns, row, strict=False)) for row in result.rows]
 
 
+def _write_answer(
+    *,
+    question: str,
+    rows: list[dict[str, Any]],
+    sql: str,
+    llm: _LLM,
+) -> str:
+    answer_prompt = (
+        "Given this user question and the resulting rows from a Databricks SQL "
+        "query, write a concise answer grounded only in the returned rows. "
+        "When the rows represent a leaderboard or one row per group, prefer a "
+        "compact markdown bullet list or table-like list rather than summarising "
+        "only the first row. Cite numeric values directly from the rows. If the "
+        "rows are empty, say so."
+    )
+    return llm.call(
+        answer_prompt,
+        f"Question: {question}\nRows (first 50): {rows[:50]}\nSQL: {sql}",
+    )
+
+
+def _answer_from_guarded_sql(
+    *,
+    question: str,
+    guarded_sql: str,
+    tables_used: list[str],
+    relevant: list[TableInfo],
+    settings: Settings,
+    llm: _LLM,
+    from_memory: bool = False,
+    response_id: str | None = None,
+) -> ChatResponse:
+    result = execute_select(guarded_sql, settings=settings)
+    rows = _rows_as_dicts(result)
+    answer_text = _write_answer(question=question, rows=rows, sql=guarded_sql, llm=llm)
+    caveats = _collect_caveats(relevant, result.columns)
+    if from_memory:
+        caveats = ["Reused SQL from approved query memory for this exact question."] + caveats
+    return ChatResponse(
+        answer=answer_text,
+        sql=guarded_sql,
+        tables_used=tables_used,
+        rows=rows,
+        caveats=caveats,
+        response_id=response_id,
+        from_memory=from_memory,
+    )
+
+
 def answer_question(
     question: str,
     *,
@@ -214,7 +279,28 @@ def answer_question(
     llm = llm or _LLM(settings=settings)
 
     relevant = _select_relevant_tables(question, registry)
+    reuse = direct_reuse_entry(question, registry)
+    if reuse is not None:
+        guarded = guard_sql(
+            reuse.sql,
+            allowlist=registry.allowlist(),
+            default_limit=settings.sql_row_limit,
+        )
+        return _answer_from_guarded_sql(
+            question=question,
+            guarded_sql=guarded.sql,
+            tables_used=list(guarded.tables_used),
+            relevant=relevant,
+            settings=settings,
+            llm=llm,
+            from_memory=True,
+            response_id=reuse.id,
+        )
+
+    examples = _query_examples_block(question, registry)
     system_prompt = _build_system_prompt(registry, relevant)
+    if examples:
+        system_prompt = f"{system_prompt}\n\n{examples}\n"
 
     # Combined retry loop: the LLM is given a chance to fix both sql_guard
     # rejections and Databricks execution errors. The latter handle the common
@@ -263,23 +349,19 @@ def answer_question(
         )
 
     rows = _rows_as_dicts(result)
-    answer_prompt = (
-        "Given this user question and the resulting rows from a Databricks SQL "
-        "query, write a short (1–3 sentence) plain-English answer. Cite numeric "
-        "values directly from the rows. If the rows are empty, say so."
-    )
-    answer_text = llm.call(
-        answer_prompt,
-        f"Question: {question}\nRows (first 20): {rows[:20]}\nSQL: {guarded.sql}",
-    )
-
+    answer_text = _write_answer(question=question, rows=rows, sql=guarded.sql, llm=llm)
     caveats = _collect_caveats(relevant, result.columns)
+    response_id = None
+    if guarded and not last_error and not getattr(result, "error", None):
+        response_id = record_candidate(question, guarded.sql, list(guarded.tables_used))
     return ChatResponse(
         answer=answer_text,
         sql=guarded.sql,
         tables_used=list(guarded.tables_used),
         rows=rows,
         caveats=caveats,
+        response_id=response_id,
+        from_memory=False,
     )
 
 

@@ -21,6 +21,9 @@ export interface ChatResponse {
   rows: ChatRow[]
   caveats: string[]
   error?: string | null
+  response_id?: string | null
+  from_memory?: boolean
+  feedback?: 'effective' | 'ineffective'
 }
 
 export class ChatbotConfigError extends Error {}
@@ -51,4 +54,40 @@ export async function postChat(question: string, signal?: AbortSignal): Promise<
     )
   }
   return response.json()
+}
+
+export async function postChatFeedback({
+  responseId,
+  effective,
+  question,
+  sql,
+}: {
+  responseId: string
+  effective: boolean
+  question?: string
+  sql?: string | null
+}): Promise<void> {
+  if (!baseUrl) {
+    throw new ChatbotConfigError(
+      'Chatbot backend is not configured. Set VITE_CHATBOT_API_URL (must use the VITE_ prefix so Vite inlines it).'
+    )
+  }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (apiKey) headers['X-API-Key'] = apiKey
+  const response = await fetch(`${baseUrl}/chat/feedback`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      response_id: responseId,
+      effective,
+      question,
+      sql,
+    }),
+  })
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new Error(
+      `Feedback returned ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`
+    )
+  }
 }

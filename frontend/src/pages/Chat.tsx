@@ -10,6 +10,8 @@ import {
   Plus,
   Send,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
 } from 'lucide-react'
 import clsx from 'clsx'
@@ -54,6 +56,7 @@ export function Chat() {
     startNewSession,
     deleteSession,
     ask,
+    submitFeedback,
   } = useChat()
   const [question, setQuestion] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -113,7 +116,13 @@ export function Chat() {
               {activeSession.turns.length === 0 ? (
                 <EmptyState onSuggest={submit} disabled={activeBusy} />
               ) : (
-                activeSession.turns.map(turn => <TurnMessage key={turn.id} turn={turn} />)
+                activeSession.turns.map(turn => (
+                  <TurnMessage
+                    key={turn.id}
+                    turn={turn}
+                    onFeedback={submitFeedback}
+                  />
+                ))
               )}
             </div>
           </div>
@@ -321,7 +330,25 @@ function EmptyState({ onSuggest, disabled }: { onSuggest: (q: string) => void; d
   )
 }
 
-function TurnMessage({ turn }: { turn: ChatTurn }) {
+function TurnMessage({
+  turn,
+  onFeedback,
+}: {
+  turn: ChatTurn
+  onFeedback: (turnId: string, effective: boolean) => Promise<void>
+}) {
+  const [feedbackBusy, setFeedbackBusy] = useState(false)
+
+  async function handleFeedback(effective: boolean) {
+    if (!turn.response?.response_id || feedbackBusy) return
+    setFeedbackBusy(true)
+    try {
+      await onFeedback(turn.id, effective)
+    } finally {
+      setFeedbackBusy(false)
+    }
+  }
+
   return (
     <article className="space-y-4">
       <div className="flex justify-end">
@@ -350,7 +377,11 @@ function TurnMessage({ turn }: { turn: ChatTurn }) {
               <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-ctp-subtext0">{turn.errorMessage}</p>
             </div>
           ) : turn.response ? (
-            <ResponseBlock response={turn.response} />
+            <ResponseBlock
+              response={turn.response}
+              feedbackBusy={feedbackBusy}
+              onFeedback={handleFeedback}
+            />
           ) : null}
         </div>
       </div>
@@ -358,7 +389,15 @@ function TurnMessage({ turn }: { turn: ChatTurn }) {
   )
 }
 
-function ResponseBlock({ response }: { response: ChatResponse }) {
+function ResponseBlock({
+  response,
+  feedbackBusy,
+  onFeedback,
+}: {
+  response: ChatResponse
+  feedbackBusy: boolean
+  onFeedback: (effective: boolean) => void
+}) {
   return (
     <div className="rounded-2xl rounded-tl-md border border-ctp-surface1 bg-ctp-surface0/35 px-4 py-3 shadow-card">
       <div className="space-y-3">
@@ -406,6 +445,49 @@ function ResponseBlock({ response }: { response: ChatResponse }) {
 
         {response.error && (
           <p className="mt-1 break-words text-xs text-ctp-red">Error: {response.error}</p>
+        )}
+
+        {response.response_id && response.sql && !response.error && (
+          <div className="flex items-center gap-2 border-t border-ctp-surface1/70 pt-2">
+            <span className="text-[10px] font-mono uppercase tracking-wide text-ctp-overlay0">
+              Was this SQL useful?
+            </span>
+            <button
+              type="button"
+              onClick={() => onFeedback(true)}
+              disabled={feedbackBusy}
+              aria-label="Mark SQL useful"
+              title="Mark SQL useful"
+              className={clsx(
+                'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
+                response.feedback === 'effective'
+                  ? 'bg-ctp-green/15 text-ctp-green'
+                  : 'text-ctp-overlay1 hover:bg-ctp-surface1 hover:text-ctp-green',
+                feedbackBusy && 'cursor-wait opacity-60'
+              )}
+            >
+              <ThumbsUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => onFeedback(false)}
+              disabled={feedbackBusy}
+              aria-label="Mark SQL not useful"
+              title="Mark SQL not useful"
+              className={clsx(
+                'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
+                response.feedback === 'ineffective'
+                  ? 'bg-ctp-red/15 text-ctp-red'
+                  : 'text-ctp-overlay1 hover:bg-ctp-surface1 hover:text-ctp-red',
+                feedbackBusy && 'cursor-wait opacity-60'
+              )}
+            >
+              <ThumbsDown className="h-3.5 w-3.5" />
+            </button>
+            {response.from_memory && (
+              <span className="ml-auto text-[10px] font-mono text-ctp-teal">memory</span>
+            )}
+          </div>
         )}
       </div>
     </div>
