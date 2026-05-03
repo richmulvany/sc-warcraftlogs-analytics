@@ -68,9 +68,12 @@ az containerapp create \
   --secrets \
       openai-key=$OPENAI_API_KEY \
       databricks-token=$DATABRICKS_TOKEN \
+      chatbot-api-key=$(openssl rand -hex 32) \
   --env-vars \
       OPENAI_API_KEY=secretref:openai-key \
       DATABRICKS_TOKEN=secretref:databricks-token \
+      CHATBOT_BACKEND_API_KEY=secretref:chatbot-api-key \
+      CHATBOT_CORS_ORIGINS=https://sc-analytics.org \
       DATABRICKS_HOST=adb-XXXX.X.azuredatabricks.net \
       DATABRICKS_WAREHOUSE_ID=YOUR_WAREHOUSE_ID \
       CHATBOT_DATABRICKS_CATALOG=03_gold \
@@ -87,21 +90,31 @@ az containerapp show --name sc-analytics-chatbot \
     --query properties.configuration.ingress.fqdn -o tsv
 ```
 
-Set that hostname (with `https://` prefix) as `VITE_CHATBOT_API_URL` in the
-frontend's deploy configuration (Cloudflare Pages → Environment Variables) and
-redeploy the frontend so the production bundle points at it.
+Set the following in the **frontend** deploy configuration (Cloudflare Pages
+→ Environment Variables, Static Web Apps configuration, etc.) and redeploy:
+
+- `VITE_CHATBOT_API_URL` = `https://<that-hostname>` (Vite only inlines names
+  starting with `VITE_`; calling it `CHATBOT_BACKEND_URL` will silently leave
+  the bundle empty.)
+- `VITE_CHATBOT_API_KEY` = the same value you put in `CHATBOT_BACKEND_API_KEY`
+  on the backend. The frontend sends it as the `X-API-Key` header.
+
+For local dev, `frontend/.env` already sets `VITE_CHATBOT_API_URL=http://localhost:8000`.
+Add a matching `VITE_CHATBOT_API_KEY` line if you also set `CHATBOT_BACKEND_API_KEY`
+in your local backend env (it's optional locally — when unset, auth is skipped).
 
 ## Production hardening still to do
 
 The shipped backend is a working portfolio integration. Before exposing it
 publicly you should add:
 
-1. **CORS allowlist.** [`backend/app/main.py`](app/main.py) currently sets
-   `allow_origins=["*"]`. Replace with `["https://sc-analytics.org"]` and any
-   preview hostnames you use.
-2. **Auth on `/chat`.** At minimum a shared secret check (header → 401 if
-   missing). For real production, gate via your existing auth (Cloudflare
-   Access, Discord OAuth, etc.) or add a simple JWT issued at the frontend.
+1. **CORS allowlist.** Set `CHATBOT_CORS_ORIGINS` to your frontend origin(s),
+   comma-separated. Default `*` is fine for local but unsafe in production.
+2. **Auth on `/chat`.** Set `CHATBOT_BACKEND_API_KEY` to a strong random value
+   (`openssl rand -hex 32`) and the matching `VITE_CHATBOT_API_KEY` on the
+   frontend. With the env var set, the backend rejects unauthenticated calls
+   with 401. For multi-tenant production, replace this with OAuth (Cloudflare
+   Access, Discord, etc.) — the shared-secret model is fine for a guild site.
 3. **Rate limiting.** `slowapi` adds per-IP limits in ~10 lines; cap at
    something like 30 requests / 5 minutes / IP. Each call costs an OpenAI
    request and a Databricks query — without a limit, anyone with the URL can
