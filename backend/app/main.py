@@ -10,7 +10,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from .chatbot import answer_question
 from .config import get_settings
 from .query_memory import apply_feedback
-from .schemas import ChatFeedbackRequest, ChatFeedbackResponse, ChatRequest, ChatResponse
+from .schemas import (
+    ChatFeedbackRequest,
+    ChatFeedbackResponse,
+    ChatMetaResponse,
+    ChatRequest,
+    ChatResponse,
+)
 from .semantic_registry import load_registry
 
 app = FastAPI(title="SC Analytics Chatbot", version="0.1.0")
@@ -57,6 +63,11 @@ def chat(request: ChatRequest) -> ChatResponse:
     except RuntimeError as exc:
         # Misconfiguration (missing creds / SDK) — surface a 503 rather than 500.
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@app.get("/chat/meta", response_model=ChatMetaResponse)
+def chat_meta() -> ChatMetaResponse:
+    return ChatMetaResponse(model=_settings.openai_model)
 
 
 @app.post(

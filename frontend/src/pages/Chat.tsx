@@ -17,7 +17,7 @@ import {
 import clsx from 'clsx'
 import { AppLayout } from '../components/layout/AppLayout'
 import { useChat, type ChatSession, type ChatTurn } from '../context/ChatContext'
-import { type ChatResponse } from '../lib/chatbotClient'
+import { getChatbotMeta, type ChatResponse } from '../lib/chatbotClient'
 
 const SUGGESTIONS = [
   'Who dies most often on each boss?',
@@ -60,8 +60,23 @@ export function Chat() {
   } = useChat()
   const [question, setQuestion] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
+  const [chatbotModel, setChatbotModel] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const activeBusy = activeSession.turns.some(turn => turn.pending)
+
+  useEffect(() => {
+    let cancelled = false
+    getChatbotMeta()
+      .then(meta => {
+        if (!cancelled) setChatbotModel(meta.model)
+      })
+      .catch(() => {
+        if (!cancelled) setChatbotModel(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     if (openedChatThisRuntime) return
@@ -155,6 +170,9 @@ export function Chat() {
               >
                 <Send className="h-4 w-4" />
               </button>
+            </div>
+            <div className="mx-auto mt-2 w-full max-w-4xl text-right text-[10px] font-mono uppercase tracking-wide text-ctp-overlay1">
+              Powered by {chatbotModel ?? 'chatbot'}
             </div>
           </form>
         </section>

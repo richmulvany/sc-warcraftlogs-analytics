@@ -26,7 +26,29 @@ export interface ChatResponse {
   feedback?: 'effective' | 'ineffective'
 }
 
+export interface ChatbotMeta {
+  model: string
+}
+
 export class ChatbotConfigError extends Error {}
+
+export async function getChatbotMeta(): Promise<ChatbotMeta> {
+  if (!baseUrl) {
+    throw new ChatbotConfigError(
+      'Chatbot backend is not configured. Set VITE_CHATBOT_API_URL (must use the VITE_ prefix so Vite inlines it).'
+    )
+  }
+  const headers: Record<string, string> = {}
+  if (apiKey) headers['X-API-Key'] = apiKey
+  const response = await fetch(`${baseUrl}/chat/meta`, { headers })
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new Error(
+      `Chatbot metadata returned ${response.status} ${response.statusText}${detail ? `: ${detail}` : ''}`
+    )
+  }
+  return response.json()
+}
 
 export async function postChat(question: string, signal?: AbortSignal): Promise<ChatResponse> {
   if (!baseUrl) {

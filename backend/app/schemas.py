@@ -22,6 +22,10 @@ class ChatResponse(BaseModel):
     from_memory: bool = False
 
 
+class ChatMetaResponse(BaseModel):
+    model: str
+
+
 class ChatFeedbackRequest(BaseModel):
     response_id: str = Field(..., min_length=1, max_length=200)
     effective: bool
