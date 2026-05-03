@@ -104,6 +104,11 @@ def _build_system_prompt(registry: Registry, relevant: list[TableInfo]) -> str:
         "- Prefer joining via the canonical fact tables (fact_player_events, "
         "fact_player_fight_performance) when one side is a player rollup that "
         "does not carry zone/encounter columns.\n"
+        "- For boss-scoped death questions such as `who dies most often on "
+        "each boss`, prefer `gold_player_death_events` because it already has "
+        "`boss_name`, `player_name`, and one row per death. Do not select "
+        "`boss_name` from `fact_player_events`; that column is not present "
+        "there.\n"
         "- Honour each table's Avoid: list — those are anti-patterns from the contract.\n"
         "- For `who is worst at X` style questions, prefer ORDER BY <metric> ASC LIMIT N "
         "rather than a hard threshold filter; thresholds can return zero rows.\n"
@@ -134,6 +139,12 @@ def _select_relevant_tables(question: str, registry: Registry) -> list[TableInfo
         score = sum(1 for word in q.split() if len(word) > 3 and word in haystack)
         if info.chatbot_tier == "primary":
             score += 1
+        if (
+            info.model == "gold_player_death_events"
+            and any(word in q for word in ("death", "deaths", "die", "dies", "died"))
+            and any(word in q for word in ("boss", "encounter"))
+        ):
+            score += 4
         if score:
             scored.append((score, info))
     scored.sort(key=lambda pair: (-pair[0], pair[1].chatbot_tier != "primary"))
