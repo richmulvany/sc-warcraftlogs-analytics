@@ -300,13 +300,13 @@ function EmptyState({ onSuggest, disabled }: { onSuggest: (q: string) => void; d
           <div>
             <h2 className="text-base font-semibold text-ctp-text">Start a conversation with the guild data</h2>
             <p className="mt-0.5 text-xs text-ctp-overlay1">
-              Ask in plain English and the chatbot will translate your question into governed gold-layer queries.
+              Ask the chatbot a question and it will translate it to SQL and fetch your answer.
             </p>
           </div>
         </div>
         <p className="text-sm leading-relaxed text-ctp-subtext1">
           Try asking about deaths, boss progress, raid attendance, player performance, preparation, or Mythic+ trends.
-          The answer will include the SQL and result rows when they are useful to inspect.
+          The answer will include the SQL query and result rows for when they are useful to inspect.
         </p>
       </div>
       <div className="mb-3 flex items-center gap-2 text-[11px] font-mono uppercase tracking-wide text-ctp-overlay1">
