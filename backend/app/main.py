@@ -3,21 +3,27 @@
 from __future__ import annotations
 
 import hmac
+import json
+import logging
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 
-from .chatbot import answer_question
+from .chatbot import answer_question, answer_question_stream
 from .config import get_settings
-from .query_memory import apply_feedback
+from .query_memory import apply_feedback, query_memory_health
 from .schemas import (
     ChatFeedbackRequest,
     ChatFeedbackResponse,
+    ChatMemoryHealthResponse,
     ChatMetaResponse,
     ChatRequest,
     ChatResponse,
 )
 from .semantic_registry import load_registry
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SC Analytics Chatbot", version="0.1.0")
 
@@ -65,9 +71,49 @@ def chat(request: ChatRequest) -> ChatResponse:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
+@app.post("/chat/stream", dependencies=[Depends(require_api_key)])
+def chat_stream(request: ChatRequest) -> StreamingResponse:
+    """Server-sent events variant of /chat that streams per-step progress.
+
+    Emits ``event: step`` frames as the orchestrator runs (table selection,
+    SQL writing, execution, answer writing) and a final ``event: final``
+    frame containing the same JSON shape as ChatResponse. The frontend
+    renders the steps inline so users can see what the bot is doing.
+    """
+
+    def event_stream():
+        try:
+            for event in answer_question_stream(request.question):
+                if event.get("type") == "final":
+                    response: ChatResponse = event["response"]
+                    payload = json.dumps(response.model_dump(mode="json"))
+                    yield f"event: final\ndata: {payload}\n\n"
+                else:
+                    yield f"event: step\ndata: {json.dumps(event)}\n\n"
+        except RuntimeError as exc:
+            yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable proxy buffering on Azure/nginx
+        },
+    )
+
+
 @app.get("/chat/meta", response_model=ChatMetaResponse)
 def chat_meta() -> ChatMetaResponse:
-    return ChatMetaResponse(model=_settings.openai_model)
+    # Always return a non-empty model string. Falls back to the Settings default
+    # ("gpt-5.4-nano") so the frontend's "Powered by …" strip never silently
+    # collapses to a placeholder when the env var is missing.
+    return ChatMetaResponse(model=_settings.openai_model or "gpt-5.4-nano")
+
+
+@app.get("/chat/memory/health", response_model=ChatMemoryHealthResponse)
+def chat_memory_health() -> ChatMemoryHealthResponse:
+    return ChatMemoryHealthResponse(**query_memory_health())
 
 
 @app.post(
@@ -83,6 +129,12 @@ def chat_feedback(request: ChatFeedbackRequest) -> ChatFeedbackResponse:
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail="Unknown response_id.") from exc
+    except Exception as exc:
+        # Persistence failures (R2 down, bad credentials, etc.) used to bubble
+        # up as opaque 500s the frontend swallowed silently. Surface them as a
+        # 502 with the underlying message so the UI can show a retry hint.
+        logger.exception("apply_feedback failed for response_id=%s", request.response_id)
+        raise HTTPException(status_code=502, detail=f"Failed to persist feedback: {exc}") from exc
     return ChatFeedbackResponse(
         response_id=entry.id,
         status=entry.status,

@@ -139,6 +139,46 @@ def _write_r2_raw(raw: dict[str, Any]) -> None:
     )
 
 
+def query_memory_health() -> dict[str, Any]:
+    """Diagnostic snapshot of the query-memory backend.
+
+    Used by the /chat/memory/health endpoint so operators can confirm R2 is
+    reachable and how many entries are stored without shelling into the
+    container. Performs a read only — no writes — to avoid creating noise
+    when credentials are read-only.
+    """
+
+    backend = "r2" if _r2_enabled() else "local"
+    info: dict[str, Any] = {
+        "backend": backend,
+        "read_ok": False,
+        "read_error": None,
+        "entry_count": 0,
+    }
+    if backend == "r2":
+        try:
+            bucket, key = _r2_location()
+            info["bucket"] = bucket
+            info["key"] = key
+            info["endpoint_url"] = os.getenv("QUERY_MEMORY_R2_ENDPOINT_URL") or (
+                f"https://{os.getenv('QUERY_MEMORY_R2_ACCOUNT_ID', '')}" ".r2.cloudflarestorage.com"
+                if os.getenv("QUERY_MEMORY_R2_ACCOUNT_ID")
+                else None
+            )
+        except RuntimeError as exc:
+            info["read_error"] = str(exc)
+            return info
+    else:
+        info["path"] = str(DEFAULT_MEMORY_PATH)
+    try:
+        raw = _read_raw()
+        info["read_ok"] = True
+        info["entry_count"] = len(raw.get("entries", []))
+    except Exception as exc:
+        info["read_error"] = f"{type(exc).__name__}: {exc}"
+    return info
+
+
 def load_query_memory(path: Path | None = None) -> list[QueryMemoryEntry]:
     raw = _read_raw(path)
     entries: list[QueryMemoryEntry] = []

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import pytest
+
 from backend.app.chatbot import (
+    _is_boss_death_leader_question,
     _query_examples_block,
     _select_relevant_tables,
     answer_question,
@@ -14,8 +17,36 @@ def test_boss_scoped_deaths_prefer_enriched_death_table() -> None:
 
     relevant = _select_relevant_tables("Who dies most often on each boss?", registry)
 
-    assert relevant[0].model == "gold_player_death_events"
+    # Hard-routed: boss-death questions get exactly one table in the prompt
+    # so the LLM cannot pick fact_player_events as a "more fundamental" peer.
+    assert [info.model for info in relevant] == ["gold_player_death_events"]
     assert any(column["name"] == "boss_name" for column in relevant[0].columns)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Who dies most often on each boss?",
+        "Which player has the most deaths per boss?",
+        "Top deaths by boss",
+        "Who is dying the most on every encounter?",
+        "Leading deaths by boss this tier",
+    ],
+)
+def test_boss_death_leader_matcher_accepts_natural_phrasings(question: str) -> None:
+    assert _is_boss_death_leader_question(question)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Who is the best healer?",
+        "Show me boss kill counts",
+        "Which spec dies the most overall?",  # no boss/encounter scope
+    ],
+)
+def test_boss_death_leader_matcher_rejects_unrelated_questions(question: str) -> None:
+    assert not _is_boss_death_leader_question(question)
 
 
 def test_boss_death_leader_question_gets_approved_prompt_example() -> None:

@@ -198,7 +198,35 @@ az containerapp update \
       QUERY_MEMORY_R2_SECRET_ACCESS_KEY=secretref:query-memory-r2-secret-access-key
 ```
 
-Create the R2 API token with object read/write access to only that bucket.
-With those variables set, good/bad answer feedback is written to R2 and shared
-by all backend revisions. Without them, feedback is written only to the
-container filesystem and should be treated as ephemeral.
+Create the R2 API token with object **read AND write** access to only that
+bucket. A token scoped to read-only will let `_read_raw` succeed but every
+feedback write will return a 502 from `/chat/feedback`. With those variables
+set, good/bad answer feedback is written to R2 and shared by all backend
+revisions. Without them, feedback is written only to the container filesystem
+and should be treated as ephemeral.
+
+You can reuse the same bucket as the rest of the published dashboard data
+(e.g. `sc-analytics-data`) — just give the object key a dedicated prefix like
+`query_memory/query_memory.json` so it doesn't collide with the published
+manifests.
+
+### Verify the deployment
+
+```bash
+# 1. Confirm the new revision actually picked up the env vars and is serving
+#    100% of traffic (az containerapp update creates a new revision; an old
+#    one keeps serving until traffic shifts).
+az containerapp revision list \
+  --name sc-analytics-chatbot \
+  --resource-group sc-analytics-rg \
+  -o table
+
+# 2. Hit the health endpoint to confirm the container can talk to R2.
+curl -s https://<app-host>/chat/memory/health | jq
+# Expected: {"backend":"r2","read_ok":true,"entry_count":N,"bucket":"...","key":"..."}
+
+# 3. Submit a thumbs-up in the UI, then re-check — entry_count should rise.
+```
+
+If `read_ok` is `false`, the `read_error` field tells you whether the bucket
+is missing, the credentials are wrong, or the endpoint URL is malformed.

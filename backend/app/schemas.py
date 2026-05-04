@@ -38,3 +38,14 @@ class ChatFeedbackResponse(BaseModel):
     status: str
     use_for_prompt: bool
     allow_direct_reuse: bool
+
+
+class ChatMemoryHealthResponse(BaseModel):
+    backend: str
+    read_ok: bool
+    entry_count: int
+    read_error: str | None = None
+    bucket: str | None = None
+    key: str | None = None
+    endpoint_url: str | None = None
+    path: str | None = None
