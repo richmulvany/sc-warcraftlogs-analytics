@@ -15,6 +15,7 @@ import {
   ThumbsDown,
   ThumbsUp,
   Trash2,
+  X,
 } from 'lucide-react'
 import clsx from 'clsx'
 import { AppLayout } from '../components/layout/AppLayout'
@@ -63,6 +64,15 @@ export function Chat() {
   const [question, setQuestion] = useState('')
   const [historyOpen, setHistoryOpen] = useState(false)
   const [chatbotModel, setChatbotModel] = useState<string | null>(null)
+  const [privacyDismissed, setPrivacyDismissed] = useState(
+    () => sessionStorage.getItem('sc-chat-privacy-dismissed') === '1',
+  )
+  const hasSentMessage = activeSession.turns.some(t => !t.pending) || activeSession.turns.length > 0
+  const showPrivacyNotice = !privacyDismissed && !hasSentMessage && question.trim().length > 0
+  const dismissPrivacy = () => {
+    sessionStorage.setItem('sc-chat-privacy-dismissed', '1')
+    setPrivacyDismissed(true)
+  }
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const activeBusy = activeSession.turns.some(turn => turn.pending)
 
@@ -143,6 +153,32 @@ export function Chat() {
               )}
             </div>
           </div>
+
+          {showPrivacyNotice && (
+            <div className="flex-shrink-0 px-4 pt-2 md:px-8 lg:px-10">
+              <div className="mx-auto flex w-full max-w-4xl items-start gap-2 rounded-xl border border-ctp-red/40 bg-ctp-red/10 px-3 py-2 text-xs text-ctp-red">
+                <span className="flex-1 leading-snug">
+                  Your question is sent to an OpenAI API. Do not paste personal information.{' '}
+                  <a
+                    href="https://openai.com/policies/privacy-policy/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline hover:text-ctp-text"
+                  >
+                    OpenAI privacy policy
+                  </a>
+                </span>
+                <button
+                  type="button"
+                  onClick={dismissPrivacy}
+                  aria-label="Dismiss privacy notice"
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded hover:bg-ctp-red/20"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          )}
 
           <form
             onSubmit={handleSubmit}
