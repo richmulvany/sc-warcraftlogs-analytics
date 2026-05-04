@@ -20,7 +20,7 @@ export function AppLayout({ children, title, subtitle, actions, nav, hideHeader 
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (
-    <div className="h-screen overflow-hidden bg-ctp-base flex flex-col md:flex-row">
+    <div className="h-screen h-[100dvh] overflow-hidden bg-ctp-base flex flex-col md:flex-row">
 
       {/* Mobile top bar + drawer (hidden md+) */}
       <MobileNav

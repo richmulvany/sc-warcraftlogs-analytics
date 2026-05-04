@@ -146,7 +146,7 @@ export function Chat() {
 
           <form
             onSubmit={handleSubmit}
-            className="flex-shrink-0 border-t border-ctp-surface0 bg-ctp-base/95 px-4 py-3 md:px-8 lg:px-10"
+            className="flex-shrink-0 border-t border-ctp-surface0 bg-ctp-base/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:px-8 md:pb-3 lg:px-10"
           >
             <div className="mx-auto flex w-full max-w-4xl items-end gap-2 rounded-2xl border border-ctp-surface1 bg-ctp-surface0/65 p-2 shadow-card focus-within:border-ctp-teal/70 focus-within:ring-1 focus-within:ring-ctp-teal/30">
               <textarea
