@@ -192,8 +192,8 @@ az containerapp update \
   --set-env-vars \
       QUERY_MEMORY_BACKEND=r2 \
       QUERY_MEMORY_R2_ACCOUNT_ID=YOUR_CLOUDFLARE_ACCOUNT_ID \
-      QUERY_MEMORY_R2_BUCKET=sc-analytics-query-memory \
-      QUERY_MEMORY_R2_OBJECT_KEY=chatbot/query_memory.json \
+      QUERY_MEMORY_R2_BUCKET="$R2_BUCKET" \
+      QUERY_MEMORY_R2_PREFIX=sc-analytics-data \
       QUERY_MEMORY_R2_ACCESS_KEY_ID=secretref:query-memory-r2-access-key-id \
       QUERY_MEMORY_R2_SECRET_ACCESS_KEY=secretref:query-memory-r2-secret-access-key
 ```
@@ -205,10 +205,26 @@ set, good/bad answer feedback is written to R2 and shared by all backend
 revisions. Without them, feedback is written only to the container filesystem
 and should be treated as ephemeral.
 
-You can reuse the same bucket as the rest of the published dashboard data
-(e.g. `sc-analytics-data`) — just give the object key a dedicated prefix like
-`query_memory/query_memory.json` so it doesn't collide with the published
-manifests.
+You can reuse the same bucket as the rest of the published dashboard data.
+If your existing dashboard objects are under `sc-analytics-data/latest/` and
+`sc-analytics-data/snapshots/`, set:
+
+- `QUERY_MEMORY_R2_BUCKET` to the bucket name, which should match `R2_BUCKET`.
+- `QUERY_MEMORY_R2_PREFIX=sc-analytics-data`.
+
+With that configuration, the chatbot stores memory at:
+
+`s3://<R2_BUCKET>/sc-analytics-data/query_memory/query_memory.json`
+
+If `sc-analytics-data` is the bucket name itself rather than an object prefix,
+leave `QUERY_MEMORY_R2_PREFIX` unset and set
+`QUERY_MEMORY_R2_BUCKET=sc-analytics-data`; the object key will be
+`query_memory/query_memory.json`.
+
+You can also override the exact object path with
+`QUERY_MEMORY_R2_OBJECT_KEY=sc-analytics-data/query_memory/query_memory.json`.
+Do not include the bucket name in `QUERY_MEMORY_R2_OBJECT_KEY`; it should only
+be the object key inside the bucket.
 
 ### Verify the deployment
 

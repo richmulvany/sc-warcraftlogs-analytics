@@ -136,6 +136,30 @@ export async function streamChat(
   let buffer = ''
   let final: ChatResponse | null = null
 
+  const handleFrame = (frame: string) => {
+    let name: string | null = null
+    let data = ''
+    for (const line of frame.split(/\r?\n/)) {
+      if (line.startsWith('event:')) name = line.slice(6).trim()
+      else if (line.startsWith('data:')) data += line.slice(5).trim()
+    }
+    if (data) {
+      try {
+        const parsed = JSON.parse(data)
+        if (name === 'final') {
+          final = parsed as ChatResponse
+          onEvent({ type: 'final', response: final })
+        } else if (name === 'step') {
+          onEvent({ type: 'step', ...(parsed as Omit<ChatStreamStep, 'type'>) })
+        } else if (name === 'error') {
+          onEvent({ type: 'error', detail: parsed.detail ?? '' })
+        }
+      } catch {
+        // ignore malformed frame
+      }
+    }
+  }
+
   // Parse SSE frames: each frame ends in a blank line and contains
   // "event: <name>" and "data: <json>" lines.
   while (true) {
@@ -146,30 +170,12 @@ export async function streamChat(
     while (boundary !== -1) {
       const frame = buffer.slice(0, boundary)
       buffer = buffer.slice(boundary + 2)
-      let name: string | null = null
-      let data = ''
-      for (const line of frame.split('\n')) {
-        if (line.startsWith('event:')) name = line.slice(6).trim()
-        else if (line.startsWith('data:')) data += line.slice(5).trim()
-      }
-      if (data) {
-        try {
-          const parsed = JSON.parse(data)
-          if (name === 'final') {
-            final = parsed as ChatResponse
-            onEvent({ type: 'final', response: final })
-          } else if (name === 'step') {
-            onEvent({ type: 'step', ...(parsed as Omit<ChatStreamStep, 'type'>) })
-          } else if (name === 'error') {
-            onEvent({ type: 'error', detail: parsed.detail ?? '' })
-          }
-        } catch {
-          // ignore malformed frame
-        }
-      }
+      handleFrame(frame)
       boundary = buffer.indexOf('\n\n')
     }
   }
+  buffer += decoder.decode()
+  if (buffer.trim()) handleFrame(buffer)
 
   if (!final) {
     throw new Error('Chatbot stream ended without a final response.')
