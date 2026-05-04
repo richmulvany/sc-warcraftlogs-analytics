@@ -90,8 +90,32 @@ def chat_stream(request: ChatRequest) -> StreamingResponse:
                     yield f"event: final\ndata: {payload}\n\n"
                 else:
                     yield f"event: step\ndata: {json.dumps(event)}\n\n"
-        except RuntimeError as exc:
-            yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
+        except Exception as exc:
+            # Catch-all: any uncaught exception in the orchestrator (R2 read
+            # failure, OpenAI client error, Databricks SDK error, etc.) used
+            # to silently close the SSE stream with no final event, leaving
+            # the frontend with "Chatbot stream ended without a final
+            # response." Always emit a final fallback response so the UI can
+            # render an error state instead of hanging.
+            logger.exception("answer_question_stream crashed")
+            fallback = ChatResponse(
+                answer="The assistant hit an unexpected error.",
+                error=f"{type(exc).__name__}: {exc}",
+                caveats=["Check backend logs for the full traceback."],
+            )
+            yield (
+                "event: step\ndata: "
+                + json.dumps(
+                    {
+                        "type": "step",
+                        "phase": "writing_answer",
+                        "status": "error",
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+                + "\n\n"
+            )
+            yield f"event: final\ndata: {json.dumps(fallback.model_dump(mode='json'))}\n\n"
 
     return StreamingResponse(
         event_stream(),

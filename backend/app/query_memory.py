@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -27,7 +28,9 @@ from .semantic_registry import Registry
 from .sql_guard import SqlGuardError, guard_sql
 
 DEFAULT_MEMORY_PATH = Path(__file__).with_name("query_memory.json")
-DEFAULT_R2_OBJECT_KEY = "chatbot/query_memory.json"
+DEFAULT_R2_OBJECT_KEY = "query_memory/query_memory.json"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -60,10 +63,20 @@ def _entry_id(question: str, sql: str) -> str:
     return f"mem_{digest[:16]}"
 
 
-def _read_raw(path: Path | None = None) -> dict[str, Any]:
+def _read_raw(path: Path | None = None, *, allow_fallback: bool = True) -> dict[str, Any]:
     if path is None and _r2_enabled():
-        return _read_r2_raw()
+        try:
+            return _read_r2_raw()
+        except Exception:
+            if not allow_fallback:
+                raise
+            logger.exception("R2 query memory read failed; falling back to local seed memory")
+            return _read_local_raw(DEFAULT_MEMORY_PATH)
     target = path or DEFAULT_MEMORY_PATH
+    return _read_local_raw(target)
+
+
+def _read_local_raw(target: Path) -> dict[str, Any]:
     if not target.exists():
         return {"version": 1, "entries": []}
     return json.loads(target.read_text(encoding="utf-8"))
@@ -108,11 +121,24 @@ def _r2_client():
 
 
 def _r2_location() -> tuple[str, str]:
-    bucket = os.getenv("QUERY_MEMORY_R2_BUCKET", "")
-    key = os.getenv("QUERY_MEMORY_R2_OBJECT_KEY", DEFAULT_R2_OBJECT_KEY)
+    bucket = os.getenv("QUERY_MEMORY_R2_BUCKET") or os.getenv("R2_BUCKET", "")
+    key = os.getenv("QUERY_MEMORY_R2_OBJECT_KEY") or _default_r2_object_key()
     if not bucket:
         raise RuntimeError("QUERY_MEMORY_R2_BUCKET is required for R2 query memory.")
     return bucket, key
+
+
+def _default_r2_object_key() -> str:
+    prefix = (
+        os.getenv("QUERY_MEMORY_R2_PREFIX")
+        or os.getenv("QUERY_MEMORY_PREFIX")
+        or os.getenv("R2_PREFIX")
+        or ""
+    )
+    normalized = prefix.strip("/")
+    if not normalized:
+        return DEFAULT_R2_OBJECT_KEY
+    return f"{normalized}/{DEFAULT_R2_OBJECT_KEY}"
 
 
 def _read_r2_raw() -> dict[str, Any]:
@@ -171,7 +197,7 @@ def query_memory_health() -> dict[str, Any]:
     else:
         info["path"] = str(DEFAULT_MEMORY_PATH)
     try:
-        raw = _read_raw()
+        raw = _read_raw(allow_fallback=False)
         info["read_ok"] = True
         info["entry_count"] = len(raw.get("entries", []))
     except Exception as exc:
@@ -273,9 +299,13 @@ def direct_reuse_entry(question: str, registry: Registry) -> QueryMemoryEntry | 
 
 
 def record_candidate(question: str, sql: str, tables_used: list[str]) -> str:
-    raw = _read_raw()
-    entries = raw.setdefault("entries", [])
     entry_id = _entry_id(question, sql)
+    try:
+        raw = _read_raw()
+    except Exception:
+        logger.exception("Could not read query memory before recording candidate")
+        return entry_id
+    entries = raw.setdefault("entries", [])
     now = _now_iso()
     for entry in entries:
         if entry.get("id") == entry_id:
@@ -299,7 +329,10 @@ def record_candidate(question: str, sql: str, tables_used: list[str]) -> str:
             "updated_at": now,
         }
     )
-    _write_raw(raw)
+    try:
+        _write_raw(raw)
+    except Exception:
+        logger.exception("Could not persist query-memory candidate")
     return entry_id
 
 
@@ -310,9 +343,13 @@ def record_rejected_query(
     error: str,
     tables_used: list[str] | None = None,
 ) -> str:
-    raw = _read_raw()
-    entries = raw.setdefault("entries", [])
     entry_id = _entry_id(question, sql)
+    try:
+        raw = _read_raw()
+    except Exception:
+        logger.exception("Could not read query memory before recording rejected query")
+        return entry_id
+    entries = raw.setdefault("entries", [])
     now = _now_iso()
     for entry in entries:
         if entry.get("id") == entry_id:
@@ -323,7 +360,10 @@ def record_rejected_query(
             entry["last_error"] = error
             entry["notes"] = "Automatically rejected after SQL validation or execution failed."
             entry["updated_at"] = now
-            _write_raw(raw)
+            try:
+                _write_raw(raw)
+            except Exception:
+                logger.exception("Could not persist rejected query-memory update")
             return entry_id
     entries.append(
         {
@@ -344,7 +384,10 @@ def record_rejected_query(
             "updated_at": now,
         }
     )
-    _write_raw(raw)
+    try:
+        _write_raw(raw)
+    except Exception:
+        logger.exception("Could not persist rejected query-memory entry")
     return entry_id
 
 
