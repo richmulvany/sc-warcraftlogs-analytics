@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Check,
   ChevronDown,
   ChevronRight,
   Database,
@@ -8,6 +9,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
+  RotateCcw,
   Send,
   Sparkles,
   ThumbsDown,
@@ -16,7 +18,7 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 import { AppLayout } from '../components/layout/AppLayout'
-import { useChat, type ChatSession, type ChatTurn } from '../context/ChatContext'
+import { useChat, type ChatSession, type ChatTurn, type ChatTurnStep } from '../context/ChatContext'
 import { getChatbotMeta, type ChatResponse } from '../lib/chatbotClient'
 
 const SUGGESTIONS = [
@@ -171,8 +173,13 @@ export function Chat() {
                 <Send className="h-4 w-4" />
               </button>
             </div>
-            <div className="mx-auto mt-2 w-full max-w-4xl text-right text-[10px] font-mono uppercase tracking-wide text-ctp-overlay1">
-              Powered by {chatbotModel ?? 'chatbot'}
+            <div
+              className={clsx(
+                'mx-auto mt-2 w-full max-w-4xl text-right text-[10px] font-mono uppercase tracking-wide text-ctp-overlay1',
+                !chatbotModel && 'opacity-60'
+              )}
+            >
+              Powered by {chatbotModel ?? 'gpt model'}
             </div>
           </form>
         </section>
@@ -355,17 +362,34 @@ function TurnMessage({
   turn: ChatTurn
   onFeedback: (turnId: string, effective: boolean) => Promise<void>
 }) {
-  const [feedbackBusy, setFeedbackBusy] = useState(false)
+  const [feedbackBusy, setFeedbackBusy] = useState<null | 'up' | 'down'>(null)
+  const [feedbackError, setFeedbackError] = useState<string | null>(null)
+  const [confirmedAt, setConfirmedAt] = useState<number | null>(null)
+  const [lastEffective, setLastEffective] = useState<boolean | null>(null)
 
   async function handleFeedback(effective: boolean) {
     if (!turn.response?.sql || feedbackBusy) return
-    setFeedbackBusy(true)
+    setFeedbackBusy(effective ? 'up' : 'down')
+    setFeedbackError(null)
+    setLastEffective(effective)
     try {
       await onFeedback(turn.id, effective)
+      setConfirmedAt(Date.now())
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      setFeedbackError(message)
     } finally {
-      setFeedbackBusy(false)
+      setFeedbackBusy(null)
     }
   }
+
+  // Auto-fade the "Feedback accepted" pill ~2.5s after success. The button
+  // ring colour stays so the user can still see which way they voted.
+  useEffect(() => {
+    if (!confirmedAt) return
+    const timer = window.setTimeout(() => setConfirmedAt(null), 2500)
+    return () => window.clearTimeout(timer)
+  }, [confirmedAt])
 
   return (
     <article className="space-y-4">
@@ -385,21 +409,32 @@ function TurnMessage({
           </div>
 
           {turn.pending ? (
-            <div className="flex items-center gap-2 rounded-2xl rounded-tl-md border border-ctp-surface1 bg-ctp-surface0/35 px-4 py-3 text-sm text-ctp-overlay1">
-              <TypingDots />
-              <span>Selecting tables, writing SQL, executing query...</span>
-            </div>
+            <StepStream steps={turn.steps ?? []} />
           ) : turn.errorMessage ? (
             <div className="rounded-2xl rounded-tl-md border border-ctp-red/20 bg-ctp-red/10 px-4 py-3">
               <p className="text-sm font-medium text-ctp-red">Error</p>
               <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-ctp-subtext0">{turn.errorMessage}</p>
             </div>
           ) : turn.response ? (
-            <ResponseBlock
-              response={turn.response}
-              feedbackBusy={feedbackBusy}
-              onFeedback={handleFeedback}
-            />
+            <>
+              {turn.steps && turn.steps.length > 0 && (
+                <CollapsibleBlock
+                  title={`Steps (${turn.steps.length})`}
+                  defaultOpen={false}
+                >
+                  <StepStream steps={turn.steps} compact />
+                </CollapsibleBlock>
+              )}
+              <ResponseBlock
+                response={turn.response}
+                feedbackBusy={feedbackBusy}
+                feedbackError={feedbackError}
+                confirmedVisible={confirmedAt !== null}
+                lastEffective={lastEffective}
+                onFeedback={handleFeedback}
+                onDismissError={() => setFeedbackError(null)}
+              />
+            </>
           ) : null}
         </div>
       </div>
@@ -407,15 +442,89 @@ function TurnMessage({
   )
 }
 
+const PHASE_LABELS: Record<ChatTurnStep['phase'], string> = {
+  selecting_tables: 'Selecting tables',
+  memory_reuse: 'Reusing approved memory',
+  writing_sql: 'Writing SQL',
+  executing_sql: 'Executing query',
+  writing_answer: 'Writing answer',
+}
+
+function StepStream({ steps, compact = false }: { steps: ChatTurnStep[]; compact?: boolean }) {
+  if (steps.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl rounded-tl-md border border-ctp-surface1 bg-ctp-surface0/35 px-4 py-3 text-sm text-ctp-overlay1">
+        <TypingDots />
+        <span>Connecting to assistant…</span>
+      </div>
+    )
+  }
+  return (
+    <div
+      className={clsx(
+        'rounded-2xl rounded-tl-md border border-ctp-surface1 bg-ctp-surface0/35 px-4 py-3 text-xs',
+        compact && 'border-transparent bg-transparent px-0 py-0',
+      )}
+    >
+      <ul className="space-y-1.5">
+        {steps.map((step, idx) => (
+          <StepRow key={idx} step={step} />
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function StepRow({ step }: { step: ChatTurnStep }) {
+  const label = PHASE_LABELS[step.phase] ?? step.phase
+  const attempt = step.attempt && step.attempt > 1 ? ` (attempt ${step.attempt})` : ''
+  const colour =
+    step.status === 'error'
+      ? 'text-ctp-red'
+      : step.status === 'done'
+        ? 'text-ctp-green'
+        : 'text-ctp-teal'
+  const icon =
+    step.status === 'running' ? (
+      <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-ctp-teal" />
+    ) : step.status === 'done' ? (
+      <Check className="h-3 w-3 text-ctp-green" />
+    ) : (
+      <span className="text-ctp-red">!</span>
+    )
+  return (
+    <li className="flex items-start gap-2 font-mono">
+      <span className="mt-0.5 flex h-3 w-3 flex-shrink-0 items-center justify-center">{icon}</span>
+      <span className={clsx('leading-snug', colour)}>
+        {label}
+        {attempt}
+        {step.status === 'error' && step.error && (
+          <span className="ml-2 break-all text-[10px] text-ctp-overlay1">— {step.error}</span>
+        )}
+      </span>
+    </li>
+  )
+}
+
 function ResponseBlock({
   response,
   feedbackBusy,
+  feedbackError,
+  confirmedVisible,
+  lastEffective,
   onFeedback,
+  onDismissError,
 }: {
   response: ChatResponse
-  feedbackBusy: boolean
+  feedbackBusy: null | 'up' | 'down'
+  feedbackError: string | null
+  confirmedVisible: boolean
+  lastEffective: boolean | null
   onFeedback: (effective: boolean) => void
+  onDismissError: () => void
 }) {
+  const upChosen = response.feedback === 'effective'
+  const downChosen = response.feedback === 'ineffective'
   return (
     <div className="rounded-2xl rounded-tl-md border border-ctp-surface1 bg-ctp-surface0/35 px-4 py-3 shadow-card">
       <div className="space-y-3">
@@ -473,43 +582,69 @@ function ResponseBlock({
             <button
               type="button"
               onClick={() => onFeedback(true)}
-              disabled={feedbackBusy}
+              disabled={feedbackBusy !== null}
               aria-label="Mark answer helpful"
               title="Mark answer helpful"
               className={clsx(
-                'flex h-7 w-7 items-center justify-center rounded-lg border transition-colors',
-                response.feedback === 'effective'
+                'flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-150 active:scale-95',
+                upChosen
                   ? 'border-ctp-green/40 bg-ctp-green/20 text-ctp-green ring-1 ring-ctp-green/30'
                   : 'border-transparent text-ctp-overlay1 hover:bg-ctp-surface1 hover:text-ctp-green',
-                feedbackBusy && 'cursor-wait opacity-60'
+                feedbackBusy === 'up' && 'cursor-wait animate-pulse ring-2 ring-ctp-green/40'
               )}
             >
-              <ThumbsUp className="h-3.5 w-3.5" />
+              {upChosen && feedbackBusy === null ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <ThumbsUp className="h-3.5 w-3.5" />
+              )}
             </button>
             <button
               type="button"
               onClick={() => onFeedback(false)}
-              disabled={feedbackBusy}
+              disabled={feedbackBusy !== null}
               aria-label="Mark answer not helpful"
               title="Mark answer not helpful"
               className={clsx(
-                'flex h-7 w-7 items-center justify-center rounded-lg border transition-colors',
-                response.feedback === 'ineffective'
+                'flex h-7 w-7 items-center justify-center rounded-lg border transition-all duration-150 active:scale-95',
+                downChosen
                   ? 'border-ctp-red/40 bg-ctp-red/20 text-ctp-red ring-1 ring-ctp-red/30'
                   : 'border-transparent text-ctp-overlay1 hover:bg-ctp-surface1 hover:text-ctp-red',
-                feedbackBusy && 'cursor-wait opacity-60'
+                feedbackBusy === 'down' && 'cursor-wait animate-pulse ring-2 ring-ctp-red/40'
               )}
             >
-              <ThumbsDown className="h-3.5 w-3.5" />
+              {downChosen && feedbackBusy === null ? (
+                <Check className="h-3.5 w-3.5" />
+              ) : (
+                <ThumbsDown className="h-3.5 w-3.5" />
+              )}
             </button>
-            {response.feedback && (
-              <span className={clsx(
-                'rounded-full px-2 py-1 text-[10px] font-mono uppercase tracking-wide',
-                response.feedback === 'effective'
-                  ? 'bg-ctp-green/10 text-ctp-green'
-                  : 'bg-ctp-red/10 text-ctp-red'
-              )}>
-                Feedback accepted
+            {confirmedVisible && (
+              <span
+                className={clsx(
+                  'feedback-pop-in inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-mono uppercase tracking-wide',
+                  lastEffective
+                    ? 'bg-ctp-green/15 text-ctp-green'
+                    : 'bg-ctp-red/15 text-ctp-red'
+                )}
+              >
+                <Check className="h-3 w-3" />
+                Feedback recorded
+              </span>
+            )}
+            {feedbackError && (
+              <span className="inline-flex items-center gap-2 text-[10px] font-mono text-ctp-red">
+                Couldn't save feedback
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDismissError()
+                    if (lastEffective !== null) onFeedback(lastEffective)
+                  }}
+                  className="inline-flex items-center gap-1 rounded border border-ctp-red/40 bg-ctp-red/10 px-1.5 py-0.5 uppercase tracking-wide hover:bg-ctp-red/20"
+                >
+                  <RotateCcw className="h-3 w-3" /> Retry
+                </button>
               </span>
             )}
             {response.from_memory && (

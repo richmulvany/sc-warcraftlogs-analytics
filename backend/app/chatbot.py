@@ -12,6 +12,7 @@ example questions from the registry.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,10 +35,18 @@ MAX_PROMPT_TABLES = 12
 
 
 def _is_boss_death_leader_question(question: str) -> bool:
+    """Detect "who dies most on each boss" style questions.
+
+    Broadly matched on purpose — the cost of a false positive is "we route the
+    question to gold_player_death_events even though gold_player_survivability
+    might also have worked", which is fine. The cost of a false negative is the
+    LLM picks fact_player_events and produces SQL that fails column validation.
+    """
+
     q = question.lower()
-    asks_deaths = any(word in q for word in ("death", "deaths", "die", "dies", "died"))
-    asks_most = any(phrase in q for phrase in ("most often", "most", "highest", "top"))
-    asks_boss_scope = "boss" in q and any(word in q for word in ("each", "every", "per", "by"))
+    asks_deaths = any(word in q for word in ("death", "deaths", "die", "dies", "died", "dying"))
+    asks_most = any(phrase in q for phrase in ("most", "highest", "top", "leading", "leader"))
+    asks_boss_scope = "boss" in q or "encounter" in q
     return asks_deaths and asks_most and asks_boss_scope
 
 
@@ -204,9 +213,11 @@ def _select_relevant_tables(question: str, registry: Registry) -> list[TableInfo
     if _is_boss_death_leader_question(question):
         death_events = registry.tables.get("gold_player_death_events")
         if death_events:
-            selected = [death_events] + [
-                info for info in selected if info.model != death_events.model
-            ]
+            # Hard-route: this is the only table the LLM should see for this
+            # question class. Keeping fact_player_events in the prompt was
+            # letting the model pick it as a "more fundamental" peer and
+            # produce SQL referencing fpe.boss_name (which doesn't exist).
+            selected = [death_events]
     return selected[:MAX_PROMPT_TABLES]
 
 
@@ -231,6 +242,36 @@ class _LLM:
             temperature=0,
         )
         return (rsp.choices[0].message.content or "").strip()
+
+
+def _shrink_tables(
+    current: list[TableInfo],
+    tables_used: list[str] | None,
+    error: str,
+) -> list[TableInfo]:
+    """Drop tables that produced a column-not-found error so the next attempt
+    can't repeat the same mistake.
+
+    For column-resolution errors (the dominant failure mode for this codebase
+    — hallucinated columns like fpe.boss_name), we trim the table that was in
+    the failing SQL out of the prompt entirely. We only shrink when at least
+    one table would remain; otherwise we keep the current set so the LLM still
+    has something to work with on the next attempt.
+    """
+
+    if not tables_used:
+        return current
+    looks_like_column_error = any(
+        token in error.lower()
+        for token in ("cannot be resolved", "does not exist", "unresolved", "column")
+    )
+    if not looks_like_column_error:
+        return current
+    used_set = {t.split(".")[-1] for t in tables_used}
+    remaining = [info for info in current if info.model not in used_set]
+    if not remaining:
+        return current
+    return remaining
 
 
 def _collect_caveats(tables: list[TableInfo], columns: tuple[str, ...]) -> list[str]:
@@ -315,47 +356,115 @@ def answer_question(
     settings: Settings | None = None,
     llm: _LLM | None = None,
 ) -> ChatResponse:
+    """Blocking variant kept for the existing /chat endpoint and eval harness.
+
+    Drains :func:`answer_question_stream` and returns only the final response.
+    """
+
+    final: ChatResponse | None = None
+    for event in answer_question_stream(question, registry=registry, settings=settings, llm=llm):
+        if event.get("type") == "final":
+            final = event["response"]  # type: ignore[assignment]
+    assert final is not None
+    return final
+
+
+def answer_question_stream(
+    question: str,
+    *,
+    registry: Registry | None = None,
+    settings: Settings | None = None,
+    llm: _LLM | None = None,
+) -> Iterator[dict[str, Any]]:
+    """Yield progress events as the orchestrator runs.
+
+    Event shapes (all dicts):
+
+    - ``{"type": "step", "phase": <str>, "status": "running"|"done"|"error",
+        "attempt"?: int, "detail"?: any, "error"?: str}``
+    - ``{"type": "final", "response": ChatResponse}``
+
+    The phases are ``selecting_tables``, ``writing_sql``, ``executing_sql``,
+    ``writing_answer``. The frontend renders these as a Claude-Code-style
+    live tool stream.
+    """
+
     settings = settings or get_settings()
     registry = registry or load_registry()
     llm = llm or _LLM(settings=settings)
 
+    yield {"type": "step", "phase": "selecting_tables", "status": "running"}
     relevant = _select_relevant_tables(question, registry)
+    yield {
+        "type": "step",
+        "phase": "selecting_tables",
+        "status": "done",
+        "detail": [info.model for info in relevant],
+    }
+
     reuse = direct_reuse_entry(question, registry)
     if reuse is not None:
+        yield {
+            "type": "step",
+            "phase": "memory_reuse",
+            "status": "done",
+            "detail": reuse.id,
+        }
         guarded = guard_sql(
             reuse.sql,
             allowlist=registry.allowlist(),
             default_limit=settings.sql_row_limit,
         )
-        return _answer_from_guarded_sql(
-            question=question,
-            guarded_sql=guarded.sql,
-            tables_used=list(guarded.tables_used),
-            relevant=relevant,
-            settings=settings,
-            llm=llm,
-            from_memory=True,
-            response_id=reuse.id,
-        )
+        yield {"type": "step", "phase": "executing_sql", "status": "running"}
+        try:
+            response = _answer_from_guarded_sql(
+                question=question,
+                guarded_sql=guarded.sql,
+                tables_used=list(guarded.tables_used),
+                relevant=relevant,
+                settings=settings,
+                llm=llm,
+                from_memory=True,
+                response_id=reuse.id,
+            )
+            yield {"type": "step", "phase": "executing_sql", "status": "done"}
+        except Exception as exc:
+            yield {
+                "type": "step",
+                "phase": "executing_sql",
+                "status": "error",
+                "error": str(exc),
+            }
+            raise
+        yield {"type": "final", "response": response}
+        return
 
     examples = _query_examples_block(question, registry)
     rejected = _rejected_examples_block(question, registry)
-    system_prompt = _build_system_prompt(registry, relevant)
-    if examples:
-        system_prompt = f"{system_prompt}\n\n{examples}\n"
-    if rejected:
-        system_prompt = f"{system_prompt}\n\n{rejected}\n"
+
+    def _build_full_prompt(tables: list[TableInfo]) -> str:
+        prompt = _build_system_prompt(registry, tables)
+        if examples:
+            prompt = f"{prompt}\n\n{examples}\n"
+        if rejected:
+            prompt = f"{prompt}\n\n{rejected}\n"
+        return prompt
 
     # Combined retry loop: the LLM is given a chance to fix both sql_guard
     # rejections and Databricks execution errors. The latter handle the common
     # case of hallucinated column names (e.g. `total_kills` when the column is
     # actually `boss_kills`); we feed the database error back so it can correct.
+    # On column-not-found failures we also drop the offending table from the
+    # prompt for the next attempt — otherwise the LLM tends to retry the same
+    # wrong table with cosmetic changes.
     last_error: str | None = None
     last_bad_sql: str | None = None
     last_response_id: str | None = None
     guarded = None
     result = None
+    current_tables = relevant
     for attempt in range(MAX_SQL_ATTEMPTS):
+        system_prompt = _build_full_prompt(current_tables)
         prompt_user = (
             question
             if attempt == 0
@@ -367,10 +476,31 @@ def answer_question(
                 "that appear in the table column lists above."
             )
         )
+        yield {
+            "type": "step",
+            "phase": "writing_sql",
+            "status": "running",
+            "attempt": attempt + 1,
+        }
         raw = llm.call(system_prompt, prompt_user)
         if "CANNOT_ANSWER" in raw.upper():
-            return _cannot_answer(registry)
+            yield {
+                "type": "step",
+                "phase": "writing_sql",
+                "status": "done",
+                "attempt": attempt + 1,
+                "detail": "CANNOT_ANSWER",
+            }
+            yield {"type": "final", "response": _cannot_answer(registry)}
+            return
         sql = _strip_code_fence(raw)
+        yield {
+            "type": "step",
+            "phase": "writing_sql",
+            "status": "done",
+            "attempt": attempt + 1,
+            "detail": sql,
+        }
         try:
             guarded = guard_sql(
                 sql,
@@ -381,52 +511,92 @@ def answer_question(
         except SqlGuardError as exc:
             last_error = f"sql_guard: {exc}"
             last_bad_sql = guarded.sql if guarded else sql
+            tables_used = list(guarded.tables_used) if guarded else None
             last_response_id = record_rejected_query(
                 question,
                 last_bad_sql,
                 error=last_error,
-                tables_used=list(guarded.tables_used) if guarded else None,
+                tables_used=tables_used,
             )
+            current_tables = _shrink_tables(current_tables, tables_used, last_error)
+            yield {
+                "type": "step",
+                "phase": "executing_sql",
+                "status": "error",
+                "attempt": attempt + 1,
+                "error": last_error,
+            }
             continue
+        yield {
+            "type": "step",
+            "phase": "executing_sql",
+            "status": "running",
+            "attempt": attempt + 1,
+        }
         try:
             result = execute_select(guarded.sql, settings=settings)
             last_error = None
+            yield {
+                "type": "step",
+                "phase": "executing_sql",
+                "status": "done",
+                "attempt": attempt + 1,
+                "detail": len(result.rows),
+            }
             break
         except Exception as exc:
             last_error = f"databricks: {exc}"
             last_bad_sql = guarded.sql
+            tables_used = list(guarded.tables_used)
             last_response_id = record_rejected_query(
                 question,
                 guarded.sql,
                 error=last_error,
-                tables_used=list(guarded.tables_used),
+                tables_used=tables_used,
             )
+            current_tables = _shrink_tables(current_tables, tables_used, last_error)
+            yield {
+                "type": "step",
+                "phase": "executing_sql",
+                "status": "error",
+                "attempt": attempt + 1,
+                "error": last_error,
+            }
             continue
     else:
-        return ChatResponse(
-            answer="I could not produce a working query for that question.",
-            sql=guarded.sql if guarded else None,
-            tables_used=list(guarded.tables_used) if guarded else [],
-            error=last_error,
-            caveats=["The model retried but the query still failed."],
-            response_id=last_response_id,
-        )
+        yield {
+            "type": "final",
+            "response": ChatResponse(
+                answer="I could not produce a working query for that question.",
+                sql=guarded.sql if guarded else None,
+                tables_used=list(guarded.tables_used) if guarded else [],
+                error=last_error,
+                caveats=["The model retried but the query still failed."],
+                response_id=last_response_id,
+            ),
+        }
+        return
 
+    yield {"type": "step", "phase": "writing_answer", "status": "running"}
     rows = _rows_as_dicts(result)
     answer_text = _write_answer(question=question, rows=rows, sql=guarded.sql, llm=llm)
     caveats = _collect_caveats(relevant, result.columns)
     response_id = None
     if guarded and not last_error and not getattr(result, "error", None):
         response_id = record_candidate(question, guarded.sql, list(guarded.tables_used))
-    return ChatResponse(
-        answer=answer_text,
-        sql=guarded.sql,
-        tables_used=list(guarded.tables_used),
-        rows=rows,
-        caveats=caveats,
-        response_id=response_id,
-        from_memory=False,
-    )
+    yield {"type": "step", "phase": "writing_answer", "status": "done"}
+    yield {
+        "type": "final",
+        "response": ChatResponse(
+            answer=answer_text,
+            sql=guarded.sql,
+            tables_used=list(guarded.tables_used),
+            rows=rows,
+            caveats=caveats,
+            response_id=response_id,
+            from_memory=False,
+        ),
+    }
 
 
 def _strip_code_fence(text: str) -> str:

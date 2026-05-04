@@ -1,5 +1,19 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { ChatbotConfigError, postChat, postChatFeedback, type ChatResponse } from '../lib/chatbotClient'
+import {
+  ChatbotConfigError,
+  postChatFeedback,
+  streamChat,
+  type ChatResponse,
+  type ChatStreamStep,
+} from '../lib/chatbotClient'
+
+export interface ChatTurnStep {
+  phase: ChatStreamStep['phase']
+  status: ChatStreamStep['status']
+  attempt?: number
+  detail?: unknown
+  error?: string
+}
 
 export interface ChatTurn {
   id: string
@@ -9,6 +23,7 @@ export interface ChatTurn {
   errorMessage?: string
   startedAt: number
   endedAt?: number
+  steps?: ChatTurnStep[]
 }
 
 export interface ChatSession {
@@ -148,13 +163,52 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         updatedAt: startedAt,
         turns: [
           ...session.turns,
-          { id: turnId, question: trimmed, pending: true, startedAt },
+          { id: turnId, question: trimmed, pending: true, startedAt, steps: [] },
         ],
       }
     }))
 
+    const appendStep = (step: ChatTurnStep) => {
+      setSessions(prev => prev.map(session => {
+        if (session.id !== sessionId) return session
+        return {
+          ...session,
+          turns: session.turns.map(turn => {
+            if (turn.id !== turnId) return turn
+            const steps = turn.steps ?? []
+            // If a "running" step for the same phase+attempt exists, replace it
+            // with the terminal status instead of appending — keeps the stream
+            // visually compact.
+            const idx = steps.findIndex(
+              s =>
+                s.phase === step.phase &&
+                s.status === 'running' &&
+                (s.attempt ?? null) === (step.attempt ?? null),
+            )
+            const nextSteps =
+              step.status !== 'running' && idx >= 0
+                ? steps.map((s, i) => (i === idx ? step : s))
+                : [...steps, step]
+            return { ...turn, steps: nextSteps }
+          }),
+        }
+      }))
+    }
+
     try {
-      const response = await postChat(trimmed)
+      const response = await streamChat(trimmed, {
+        onEvent: event => {
+          if (event.type === 'step') {
+            appendStep({
+              phase: event.phase,
+              status: event.status,
+              attempt: event.attempt,
+              detail: event.detail,
+              error: event.error,
+            })
+          }
+        },
+      })
       const endedAt = Date.now()
       setSessions(prev => prev.map(session => {
         if (session.id !== sessionId) return session
