@@ -1776,12 +1776,12 @@ export function WipeAnalysis() {
                   Abilities ranked by how many different players they kill on wipe pulls. Breadth is often a better signal than raw count.
                 </p>
               </CardHeader>
-              <CardBody className="flex h-full flex-col">
+              <CardBody className="flex h-full flex-col pl-2 pr-4 py-4 md:pl-3 md:pr-5 md:py-5">
                 {deathEvents.loading ? (
                   <LoadingState rows={5} />
                 ) : recurringKillers.length > 0 ? (
                   <div className="h-56 md:h-72 2xl:h-80"><ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={recurringKillers} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                    <BarChart data={recurringKillers} layout="vertical" margin={{ top: 4, right: 22, left: 4, bottom: 0 }}>
                       <XAxis
                         type="number"
                         tick={CHART_TICK_STYLE}
@@ -1791,7 +1791,7 @@ export function WipeAnalysis() {
                       <YAxis
                         dataKey="name"
                         type="category"
-                        width={160}
+                        width={136}
                         tick={CHART_TICK_STYLE_LIGHT}
                         axisLine={false}
                         tickLine={false}
@@ -1821,12 +1821,12 @@ export function WipeAnalysis() {
                   Raw death count by ability across all pulls. This is wider than recurring killers and includes kill pulls.
                 </p>
               </CardHeader>
-              <CardBody className="flex h-full flex-col">
+              <CardBody className="flex h-full flex-col pl-2 pr-4 py-4 md:pl-3 md:pr-5 md:py-5">
                 {deathEvents.loading ? (
                   <LoadingState rows={5} />
                 ) : killingBlows.length > 0 ? (
                   <div className="h-56 md:h-72 2xl:h-80"><ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={killingBlows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+                    <BarChart data={killingBlows} layout="vertical" margin={{ top: 4, right: 22, left: 4, bottom: 0 }}>
                       <XAxis
                         type="number"
                         tick={CHART_TICK_STYLE}
@@ -1836,7 +1836,7 @@ export function WipeAnalysis() {
                       <YAxis
                         dataKey="name"
                         type="category"
-                        width={150}
+                        width={132}
                         tick={CHART_TICK_STYLE_LIGHT}
                         axisLine={false}
                         tickLine={false}

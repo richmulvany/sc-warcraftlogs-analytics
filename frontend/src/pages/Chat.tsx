@@ -28,6 +28,7 @@ const SUGGESTIONS = [
   'Who has the highest Mythic+ score trend?',
   'Which players have the best parse percentiles on Mythic?',
   'What are our most common killing blows?',
+  'Who has the strongest attendance this tier?',
 ]
 
 let openedChatThisRuntime = false
