@@ -108,6 +108,25 @@ def test_validate_dataset_size_rejects_bytes_over_limit() -> None:
         )
 
 
+def test_validate_dataset_size_uses_player_death_events_byte_override() -> None:
+    player_death_events_limit = publish_dashboard_assets.DATASET_BYTE_LIMIT_OVERRIDES[
+        "player_death_events"
+    ]
+
+    _validate_dataset_size(
+        "player_death_events",
+        row_count=1,
+        byte_size=player_death_events_limit,
+    )
+
+    with pytest.raises(RuntimeError, match="exceeded byte limit"):
+        _validate_dataset_size(
+            "player_death_events",
+            row_count=1,
+            byte_size=player_death_events_limit + 1,
+        )
+
+
 def test_validate_total_export_size_rejects_total_over_limit() -> None:
     with pytest.raises(RuntimeError, match="Total export exceeded byte limit"):
         _validate_total_export_size(MAX_TOTAL_EXPORT_BYTES + 1)

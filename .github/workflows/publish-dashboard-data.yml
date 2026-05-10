@@ -50,7 +50,7 @@ jobs:
           total_bytes = 0
           default_file_limit = 25 * 1024 * 1024
           file_limit_overrides = {
-              "player_death_events.json": 40 * 1024 * 1024,
+              "player_death_events.json": 45 * 1024 * 1024,
           }
           total_limit = 175 * 1024 * 1024
 
