@@ -63,7 +63,7 @@ MAX_TOTAL_EXPORT_BYTES = int(
 DATASET_BYTE_LIMIT_OVERRIDES = {
     "player_death_events": int(
         os.environ.get(
-            "DASHBOARD_EXPORT_PLAYER_DEATH_EVENTS_MAX_DATASET_BYTES", str(40 * 1024 * 1024)
+            "DASHBOARD_EXPORT_PLAYER_DEATH_EVENTS_MAX_DATASET_BYTES", str(45 * 1024 * 1024)
         )
     )
 }

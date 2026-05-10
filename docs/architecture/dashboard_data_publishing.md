@@ -88,7 +88,7 @@ It:
 2. downloads `dbfs:/Volumes/03_gold/sc_analytics/dashboard_exports/latest`
 3. validates `manifest.json`
 4. prints a file size summary and fails if any single JSON file exceeds 25 MB,
-   except `player_death_events.json`, which follows the publisher's 40 MB
+   except `player_death_events.json`, which follows the publisher's 45 MB
    per-dataset override
 5. fails if the downloaded `latest/` folder exceeds 175 MB
 6. uploads only `latest/*` to Cloudflare R2
@@ -206,7 +206,7 @@ They can be overridden with:
 
 If any dataset or the overall export exceeds the configured limits, the publish fails loudly.
 High-volume event-level datasets may define narrower per-dataset overrides rather than raising
-the global asset limit for every product. `player_death_events` currently defaults to 40 MB
+the global asset limit for every product. `player_death_events` currently defaults to 45 MB
 because it is a row-level event feed used by Wipe Analysis and player detail views.
 
 ## Contract Validation
