@@ -350,12 +350,12 @@ databricks bundle run daily_orchestrator   # full end-to-end run on demand
 ```
 
 The bundle defines five jobs plus the parent orchestrator. The orchestrator
-owns the daily 22:15 (Europe/London) schedule and chains the four stages with
+owns the daily 22:00 (Europe/London) schedule and chains the four stages with
 explicit dependencies.
 
 | Stage | Resource key | Display name | Action |
 |---|---|---|---|
-| 1 | `ingestion_daily`         | `sc-analytics-ingestion-daily-2215`     | WCL / Blizzard / Raider.IO / Sheets ingestion |
+| 1 | `ingestion_daily`         | `sc-analytics-ingestion-daily-2200`     | WCL / Blizzard / Raider.IO / Sheets ingestion |
 | 2 | `sdp_post_ingestion`      | `sc-analytics-sdp-daily-post-ingestion` | DLT pipeline update |
 | 3 | `write_dashboard_assets`  | `sc-analytics-write-post-sdp`           | Write JSON assets to UC Volume |
 | 4 | `publish_post_write`      | `sc-analytics-publish-post-write`       | Dispatch GitHub Actions → Cloudflare R2 |

@@ -99,7 +99,7 @@ targets:
       jobs:
         daily_orchestrator:
           schedule:
-            quartz_cron_expression: "0 15 22 * * ?"
+            quartz_cron_expression: "0 0 22 * * ?"
             timezone_id: Europe/London
             pause_status: UNPAUSED
       pipelines:
@@ -199,10 +199,10 @@ resources:
             notebook_path: ingestion/jobs/migrate_bronze_landing_volumes.py
 
     # ── Stage 1: ingestion ─────────────────────────────────────────────────────
-    # Manually runnable for backfills. The daily 22:15 schedule lives on the
+    # Manually runnable for backfills. The daily 22:00 schedule lives on the
     # orchestrator (sc-analytics-daily-orchestrator), not here.
     ingestion_daily:
-      name: sc-analytics-ingestion-daily-2215
+      name: sc-analytics-ingestion-daily-2200
       tasks:
         - task_key: ingest_wcl
           notebook_task:
@@ -302,8 +302,8 @@ resources:
               poll_seconds: "1200"
 
     # ── Parent orchestrator (the only job with a daily schedule) ──────────────
-    # Cron: 22:15 daily, Europe/London (handles BST/GMT automatically).
-    # Quartz format: "sec min hour day-of-month month day-of-week" → "0 15 22 * * ?".
+    # Cron: 22:00 daily, Europe/London (handles BST/GMT automatically).
+    # Quartz format: "sec min hour day-of-month month day-of-week" → "0 0 22 * * ?".
     daily_orchestrator:
       name: sc-analytics-daily-orchestrator
       tasks:
